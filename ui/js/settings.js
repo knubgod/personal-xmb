@@ -80,6 +80,21 @@ function applyUserSettings() {
 
 }
 
+document.addEventListener(
+    "keydown",
+    event => {
+        if (
+            event.key === "Escape" &&
+            document.getElementById("settings-overlay")
+        ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeSettingsPanel();
+        }
+    },
+    true
+);
+
 function closeSettingsPanel() {
 
     document.getElementById(
