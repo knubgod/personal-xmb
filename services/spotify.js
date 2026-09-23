@@ -286,13 +286,59 @@ const spotifyService={
         if(this.player?.activateElement)await this.player.activateElement();
     },
 
+    async waitForLocalPlayerActive(attempts=12,delay=250){
+        let lastError=null;
+
+        for(let attempt=0;attempt<attempts;attempt++){
+            try{
+                const state=await this.api({
+                    method:"GET",
+                    endpoint:"/me/player"
+                });
+
+                if(
+                    state?.device?.id===this.playerDeviceId &&
+                    state.device.is_active
+                ){
+                    return true;
+                }
+            }catch(error){
+                lastError=error;
+            }
+
+            if(attempt<attempts-1){
+                await new Promise(resolve=>setTimeout(resolve,delay));
+            }
+        }
+
+        if(lastError){
+            throw new Error(
+                "Spotify did not make the Personal XMB player active: "+
+                lastError.message
+            );
+        }
+
+        throw new Error(
+            "Spotify did not make the Personal XMB player active in time."
+        );
+    },
+
     async transferToLocalPlayer(){
         await this.ensureLocalPlayer();
+
         await this.api({
             method:"PUT",
             endpoint:"/me/player",
             body:{device_ids:[this.playerDeviceId],play:false}
         });
+
+        /*
+            Spotify documents that Transfer Playback and other Player
+            endpoints are not guaranteed to execute in order. Wait until
+            Spotify reports that our Web Playback SDK device is actually
+            active before sending the track/context command.
+        */
+        await this.waitForLocalPlayerActive();
     },
 
     async togglePlayback(){
@@ -625,14 +671,20 @@ const spotifyUi={
 
             if(!uri)return;
 
-            if(row.dataset.type==="playlist"){
-                await spotifyService.playPlaylist(uri);
-            }else if(row.dataset.type==="song"){
+            if(
+                row.dataset.type==="track" ||
+                row.dataset.type==="song" ||
+                row.dataset.type==="episode"
+            ){
                 await spotifyService.playTrack(uri);
-            }else if(row.dataset.type==="artist"){
+            }else if(
+                row.dataset.type==="playlist" ||
+                row.dataset.type==="artist" ||
+                row.dataset.type==="album" ||
+                row.dataset.type==="show" ||
+                row.dataset.type==="podcast"
+            ){
                 await spotifyService.playContext(uri);
-            }else if(row.dataset.type==="podcast"){
-                await spotifyService.playPodcastShow(uri);
             }
 
             this.close();
@@ -1002,12 +1054,18 @@ const spotifyUi={
                         },{once:true});
                     }
 
-                    row.onclick=async()=>{
+                    row.onclick=async event=>{
+                        event.preventDefault();
+                        event.stopPropagation();
+
                         this.selectedIndex=index;
                         this.setRows(rowElements);
 
                         try{
-                            if(item.type==="track" || item.type==="episode"){
+                            if(
+                                item.type==="track" ||
+                                item.type==="episode"
+                            ){
                                 await spotifyService.playTrack(row.dataset.uri);
                             }else{
                                 await spotifyService.playContext(row.dataset.uri);
@@ -1016,7 +1074,10 @@ const spotifyUi={
                             this.close();
                         }catch(error){
                             console.error("Spotify search playback failed:",error);
-                            this.showStatus(error.message||"Unable to start Spotify playback.");
+                            this.showStatus(
+                                error.message||
+                                "Unable to start Spotify playback."
+                            );
                         }
                     };
                 });
