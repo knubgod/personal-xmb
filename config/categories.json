@@ -47,6 +47,48 @@
                 ]
             },
             {
+                "id": "accounts",
+                "name": "Accounts",
+                "type": "setting",
+                "description": "Connect Spotify, Discord, Xbox/Microsoft and Riot accounts.",
+                "status": "Available",
+                "icon": "",
+                "actions": [
+                    {
+                        "name": "Open Accounts",
+                        "action": "accounts"
+                    }
+                ]
+            },
+            {
+                "id": "artwork-settings",
+                "name": "Artwork",
+                "type": "setting",
+                "description": "Manage cached artwork.",
+                "status": "Available",
+                "icon": "",
+                "actions": [
+                    {
+                        "name": "Open Artwork Settings",
+                        "action": "artwork"
+                    }
+                ]
+            },
+            {
+                "id": "system-settings",
+                "name": "System",
+                "type": "setting",
+                "description": "Window and application controls.",
+                "status": "Available",
+                "icon": "",
+                "actions": [
+                    {
+                        "name": "Open System Settings",
+                        "action": "system"
+                    }
+                ]
+            },
+            {
                 "id": "exit-xmb",
                 "name": "Exit Personal XMB",
                 "type": "setting",
@@ -89,33 +131,15 @@
         "theme": "spotify",
         "items": [
             {
-                "id": "spotify-connect",
-                "name": "Spotify",
-                "type": "app",
-                "platform": "Spotify",
-                "description": "Connect Personal XMB to Spotify.",
-                "status": "Available",
-                "icon": "",
-                "launchType": "spotify",
-                "actions": [
-                    {
-                        "name": "Connect Spotify",
-                        "action": "spotify-login"
-                    }
-                ]
-            },
-            {
                 "id": "spotify-now-playing",
                 "name": "Now Playing",
                 "type": "music",
                 "platform": "Spotify",
-                "description": "View and control your currently playing music.",
+                "description": "View current playback.",
                 "status": "Available",
-                "icon": "",
-                "launchType": "spotify",
                 "actions": [
                     {
-                        "name": "Open Now Playing",
+                        "name": "Refresh Now Playing",
                         "action": "spotify-now-playing"
                     }
                 ]
@@ -125,14 +149,54 @@
                 "name": "Recently Played",
                 "type": "music",
                 "platform": "Spotify",
-                "description": "View your recently played music.",
+                "description": "View recently played music.",
                 "status": "Available",
-                "icon": "",
-                "launchType": "spotify",
                 "actions": [
                     {
                         "name": "View Recently Played",
                         "action": "spotify-recent"
+                    }
+                ]
+            },
+            {
+                "id": "spotify-playlists",
+                "name": "Playlists",
+                "type": "music",
+                "platform": "Spotify",
+                "description": "Browse your playlists.",
+                "status": "Available",
+                "actions": [
+                    {
+                        "name": "View Playlists",
+                        "action": "spotify-playlists"
+                    }
+                ]
+            },
+            {
+                "id": "spotify-shuffle",
+                "name": "Shuffle",
+                "type": "setting",
+                "platform": "Spotify",
+                "description": "Toggle shuffle.",
+                "status": "Available",
+                "actions": [
+                    {
+                        "name": "Toggle Shuffle",
+                        "action": "spotify-shuffle"
+                    }
+                ]
+            },
+            {
+                "id": "spotify-repeat",
+                "name": "Repeat",
+                "type": "setting",
+                "platform": "Spotify",
+                "description": "Cycle repeat mode.",
+                "status": "Available",
+                "actions": [
+                    {
+                        "name": "Cycle Repeat",
+                        "action": "spotify-repeat"
                     }
                 ]
             }
