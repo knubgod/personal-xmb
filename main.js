@@ -8404,6 +8404,90 @@ async function runDailyArtworkRefresh() {
 
 /*
     ========================================================
+    WIDEVINE / EME DIAGNOSTICS
+    ========================================================
+
+    This is intentionally diagnostic-only. It reports the
+    local Castlabs/Electron Widevine environment without
+    exposing Spotify tokens, credentials, or account data.
+*/
+
+function registerWidevineDiagnostics() {
+
+    const diagnosticEvents = [
+        "widevine-ready",
+        "widevine-update-pending",
+        "widevine-error"
+    ];
+
+    for (const eventName of diagnosticEvents) {
+
+        app.on(
+            eventName,
+            (...args) => {
+
+                console.log(
+                    "[Widevine diagnostic] app event: " + eventName,
+                    ...args
+                );
+
+            }
+        );
+
+    }
+
+}
+
+
+function logWidevineDiagnostics() {
+
+    console.log(
+        "[Widevine diagnostic] Electron:",
+        process.versions.electron
+    );
+
+    console.log(
+        "[Widevine diagnostic] Chromium:",
+        process.versions.chrome
+    );
+
+    console.log(
+        "[Widevine diagnostic] Node:",
+        process.versions.node
+    );
+
+    if (!components) {
+
+        console.error(
+            "[Widevine diagnostic] Electron components API is unavailable."
+        );
+
+        return;
+
+    }
+
+    try {
+
+        console.log(
+            "[Widevine diagnostic] components.status():",
+            components.status()
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "[Widevine diagnostic] components.status() failed:",
+            error?.message || error
+        );
+
+    }
+
+}
+
+
+/*
+    ========================================================
     APPLICATION LIFECYCLE
     ========================================================
 */
@@ -8427,13 +8511,20 @@ app.whenReady()
 
             registerArtworkProtocol();
 
+            registerWidevineDiagnostics();
+
             if (components?.whenReady) {
                 try {
                     await components.whenReady();
                     console.log("Widevine components ready.");
+                    logWidevineDiagnostics();
                 } catch (error) {
                     console.error("Widevine component initialization failed:",error);
+                    logWidevineDiagnostics();
                 }
+            }
+            else {
+                logWidevineDiagnostics();
             }
 
             app.on(
