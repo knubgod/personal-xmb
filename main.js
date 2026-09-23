@@ -6995,6 +6995,7 @@ ipcMain.handle(
                 "http://127.0.0.1:53682/callback";
 
             const scopes = [
+                "streaming",
                 "user-read-currently-playing",
                 "user-read-playback-state",
                 "user-read-recently-played",
