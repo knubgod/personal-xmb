@@ -1,0 +1,39 @@
+{
+    "theme": "default",
+    "clock24Hour": false,
+    "boot": {
+        "enabled": true,
+        "duration": 2800,
+        "skipEnabled": true
+    },
+    "input": {
+        "preferred": "auto",
+        "controllerType": "auto"
+    },
+    "preview": {
+        "enabled": true,
+        "hoverDelay": 450,
+        "musicEnabled": true,
+        "musicVolume": 0.35
+    },
+    "thegamesdb": {
+        "apiKey": ""
+    },
+    "spotify": {
+        "clientId": "",
+        "accessToken": "",
+        "refreshToken": "",
+        "expiresAt": 0
+    },
+    "integrations": {
+        "discord": {
+            "clientId": ""
+        },
+        "microsoft": {
+            "clientId": ""
+        },
+        "riot": {
+            "clientId": ""
+        }
+    }
+}
