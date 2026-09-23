@@ -121,7 +121,7 @@ function openSettingsPanel() {
 
     overlay.id = "settings-overlay";
 
-    overlay.innerHTML = \`
+    overlay.innerHTML = `
         <div class="settings-panel">
             <div class="settings-header">
                 <div>
@@ -138,17 +138,17 @@ function openSettingsPanel() {
 
                     <label>
                         <span>Show Clock</span>
-                        <input id="setting-clock" type="checkbox" \${settings.clock ? "checked" : ""}>
+                        <input id="setting-clock" type="checkbox" ${settings.clock ? "checked" : ""}>
                     </label>
 
                     <label>
                         <span>Navigation Hints</span>
-                        <input id="setting-hints" type="checkbox" \${settings.hints ? "checked" : ""}>
+                        <input id="setting-hints" type="checkbox" ${settings.hints ? "checked" : ""}>
                     </label>
 
                     <label>
                         <span>Animations</span>
-                        <input id="setting-animations" type="checkbox" \${settings.animations ? "checked" : ""}>
+                        <input id="setting-animations" type="checkbox" ${settings.animations ? "checked" : ""}>
                     </label>
                 </section>
 
@@ -157,12 +157,12 @@ function openSettingsPanel() {
 
                     <label>
                         <span>Sound Effects</span>
-                        <input id="setting-sound" type="checkbox" \${settings.sound ? "checked" : ""}>
+                        <input id="setting-sound" type="checkbox" ${settings.sound ? "checked" : ""}>
                     </label>
 
                     <label class="range-row">
                         <span>Volume</span>
-                        <input id="setting-volume" type="range" min="0" max="0.15" step="0.005" value="\${settings.soundVolume}">
+                        <input id="setting-volume" type="range" min="0" max="0.15" step="0.005" value="${settings.soundVolume}">
                     </label>
                 </section>
 
@@ -201,7 +201,7 @@ function openSettingsPanel() {
                 Changes save automatically.
             </div>
         </div>
-    \`;
+    `;
 
     document.body.appendChild(overlay);
 
