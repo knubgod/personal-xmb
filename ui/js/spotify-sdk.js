@@ -1,0 +1,1 @@
+window.onSpotifyWebPlaybackSDKReady=()=>{window.spotifyService?.initializeWebPlayback?.()};
