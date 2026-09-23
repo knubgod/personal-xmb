@@ -69,14 +69,21 @@ const spotifyService={
             }
 
             const item=data.item;
+            const isEpisode=item.type==="episode";
 
             this.currentTrack={
                 id:item.id,
                 uri:item.uri||"",
-                name:item.name||"Unknown Track",
-                artist:item.artists?.map(a=>a.name).join(", ")||"Unknown Artist",
-                album:item.album?.name||"Unknown Album",
-                artwork:item.album?.images?.[0]?.url||"",
+                name:item.name||"Unknown",
+                artist:isEpisode
+                    ? item.show?.name||"Podcast"
+                    : item.artists?.map(a=>a.name).join(", ")||"Unknown Artist",
+                album:isEpisode
+                    ? item.show?.name||"Podcast"
+                    : item.album?.name||"Unknown Album",
+                artwork:isEpisode
+                    ? item.images?.[0]?.url||""
+                    : item.album?.images?.[0]?.url||"",
                 duration:item.duration_ms||0,
                 progress:data.progress_ms||0,
                 isPlaying:!!data.is_playing,
@@ -92,85 +99,28 @@ const spotifyService={
 
     renderPlayer(){
         const track=this.currentTrack;
-
         if(typeof window.updateSpotifyPlayer==="function"){
             window.updateSpotifyPlayer(track);
             return;
         }
-
-        const title=document.getElementById("media-title");
-        const artist=document.getElementById("media-artist");
-        const artwork=document.getElementById("media-artwork-image");
-        const current=document.getElementById("media-current");
-        const duration=document.getElementById("media-duration");
-        const fill=document.getElementById("media-progress-fill");
-        const play=document.getElementById("media-play");
-
-        if(!track){
-            if(title)title.textContent="Nothing playing";
-            if(artist)artist.textContent="No active media";
-            if(artwork){
-                artwork.removeAttribute("src");
-                artwork.classList.remove("visible");
-            }
-            if(current)current.textContent="0:00";
-            if(duration)duration.textContent="0:00";
-            if(fill)fill.className="progress-0";
-            if(play)play.textContent="▶";
-            return;
-        }
-
-        if(title)title.textContent=track.name;
-        if(artist)artist.textContent=track.artist;
-        if(artwork){
-            artwork.src=track.artwork||"";
-            artwork.classList.toggle("visible",Boolean(track.artwork));
-        }
-        if(current)current.textContent=formatTime(track.progress);
-        if(duration)duration.textContent=formatTime(track.duration);
-        if(fill){
-            const percent=track.duration?Math.round((track.progress/track.duration)*100/5)*5:0;
-            fill.className="progress-"+Math.max(0,Math.min(100,percent));
-        }
-        if(play){
-            play.textContent=track.isPlaying?"❚❚":"▶";
-            play.setAttribute("aria-label",track.isPlaying?"Pause":"Play");
-        }
     },
 
     async openDj(){
-        /*
-            Spotify does not expose a public Web API endpoint for
-            starting the consumer DJ feature. We therefore use
-            Spotify's desktop deep-link search route and fall back
-            to the official web search page if the desktop client
-            cannot handle it.
-        */
         try{
-            const desktopResult=await window.electron?.openExternal?.("spotify:search:DJ");
+            const result=await window.electron?.openExternal?.("spotify:search:DJ");
+            if(result)return {success:true};
+        }catch(error){
+            console.warn("Spotify desktop DJ URI failed:",error.message);
+        }
 
-            if(desktopResult){
-                return {success:true};
-            }
-
-            const webResult=await window.electron?.openExternal?.("https://open.spotify.com/search/DJ");
+        try{
+            const result=await window.electron?.openExternal?.("https://open.spotify.com/search/DJ");
             return {
-                success:!!webResult,
-                error:webResult?"":"Unable to open Spotify DJ."
+                success:!!result,
+                error:result?"":"Unable to open Spotify DJ."
             };
         }catch(error){
-            try{
-                const webResult=await window.electron?.openExternal?.("https://open.spotify.com/search/DJ");
-                return {
-                    success:!!webResult,
-                    error:webResult?"":error.message
-                };
-            }catch(fallbackError){
-                return {
-                    success:false,
-                    error:fallbackError.message||error.message
-                };
-            }
+            return {success:false,error:error.message};
         }
     },
 
@@ -229,7 +179,6 @@ const spotifyService={
     async cycleRepeat(){
         const modes=["off","context","track"];
         const next=modes[(modes.indexOf(this.repeat)+1)%modes.length];
-
         try{
             await this.api({
                 method:"PUT",
@@ -245,10 +194,8 @@ const spotifyService={
     updateModes(){
         const shuffle=document.getElementById("media-shuffle");
         const repeat=document.getElementById("media-repeat");
-
         shuffle?.classList.toggle("active",this.shuffle);
         repeat?.classList.toggle("active",this.repeat!=="off");
-
         repeat?.setAttribute(
             "aria-label",
             this.repeat==="track"?"Repeat track":
@@ -257,17 +204,17 @@ const spotifyService={
         );
     },
 
-    async recentlyPlayed(limit=20){
+    async recentlyPlayed(limit=50){
         return this.api({
             method:"GET",
-            endpoint:"/me/player/recently-played?limit="+Math.min(50,limit)
+            endpoint:"/me/player/recently-played?limit="+Math.min(50,Math.max(1,limit))
         });
     },
 
     async playlists(limit=20){
         return this.api({
             method:"GET",
-            endpoint:"/me/playlists?limit="+Math.min(50,limit)
+            endpoint:"/me/playlists?limit="+Math.min(50,Math.max(1,limit))
         });
     },
 
@@ -308,6 +255,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 
     window.electron?.onSpotifyAuthComplete?.(async()=>{
         spotifyService.initialized=false;
+        spotifyService.stopPolling();
         await spotifyService.initialize();
     });
 });
@@ -377,6 +325,7 @@ const spotifyUi={
 
     ensure(){
         if(this.overlay)return this.overlay;
+
         const overlay=document.createElement("div");
         overlay.id="spotify-library-overlay";
         overlay.innerHTML=
@@ -385,23 +334,27 @@ const spotifyUi={
                     '<div><div class="spotify-library-kicker">SPOTIFY</div><h2 id="spotify-library-title"></h2></div>'+
                     '<button id="spotify-library-close" type="button" aria-label="Close">ESC</button>'+
                 '</div>'+
-                '<div class="spotify-library-filters" role="tablist" aria-label="Spotify library filters">'+
+                '<div class="spotify-library-filters" role="tablist" aria-label="Spotify recently played filters">'+
                     this.filters.map((filter,index)=>
                         '<button class="spotify-library-filter" type="button" data-filter-index="'+index+'" role="tab" aria-selected="'+(index===0?"true":"false")+'">'+filter.name+'</button>'
                     ).join("")+
                 '</div>'+
                 '<div id="spotify-library-content" tabindex="0"></div>'+
             '</div>';
+
         document.body.appendChild(overlay);
         this.overlay=overlay;
 
         overlay.querySelector("#spotify-library-close").onclick=()=>this.close();
+
         overlay.querySelectorAll(".spotify-library-filter").forEach((button,index)=>{
             button.onclick=()=>this.selectFilter(index);
         });
+
         overlay.addEventListener("click",event=>{
             if(event.target===overlay)this.close();
         });
+
         return overlay;
     },
 
@@ -411,7 +364,7 @@ const spotifyUi={
         this.rows=[];
         this.selectedIndex=0;
         this.selectedFilter=0;
-        this.overlay.querySelector(".spotify-library-filters").style.display="flex";
+        this.updateFilterVisuals();
     },
 
     isOpen(){
@@ -461,30 +414,61 @@ const spotifyUi={
     async select(){
         const row=this.rows[this.selectedIndex];
         if(!row)return;
+
         const action=row.dataset.action||"";
         const uri=row.dataset.uri||"";
+
         try{
             if(action==="dj"){
                 const result=await spotifyService.openDj();
-                if(result?.success===false)throw new Error(result.error||"Unable to open Spotify DJ.");
+                if(result?.success===false){
+                    throw new Error(result.error||"Unable to open Spotify DJ.");
+                }
                 this.close();
                 return;
             }
+
             if(!uri)return;
-            if(row.dataset.type==="playlist")await spotifyService.playPlaylist(uri);
-            else await spotifyService.playTrack(uri);
+
+            if(row.dataset.type==="playlist"){
+                await spotifyService.playPlaylist(uri);
+            }else if(row.dataset.type==="song"){
+                await spotifyService.playTrack(uri);
+            }else{
+                /*
+                    Artist and podcast rows are informational/launch rows.
+                    Opening their Spotify URI lets the installed Spotify
+                    client handle the service-specific page.
+                */
+                const opened=await window.electron?.openExternal?.(uri);
+                if(!opened)throw new Error("Unable to open Spotify.");
+            }
+
             this.close();
         }catch(error){
-            const status=this.overlay?.querySelector("#spotify-library-status");
-            if(status)status.textContent=error.message;
+            this.showStatus(error.message);
         }
+    },
+
+    showStatus(message){
+        const content=this.overlay?.querySelector("#spotify-library-content");
+        if(!content)return;
+        let status=content.querySelector("#spotify-library-status");
+        if(!status){
+            status=document.createElement("div");
+            status.id="spotify-library-status";
+            content.prepend(status);
+        }
+        status.textContent=message;
     },
 
     async loadRecentActivity(){
         if(this.recentCache)return this.recentCache;
+
         this.recentCache=(async()=>{
             const data=await spotifyService.recentlyPlayed(50);
             const sourceItems=data?.items||[];
+
             const songs=sourceItems.map(item=>({
                 type:"song",
                 name:item.track?.name||"Unknown Song",
@@ -496,75 +480,144 @@ const spotifyUi={
             }));
 
             const artistMap=new Map();
+            const playlistMap=new Map();
+            const podcastMap=new Map();
+
             for(const item of sourceItems){
-                for(const artist of item.track?.artists||[]){
+                const playedAt=item.played_at||"";
+                const track=item.track;
+                const context=item.context;
+
+                for(const artist of track?.artists||[]){
                     if(!artist?.id)continue;
                     const existing=artistMap.get(artist.id);
-                    if(!existing||String(item.played_at)>String(existing.playedAt)){
+                    if(!existing||String(playedAt)>String(existing.playedAt)){
                         artistMap.set(artist.id,{
                             type:"artist",
                             name:artist.name||"Unknown Artist",
                             subtitle:"Artist",
                             image:"",
                             uri:artist.uri||"",
-                            playedAt:item.played_at||"",
+                            playedAt,
+                            source:"derived"
+                        });
+                    }
+                }
+
+                if(context?.type==="playlist"&&context.uri){
+                    const id=context.uri.split(":").pop();
+                    if(id&&!playlistMap.has(id)){
+                        playlistMap.set(id,{
+                            type:"playlist",
+                            name:"Playlist",
+                            subtitle:"Playlist",
+                            image:"",
+                            uri:context.uri,
+                            playedAt,
+                            source:"derived"
+                        });
+                    }
+                }
+
+                if(context?.type==="show"&&context.uri){
+                    const id=context.uri.split(":").pop();
+                    if(id&&!podcastMap.has(id)){
+                        podcastMap.set(id,{
+                            type:"podcast",
+                            name:"Podcast",
+                            subtitle:"Podcast show",
+                            image:"",
+                            uri:context.uri,
+                            playedAt,
                             source:"derived"
                         });
                     }
                 }
             }
 
-            const playlistMap=new Map();
-            for(const item of sourceItems){
-                const context=item.context;
-                if(context?.type!=="playlist"||!context.uri)continue;
-                const id=context.uri.split(":").pop();
-                if(!id||playlistMap.has(id))continue;
-                playlistMap.set(id,{
-                    type:"playlist",
-                    name:"Loading playlist...",
-                    subtitle:"Playlist",
-                    image:"",
-                    uri:context.uri,
-                    playedAt:item.played_at||"",
-                    source:"derived"
-                });
-            }
+            const enrichMap=async(map,type)=>{
+                await Promise.all([...map.values()].map(async item=>{
+                    try{
+                        const id=item.uri.split(":").pop();
+                        const endpoint=type==="playlist"
+                            ?"/playlists/"+encodeURIComponent(id)
+                            :type==="podcast"
+                                ?"/shows/"+encodeURIComponent(id)
+                                :"/artists/"+encodeURIComponent(id);
 
-            await Promise.all([...playlistMap.values()].map(async playlist=>{
-                try{
-                    const id=playlist.uri.split(":").pop();
-                    const result=await spotifyService.api({
-                        method:"GET",
-                        endpoint:"/playlists/"+encodeURIComponent(id)
-                    });
-                    playlist.name=result?.name||"Untitled Playlist";
-                    playlist.image=result?.images?.[2]?.url||result?.images?.[0]?.url||"";
-                }catch(error){
-                    playlist.name="Playlist";
-                }
-            }));
+                        const result=await spotifyService.api({
+                            method:"GET",
+                            endpoint
+                        });
+
+                        item.name=result?.name||item.name;
+                        item.image=
+                            result?.images?.[2]?.url||
+                            result?.images?.[0]?.url||
+                            result?.images?.[0]?.url||
+                            "";
+
+                        if(type==="artist"){
+                            item.subtitle="Artist";
+                        }else if(type==="podcast"){
+                            item.subtitle="Podcast show";
+                        }
+                    }catch(error){
+                        /* Keep the derived item usable if enrichment fails. */
+                    }
+                }));
+            };
+
+            await Promise.all([
+                enrichMap(artistMap,"artist"),
+                enrichMap(playlistMap,"playlist"),
+                enrichMap(podcastMap,"podcast")
+            ]);
 
             const artists=[...artistMap.values()];
             const playlists=[...playlistMap.values()];
-            const sorted=(items)=>items.sort((a,b)=>String(b.playedAt).localeCompare(String(a.playedAt)));
+            const podcasts=[...podcastMap.values()];
+            const dj={
+                type:"dj",
+                name:"Spotify DJ",
+                subtitle:"Open Spotify DJ",
+                image:"",
+                uri:"",
+                action:"dj",
+                playedAt:new Date().toISOString(),
+                source:"special"
+            };
+
+            const sorted=items=>items.sort((a,b)=>
+                String(b.playedAt).localeCompare(String(a.playedAt))
+            );
 
             return {
-                all:sorted([...songs,...artists,...playlists]),
+                all:sorted([...songs,...artists,...playlists,...podcasts,dj]),
                 songs:sorted(songs),
                 artists:sorted(artists),
                 playlists:sorted(playlists),
-                podcasts:[],
-                dj:[{type:"dj",name:"Spotify DJ",subtitle:"Open Spotify DJ",image:"",uri:"",action:"dj",playedAt:"",source:"special"}]
+                podcasts:sorted(podcasts),
+                dj:[dj]
             };
         })();
 
-        try{return await this.recentCache;}
-        catch(error){this.recentCache=null;throw error;}
+        try{
+            return await this.recentCache;
+        }catch(error){
+            this.recentCache=null;
+            throw error;
+        }
     },
 
     getRowIcon(type){
-        const icons={song:"♫",artist:"♪",playlist:"▤",dj:"✦"};
+        const icons={
+            song:"♫",
+            artist:"♪",
+            playlist:"▤",
+            podcast:"◉",
+            dj:"✦"
+        };
         return icons[type]||"•";
     },
 
@@ -572,35 +625,61 @@ const spotifyUi={
         const overlay=this.ensure();
         const content=overlay.querySelector("#spotify-library-content");
         const filter=this.filters[this.selectedFilter];
+
         overlay.querySelector("#spotify-library-title").textContent="Recently Played";
-        overlay.querySelector(".spotify-library-filters").style.display="flex";
         overlay.classList.add("visible");
+        this.updateFilterVisuals();
+
         content.innerHTML='<div id="spotify-library-status">Loading...</div>';
+
         try{
             const activity=await this.loadRecentActivity();
-            let items=activity[filter.id]||[];
+            const items=activity[filter.id]||[];
 
-            if(filter.id==="podcasts"){
-                content.innerHTML='<div class="spotify-library-empty"><strong>Podcast listening history is not exposed by Spotify\'s recently-played API.</strong><span>Spotify currently exposes recently played tracks here, so podcast history cannot be populated reliably.</span></div>';
+            if(!items.length){
+                content.innerHTML=
+                    '<div class="spotify-library-empty">'+
+                        '<strong>No '+filter.name.toLowerCase()+' found in recent activity.</strong>'+
+                        '<span>Spotify only exposes recent track history through this endpoint. Podcast entries are derived from recent track contexts when available.</span>'+
+                    '</div>';
                 this.rows=[];
                 return;
             }
 
-            content.innerHTML=items.length?items.map((item,index)=>
-                '<button class="spotify-library-row" type="button" data-uri="'+(item.uri||"")+'" data-type="'+(item.type||"")+'" data-action="'+(item.action||"")+'" data-index="'+index+'">'+
-                    (item.image?'<img src="'+item.image+'" alt="">':'<span class="spotify-library-row-icon" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
+            content.innerHTML=items.map((item,index)=>
+                '<button class="spotify-library-row" type="button" data-uri="'+
+                    (item.uri||"")+
+                    '" data-type="'+
+                    (item.type||"")+
+                    '" data-action="'+
+                    (item.action||"")+
+                    '" data-index="'+
+                    index+
+                '">'+
+                    (item.image
+                        ?'<img src="'+item.image+'" alt="" loading="lazy">'
+                        :'<span class="spotify-library-row-icon '+(item.type||"")+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
                     '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+
                 '</button>'
-            ).join(""):'<div id="spotify-library-status">No recent items found.</div>';
+            ).join("");
+
+            const rows=[...content.querySelectorAll(".spotify-library-row")];
 
             items.forEach((item,index)=>{
-                const row=content.querySelectorAll(".spotify-library-row")[index];
+                const row=rows[index];
                 if(!row)return;
+
                 row.querySelector("strong").textContent=item.name||"Unknown";
                 row.querySelector(".spotify-library-row-text > span").textContent=item.subtitle||"";
-                row.onclick=()=>{this.selectedIndex=index;this.setRows([...content.querySelectorAll(".spotify-library-row")]);this.select();};
+
+                row.onclick=()=>{
+                    this.selectedIndex=index;
+                    this.setRows(rows);
+                    this.select();
+                };
             });
-            this.setRows([...content.querySelectorAll(".spotify-library-row")]);
+
+            this.setRows(rows);
         }catch(error){
             content.innerHTML='<div id="spotify-library-status"></div>';
             content.querySelector("#spotify-library-status").textContent=error.message;
@@ -612,49 +691,66 @@ const spotifyUi={
         this.selectedFilter=0;
         this.recentCache=null;
         this.ensure();
-        this.updateFilterVisuals();
         await this.renderRecentFilter();
     },
 
     async showPlaylists(){
         const overlay=this.ensure();
         const content=overlay.querySelector("#spotify-library-content");
+
         overlay.querySelector("#spotify-library-title").textContent="Playlists";
-        overlay.querySelector(".spotify-library-filters").style.display="none";
         overlay.classList.add("visible");
+        overlay.querySelector(".spotify-library-filters").style.display="none";
         content.innerHTML='<div id="spotify-library-status">Loading...</div>';
+
         try{
             const data=await spotifyService.playlists(20);
             const items=data?.items||[];
-            content.innerHTML=items.length?items.map((item,index)=>{
-                const image=item?.images?.[2]?.url||item?.images?.[0]?.url||"";
-                return '<button class="spotify-playlist-row" type="button" data-uri="'+(item?.uri||"")+'" data-index="'+index+'">'+
-                    (image?'<img src="'+image+'" alt="">':'<span class="spotify-library-row-icon" aria-hidden="true">▤</span>')+
-                    '<span></span></button>';
-            }).join(""):'<div id="spotify-library-status">No playlists found.</div>';
+
+            content.innerHTML=items.length
+                ?items.map((item,index)=>{
+                    const image=item?.images?.[2]?.url||item?.images?.[0]?.url||"";
+                    return '<button class="spotify-playlist-row" type="button" data-uri="'+
+                        (item?.uri||"")+
+                        '" data-index="'+index+'">'+
+                        (image
+                            ?'<img src="'+image+'" alt="" loading="lazy">'
+                            :'<span class="spotify-library-row-icon playlist" aria-hidden="true">▤</span>')+
+                        '<span></span>'+
+                    '</button>';
+                }).join("")
+                :'<div id="spotify-library-status">No playlists found.</div>';
+
+            const rows=[...content.querySelectorAll(".spotify-playlist-row")];
+
             items.forEach((item,index)=>{
-                const row=content.querySelectorAll(".spotify-playlist-row")[index];
+                const row=rows[index];
                 if(!row)return;
+
                 row.querySelector("span").textContent=item.name||"Untitled Playlist";
+
                 row.onclick=async()=>{
                     this.selectedIndex=index;
-                    this.setRows([...content.querySelectorAll(".spotify-playlist-row")]);
-                    try{await spotifyService.playPlaylist(row.dataset.uri);this.close();}
-                    catch(error){
-                        const status=content.querySelector("#spotify-library-status")||document.createElement("div");
-                        status.id="spotify-library-status";
-                        status.textContent=error.message;
-                        content.appendChild(status);
+                    this.setRows(rows);
+
+                    try{
+                        await spotifyService.playPlaylist(row.dataset.uri);
+                        this.close();
+                    }catch(error){
+                        this.showStatus(error.message);
                     }
                 };
             });
-            this.setRows([...content.querySelectorAll(".spotify-playlist-row")]);
+
+            this.setRows(rows);
         }catch(error){
             content.innerHTML='<div id="spotify-library-status"></div>';
             content.querySelector("#spotify-library-status").textContent=error.message;
+            this.rows=[];
         }
     }
 };
+
 document.addEventListener("keydown",event=>{
     if(!spotifyUi.isOpen())return;
 
