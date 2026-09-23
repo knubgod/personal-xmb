@@ -383,7 +383,7 @@ function registerArtworkProtocol() {
                 const relativePath =
                     decodeURIComponent(
                         requestUrl.pathname.replace(
-                            /^//,
+                            /^\//,
                             ""
                         )
                     );
@@ -6387,47 +6387,14 @@ ipcMain.handle(
             }
 
 
-            if (
-                item.launchType ===
-                "command"
-            ) {
+            /*
+                Arbitrary shell commands are intentionally not supported.
 
-                if (
-                    !item.command
-                ) {
-
-                    throw new Error(
-                        "Command is missing."
-                    );
-                }
-
-
-                spawn(
-
-                    item.command,
-
-                    {
-
-                        shell:
-                            true,
-
-                        detached:
-                            true,
-
-                        stdio:
-                            "ignore"
-                    }
-
-                ).unref();
-
-
-                return {
-
-                    success:
-                        true
-                };
-            }
-
+                Renderer-supplied command strings combined with shell:true
+                would turn the launcher IPC endpoint into a command-injection
+                primitive. If custom commands are added later, they must be
+                resolved from a trusted, main-process allowlist instead.
+            */
 
             throw new Error(
                 "Unknown launch type."
