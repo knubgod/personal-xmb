@@ -1601,6 +1601,58 @@ function applySteamArtworkToItem(
     ========================================================
 */
 
+function getBuiltInItemIcon(
+    item
+) {
+
+    if (
+        !item ||
+        !item.id
+    ) {
+
+        return "";
+
+    }
+
+    const icons = {
+
+        "general-settings":
+            '<path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.2 1.4 1.1-1.8 3.1-1.7-.7a7.5 7.5 0 0 1-1.6.9l-.3 1.8h-3.6l-.3-1.8a7.5 7.5 0 0 1-1.6-.9l-1.7.7-1.8-3.1 1.4-1.1a7.5 7.5 0 0 1 0-1.8L6.4 10.3l1.8-3.1 1.7.7a7.5 7.5 0 0 1 1.6-.9l.3-1.8h3.6l.3 1.8a7.5 7.5 0 0 1 1.6.9l1.7-.7 1.8 3.1-1.4 1.1a7.5 7.5 0 0 1 0 1.8Z"/>',
+
+        "themes":
+            '<path d="M12 4a8 8 0 1 0 7.8 9.8c.2-1.1-.7-2-1.8-2h-2.2a2 2 0 0 1-2-2V8a4 4 0 0 0-4-4Z"/><circle cx="8" cy="9" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="8" r="1"/>',
+
+        "audio-settings":
+            '<path d="M5 10v4h3l4 3V7l-4 3H5Z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M17.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+
+        "exit-xmb":
+            '<path d="M10 5H5v14h5"/><path d="M13 8l4 4-4 4"/><path d="M9 12h8"/>'
+
+    };
+
+    const paths =
+        icons[item.id];
+
+    if (
+        !paths
+    ) {
+
+        return "";
+
+    }
+
+    return (
+        "data:image/svg+xml;charset=utf-8," +
+        encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+            paths +
+            "</svg>"
+        )
+    );
+
+}
+
+
 function getItemListIcon(
     item
 ) {
@@ -1628,9 +1680,15 @@ function getItemListIcon(
         item.artworkMetadata ||
         {};
 
+    const builtInIcon =
+        getBuiltInItemIcon(
+            item
+        );
+
     return (
         metadataArtwork.icon ||
         cachedArtwork.icon ||
+        builtInIcon ||
         metadataArtwork.logo ||
         cachedArtwork.logo ||
         metadataArtwork.cover ||
