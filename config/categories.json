@@ -127,7 +127,7 @@
     },
     "Spotify": {
         "icon": "",
-        "description": "Control Spotify and view your recent music.",
+        "description": "Control Spotify, browse your music, and start DJ.",
         "theme": "spotify",
         "items": [
             {
@@ -135,8 +135,9 @@
                 "name": "Now Playing",
                 "type": "music",
                 "platform": "Spotify",
-                "description": "View current playback.",
+                "description": "View and refresh current Spotify playback.",
                 "status": "Available",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Refresh Now Playing",
@@ -149,8 +150,9 @@
                 "name": "Recently Played",
                 "type": "music",
                 "platform": "Spotify",
-                "description": "View recently played music.",
+                "description": "Browse and play recently played tracks.",
                 "status": "Available",
+                "icon": "",
                 "actions": [
                     {
                         "name": "View Recently Played",
@@ -163,8 +165,9 @@
                 "name": "Playlists",
                 "type": "music",
                 "platform": "Spotify",
-                "description": "Browse your playlists.",
+                "description": "Browse and play your Spotify playlists.",
                 "status": "Available",
+                "icon": "",
                 "actions": [
                     {
                         "name": "View Playlists",
@@ -173,30 +176,17 @@
                 ]
             },
             {
-                "id": "spotify-shuffle",
-                "name": "Shuffle",
-                "type": "setting",
+                "id": "spotify-dj",
+                "name": "DJ",
+                "type": "music",
                 "platform": "Spotify",
-                "description": "Toggle shuffle.",
+                "description": "Open Spotify DJ and start a personalized listening session.",
                 "status": "Available",
+                "icon": "",
                 "actions": [
                     {
-                        "name": "Toggle Shuffle",
-                        "action": "spotify-shuffle"
-                    }
-                ]
-            },
-            {
-                "id": "spotify-repeat",
-                "name": "Repeat",
-                "type": "setting",
-                "platform": "Spotify",
-                "description": "Cycle repeat mode.",
-                "status": "Available",
-                "actions": [
-                    {
-                        "name": "Cycle Repeat",
-                        "action": "spotify-repeat"
+                        "name": "Start DJ",
+                        "action": "spotify-dj"
                     }
                 ]
             }
