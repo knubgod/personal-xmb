@@ -3187,14 +3187,31 @@ function buildRendererArtworkManifest() {
             value.icon.startsWith("assets/")
         ) {
 
-            localItemIcons[value.id] =
-                pathToFileURL(
-                    path.join(
-                        __dirname,
-                        "ui",
-                        value.icon
-                    )
-                ).href;
+            const localIconPath =
+                path.join(
+                    __dirname,
+                    "ui",
+                    value.icon
+                );
+
+            /*
+                Only expose local artwork that actually exists.
+
+                categories.json can contain an icon reference for
+                an item before the corresponding asset is added.
+                Publishing that path into the renderer manifest
+                causes Chromium to request the missing file every
+                time the item is refreshed.
+            */
+
+            if (fs.existsSync(localIconPath)) {
+
+                localItemIcons[value.id] =
+                    pathToFileURL(
+                        localIconPath
+                    ).href;
+
+            }
 
         }
 
@@ -3262,9 +3279,15 @@ ipcMain.handle(
     "get-artwork-manifest",
     async () => {
 
-        if (startupArtworkPreloadPromise) {
-            await startupArtworkPreloadPromise;
-        }
+        /*
+            Never make the renderer wait for network artwork.
+
+            The startup preload continues in the main process and
+            warms the persistent cache in the background. The
+            renderer gets the cache that exists right now and can
+            resolve a selected item's artwork later without blocking
+            the XMB boot sequence.
+        */
 
         return buildRendererArtworkManifest();
 
