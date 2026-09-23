@@ -5615,7 +5615,9 @@ ipcMain.handle(
 
             if (
                 item.launchType ===
-                "external"
+                    "external" ||
+                item.launchType ===
+                    "url"
             ) {
 
                 if (
