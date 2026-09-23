@@ -3988,6 +3988,17 @@ function updateBackground(
     */
 
     if (
+        failedArtworkSources.has(
+            resolvedSource
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    if (
         loadedBackgroundSources.has(
             resolvedSource
         )
@@ -4108,6 +4119,10 @@ function updateBackground(
 
     preload.onerror =
         () => {
+
+            failedArtworkSources.add(
+                resolvedSource
+            );
 
             if (
                 requestId !==
