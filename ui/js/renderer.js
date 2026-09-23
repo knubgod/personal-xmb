@@ -873,6 +873,37 @@ async function initializeInterface() {
         "function"
     ) {
 
+        if (
+            typeof window.setCategoryArtworkManifest ===
+            "function"
+        ) {
+
+            const categoryManifest =
+                window.electron?.getArtworkManifest
+                    ? await window.electron.getArtworkManifest()
+                    : {};
+
+            window.setCategoryArtworkManifest(
+                categoryNames.reduce(
+                    (
+                        result,
+                        categoryName
+                    ) => {
+
+                        result[categoryName] =
+                            categoryManifest?.__categories?.[categoryName] ||
+                            null;
+
+                        return result;
+
+                    },
+                    {}
+                )
+            );
+
+        }
+
+
         window.renderCategoryBar(
             categoryNames,
             window.xmbNavigation?.getCategory() || 0
