@@ -69,14 +69,14 @@
         "items": [
             {
                 "id": "friends-overview",
-                "name": "Friends Overview",
+                "name": "Friends & Accounts",
                 "type": "social",
-                "description": "A combined view of your friends across supported services.",
-                "status": "Coming Soon",
+                "description": "Connect Discord, Xbox/Microsoft and Riot accounts and manage the unified social surface.",
+                "status": "Available",
                 "icon": "",
                 "actions": [
                     {
-                        "name": "Open Friends",
+                        "name": "Open Friends & Accounts",
                         "action": "friends"
                     }
                 ]
@@ -100,7 +100,7 @@
                 "actions": [
                     {
                         "name": "Connect Spotify",
-                        "action": "spotify-connect"
+                        "action": "spotify-login"
                     }
                 ]
             },
@@ -132,7 +132,7 @@
                 "actions": [
                     {
                         "name": "View Recently Played",
-                        "action": "spotify-recently-played"
+                        "action": "spotify-recent"
                     }
                 ]
             }
