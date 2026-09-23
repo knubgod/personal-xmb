@@ -189,6 +189,22 @@
                         "action": "spotify-dj"
                     }
                 ]
+            },
+            {
+                "id": "spotify-launch-desktop",
+                "name": "Launch Spotify",
+                "type": "app",
+                "platform": "Spotify",
+                "description": "Launch the Spotify desktop application in the background so XMB can control it.",
+                "status": "Available",
+                "icon": "",
+                "launchType": "spotify",
+                "actions": [
+                    {
+                        "name": "Launch Spotify",
+                        "action": "spotify-launch"
+                    }
+                ]
             }
         ]
     },
