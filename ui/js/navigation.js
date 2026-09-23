@@ -253,6 +253,8 @@ function setOptionsPanel(
 
 function enterItemLevel() {
 
+    window.xmbAudio?.select?.();
+
     const items =
         getCurrentItems();
 
@@ -297,6 +299,8 @@ function enterItemLevel() {
 */
 
 function openOptions() {
+
+    window.xmbAudio?.options?.();
 
     /*
         If the options menu is already open,
@@ -475,6 +479,8 @@ function goBack() {
 
 function moveCategory(
     direction
+) {function moveCategory(
+    direction
 ) {
 
     if (
@@ -537,6 +543,12 @@ function moveCategory(
         true
     );
 
+}
+
+
+/*
+    ========================================================
+    MOVE ITEM
 }
 
 
@@ -680,6 +692,8 @@ function selectCategory(
     index
 ) {
 
+    window.xmbAudio?.select?.();
+
     const categories =
         getCategoryNames();
 
@@ -731,6 +745,8 @@ function selectCategory(
 function selectItem(
     index
 ) {
+
+    window.xmbAudio?.select?.();
 
     const items =
         getCurrentItems();
@@ -836,6 +852,8 @@ async function selectCurrentItem() {
 */
 
 async function selectCurrentAction() {
+
+    window.xmbAudio?.select?.();
 
     if (
         navigationLevel !==
@@ -1334,7 +1352,7 @@ document.addEventListener(
                     -1
                 );
 
-                window.xmbAudio?.category?.();
+                window.xmbAudio?.backward?.();
 
                 return;
 
@@ -1352,7 +1370,7 @@ document.addEventListener(
                     1
                 );
 
-                window.xmbAudio?.category?.();
+                window.xmbAudio?.forward?.();
 
                 return;
 
@@ -1418,7 +1436,7 @@ document.addEventListener(
                     -1
                 );
 
-                window.xmbAudio?.navigation?.();
+                window.xmbAudio?.backward?.();
 
                 return;
 
@@ -1436,7 +1454,7 @@ document.addEventListener(
                     1
                 );
 
-                window.xmbAudio?.navigation?.();
+                window.xmbAudio?.forward?.();
 
                 return;
 
@@ -1538,7 +1556,7 @@ document.addEventListener(
                     -1
                 );
 
-                window.xmbAudio?.navigation?.();
+                window.xmbAudio?.backward?.();
 
                 return;
 
@@ -1556,7 +1574,7 @@ document.addEventListener(
                     1
                 );
 
-                window.xmbAudio?.navigation?.();
+                window.xmbAudio?.forward?.();
 
                 return;
 
