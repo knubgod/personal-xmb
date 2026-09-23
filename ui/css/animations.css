@@ -1284,3 +1284,524 @@
     }
 
 }
+
+
+/*
+    ========================================================
+    STARTUP SEQUENCE
+    ========================================================
+
+    Personal XMB startup deliberately takes its time.
+
+    The sequence combines:
+
+        PS3-style bloom
+        PS2-style side movement
+        soft focus
+        long fade
+        restrained final fade
+
+    Total visual sequence:
+        approximately 6.8 seconds
+*/
+
+#xmb-startup {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 1000;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    overflow: hidden;
+
+    pointer-events: none;
+
+    background:
+
+        radial-gradient(
+
+            circle at 50% 50%,
+
+            rgba(
+                255,
+                255,
+                255,
+                0.055
+            ),
+
+            rgba(
+                3,
+                5,
+                9,
+                0.94
+            ) 48%,
+
+            rgba(
+                2,
+                3,
+                6,
+                1
+            ) 100%
+
+        );
+
+    animation:
+
+        xmbStartupFade
+
+        6.8s
+
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        )
+
+        forwards;
+
+}
+
+
+/*
+    ========================================================
+    STARTUP BLOOM
+    ========================================================
+*/
+
+#startup-glow {
+
+    position: absolute;
+
+    width: 58vw;
+
+    height: 58vw;
+
+    border-radius: 50%;
+
+    background:
+
+        radial-gradient(
+
+            circle,
+
+            rgba(
+                255,
+                255,
+                255,
+                0.20
+            ) 0%,
+
+            rgba(
+                255,
+                255,
+                255,
+                0.07
+            ) 22%,
+
+            rgba(
+                255,
+                255,
+                255,
+                0
+            ) 68%
+
+        );
+
+    filter:
+        blur(26px);
+
+    opacity: 0;
+
+    transform:
+        scale(0.28);
+
+    animation:
+
+        xmbStartupBloom
+
+        6.2s
+
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        )
+
+        forwards;
+
+}
+
+
+/*
+    ========================================================
+    XMB FOR PC MARK
+    ========================================================
+*/
+
+#startup-mark {
+
+    position: absolute;
+
+    display: flex;
+
+    align-items: baseline;
+
+    gap: 18px;
+
+    transform:
+
+        translate3d(
+            42vw,
+            0,
+            0
+        )
+        scale(0.92);
+
+    opacity: 0;
+
+    filter:
+        blur(8px);
+
+    animation:
+
+        xmbStartupMark
+
+        6.4s
+
+        cubic-bezier(
+            0.16,
+            1,
+            0.3,
+            1
+        )
+
+        forwards;
+
+}
+
+
+/*
+    Main XMB wordmark.
+*/
+
+.startup-mark-main {
+
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+    font-size:
+        clamp(
+            76px,
+            9vw,
+            154px
+        );
+
+    font-weight:
+        200;
+
+    letter-spacing:
+        0.18em;
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            0.96
+        );
+
+    text-shadow:
+
+        0
+
+        0
+
+        38px
+
+        rgba(
+            255,
+            255,
+            255,
+            0.30
+        );
+
+}
+
+
+/*
+    Small PC identifier.
+*/
+
+.startup-mark-sub {
+
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+    font-size:
+        clamp(
+            16px,
+            1.7vw,
+            28px
+        );
+
+    font-weight:
+        300;
+
+    letter-spacing:
+        0.42em;
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            0.52
+        );
+
+}
+
+
+/*
+    Legacy title remains available as a secondary
+    branding layer, but is intentionally quieter.
+*/
+
+#startup-title {
+
+    position: absolute;
+
+    bottom: 12%;
+
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+    font-size:
+        10px;
+
+    font-weight:
+        400;
+
+    letter-spacing:
+        0.5em;
+
+    text-transform:
+        uppercase;
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            0.26
+        );
+
+    opacity: 0;
+
+    animation:
+
+        xmbStartupCaption
+
+        6.8s
+
+        ease
+
+        forwards;
+
+}
+
+
+/*
+    ========================================================
+    STARTUP KEYFRAMES
+    ========================================================
+*/
+
+@keyframes xmbStartupFade {
+
+    0% {
+        opacity: 1;
+    }
+
+    62% {
+        opacity: 1;
+    }
+
+    82% {
+        opacity: 0.94;
+    }
+
+    100% {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+}
+
+
+@keyframes xmbStartupBloom {
+
+    0% {
+        opacity: 0;
+        transform: scale(0.25);
+    }
+
+    15% {
+        opacity: 0.16;
+        transform: scale(0.45);
+    }
+
+    38% {
+        opacity: 0.34;
+        transform: scale(0.82);
+    }
+
+    58% {
+        opacity: 0.17;
+        transform: scale(1.08);
+    }
+
+    76% {
+        opacity: 0.08;
+        transform: scale(1.18);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.30);
+    }
+
+}
+
+
+@keyframes xmbStartupMark {
+
+    0% {
+        opacity: 0;
+        transform:
+            translate3d(42vw, 0, 0)
+            scale(0.92);
+        filter: blur(10px);
+    }
+
+    18% {
+        opacity: 0.18;
+        transform:
+            translate3d(22vw, 0, 0)
+            scale(0.96);
+        filter: blur(7px);
+    }
+
+    34% {
+        opacity: 0.92;
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+        filter: blur(0);
+    }
+
+    52% {
+        opacity: 1;
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+        filter: blur(0);
+    }
+
+    68% {
+        opacity: 0.98;
+        transform:
+            translate3d(0, 0, 0)
+            scale(1.01);
+        filter: blur(0);
+    }
+
+    86% {
+        opacity: 0.12;
+        transform:
+            translate3d(-22vw, 0, 0)
+            scale(0.98);
+        filter: blur(7px);
+    }
+
+    100% {
+        opacity: 0;
+        transform:
+            translate3d(-42vw, 0, 0)
+            scale(0.94);
+        filter: blur(12px);
+    }
+
+}
+
+
+@keyframes xmbStartupCaption {
+
+    0% {
+        opacity: 0;
+    }
+
+    42% {
+        opacity: 0;
+    }
+
+    55% {
+        opacity: 0.35;
+    }
+
+    75% {
+        opacity: 0.35;
+    }
+
+    100% {
+        opacity: 0;
+    }
+
+}
+
+
+/*
+    ========================================================
+    REDUCED MOTION
+    ========================================================
+*/
+
+@media (
+    prefers-reduced-motion: reduce
+) {
+
+    #xmb-startup,
+    #startup-glow,
+    #startup-mark,
+    #startup-title {
+
+        animation:
+            none;
+
+    }
+
+    #xmb-startup {
+
+        opacity:
+            0;
+
+        visibility:
+            hidden;
+
+    }
+
+}
