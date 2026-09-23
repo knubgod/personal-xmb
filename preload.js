@@ -11,6 +11,7 @@ getSteamArtwork:(appId,itemId)=>ipcRenderer.invoke("steam-get-artwork",appId,ite
 getArtwork:(itemId,type="logo",source={})=>ipcRenderer.invoke("get-artwork",itemId,type,source),
 getArtworkManifest:()=>ipcRenderer.invoke("get-artwork-manifest"),
 spotifyLogin:()=>ipcRenderer.invoke("spotify-login"),
+spotifyLaunchDesktop:()=>ipcRenderer.invoke("spotify-launch-desktop"),
 spotifyApi:(request)=>ipcRenderer.invoke("spotify-api",request),
 onSpotifyAuthComplete:(callback)=>ipcRenderer.on("spotify-auth-complete",()=>callback()),
 getAccounts:()=>ipcRenderer.invoke("accounts-get"),
