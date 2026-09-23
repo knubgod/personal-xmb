@@ -989,6 +989,13 @@ const spotifyUi={
 document.addEventListener("keydown",event=>{
     if(!spotifyUi.isOpen())return;
 
+    if(
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+    ){
+        if(event.key!=="Escape")return;
+    }
+
     if(event.key==="Escape"){
         event.preventDefault();
         event.stopPropagation();
