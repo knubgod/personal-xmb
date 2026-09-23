@@ -13,6 +13,8 @@
 
 let xmbAudioContext = null;
 let xmbMasterGain = null;
+let xmbAudioEnabled = true;
+let xmbAudioVolume = 0.075;
 
 function getXmbAudioContext() {
 
@@ -37,7 +39,7 @@ function getXmbAudioContext() {
             xmbAudioContext.createGain();
 
         xmbMasterGain.gain.value =
-            0.075;
+            xmbAudioVolume;
 
         xmbMasterGain.connect(
             xmbAudioContext.destination
@@ -81,6 +83,17 @@ async function unlockXmbAudio() {
 
 }
 
+function setXmbAudioEnabled(enabled) {
+    xmbAudioEnabled = Boolean(enabled);
+}
+
+function setXmbAudioVolume(volume) {
+    xmbAudioVolume = Math.max(0, Math.min(0.15, Number(volume) || 0));
+    if (xmbMasterGain) {
+        xmbMasterGain.gain.value = xmbAudioVolume;
+    }
+}
+
 function playXmbTone(
     frequency,
     duration,
@@ -93,6 +106,7 @@ function playXmbTone(
         getXmbAudioContext();
 
     if (
+        !xmbAudioEnabled ||
         !context ||
         !xmbMasterGain
     ) {
@@ -304,6 +318,12 @@ window.xmbAudio = {
         playXmbLaunchSound,
 
     startup:
-        playXmbStartupSound
+        playXmbStartupSound,
+
+    setEnabled:
+        setXmbAudioEnabled,
+
+    setVolume:
+        setXmbAudioVolume
 
 };
