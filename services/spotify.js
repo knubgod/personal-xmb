@@ -1007,10 +1007,16 @@ const spotifyUi={
                         this.setRows(rowElements);
 
                         try{
-                            await spotifyService.playContext(row.dataset.uri);
+                            if(item.type==="track" || item.type==="episode"){
+                                await spotifyService.playTrack(row.dataset.uri);
+                            }else{
+                                await spotifyService.playContext(row.dataset.uri);
+                            }
+
                             this.close();
                         }catch(error){
-                            this.showStatus(error.message);
+                            console.error("Spotify search playback failed:",error);
+                            this.showStatus(error.message||"Unable to start Spotify playback.");
                         }
                     };
                 });
