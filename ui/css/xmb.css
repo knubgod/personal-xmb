@@ -1742,9 +1742,9 @@ body.options-open #action-area {
 
     position: fixed;
 
-    right: 85px;
+    right: 45px;
 
-    bottom: 100px;
+    bottom: 88px;
 
     width: 340px;
 
@@ -2282,3 +2282,4 @@ body.navigation-visible #input-mode {
     }
 
 }
+#media-shuffle,#media-repeat{border:none;background:transparent;color:rgba(255,255,255,.55);cursor:pointer;font-size:11px;margin-right:4px}#media-shuffle.active,#media-repeat.active{color:var(--xmb-accent)}#media-controls{justify-content:flex-end;align-items:center}
