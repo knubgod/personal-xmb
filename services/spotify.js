@@ -1,560 +1,115 @@
-/*
-    ========================================================
-    PERSONAL XMB SPOTIFY SERVICE
-    ========================================================
+const spotifyService={
+    initialized:false,
+    polling:false,
+    pollTimer:null,
+    currentTrack:null,
 
-    Handles:
-
-        Spotify authentication
-        Currently playing
-        Playback controls
-        Progress updates
-
-*/
-
-
-const spotifyService = {
-
-    initialized: false,
-
-    polling: false,
-
-    pollTimer: null,
-
-    currentTrack: null,
-
-
-    /*
-        ====================================================
-        INITIALIZE
-        ====================================================
-    */
-
-    async initialize() {
-
-        if (
-            this.initialized
-        ) {
-
-            return;
-
-        }
-
-
-        this.initialized =
-            true;
-
-
-        console.log(
-            "Spotify service initialized."
-        );
-
-
-        /*
-            Start checking playback.
-
-            The API should not be hammered continuously,
-            so we use a reasonable polling interval.
-        */
-
+    async initialize(){
+        if(this.initialized)return;
+        this.initialized=true;
+        console.log("Spotify service initialized.");
         await this.refreshNowPlaying();
-
-
         this.startPolling();
-
     },
 
-
-    /*
-        ====================================================
-        START POLLING
-        ====================================================
-    */
-
-    startPolling() {
-
-        if (
-            this.polling
-        ) {
-
-            return;
-
-        }
-
-
-        this.polling =
-            true;
-
-
-        this.pollTimer =
-            setInterval(
-                () => {
-
-                    this.refreshNowPlaying();
-
-                },
-                5000
-            );
-
+    startPolling(){
+        if(this.polling)return;
+        this.polling=true;
+        this.pollTimer=setInterval(()=>this.refreshNowPlaying(),5000);
     },
 
-
-    /*
-        ====================================================
-        STOP POLLING
-        ====================================================
-    */
-
-    stopPolling() {
-
-        if (
-            this.pollTimer
-        ) {
-
-            clearInterval(
-                this.pollTimer
-            );
-
-        }
-
-
-        this.pollTimer =
-            null;
-
-
-        this.polling =
-            false;
-
+    stopPolling(){
+        if(this.pollTimer)clearInterval(this.pollTimer);
+        this.pollTimer=null;
+        this.polling=false;
     },
 
+    async api(request){
+        const result=await window.electron?.spotifyApi?.(request);
+        if(!result?.success)throw new Error(result?.error||"Spotify API request failed.");
+        return result.data;
+    },
 
-    /*
-        ====================================================
-        REFRESH NOW PLAYING
-        ====================================================
-    */
-
-    async refreshNowPlaying() {
-
-        try {
-
-            const response =
-                await window.electron.spotifyApi(
-                    {
-                        method: "GET",
-
-                        endpoint:
-                            "/me/player"
-                    }
-                );
-
-
-            /*
-                Nothing is currently playing.
-            */
-
-            if (
-                !response ||
-                response.status === 204 ||
-                !response.item
-            ) {
-
-                this.currentTrack =
-                    null;
-
-
-                this.updateInterface(
-                    null
-                );
-
-
+    async refreshNowPlaying(){
+        try{
+            const response=await this.api({method:"GET",endpoint:"/me/player"});
+            if(!response?.item){
+                this.currentTrack=null;
+                this.updateInterface(null);
                 return;
-
             }
 
-
-            /*
-                Build a clean object for the UI.
-            */
-
-            const item =
-                response.item;
-
-
-            const track = {
-
-                id:
-                    item.id,
-
-                name:
-                    item.name,
-
-                artist:
-                    item.artists
-                        ?.map(
-                            artist =>
-                                artist.name
-                        )
-                        .join(", ") ||
-                    "Unknown Artist",
-
-                album:
-                    item.album?.name ||
-                    "Unknown Album",
-
-                artwork:
-                    item.album
-                        ?.images?.[0]
-                        ?.url ||
-                    "",
-
-                duration:
-                    item.duration_ms ||
-                    0,
-
-                progress:
-                    response.progress_ms ||
-                    0,
-
-                isPlaying:
-                    Boolean(
-                        response.is_playing
-                    ),
-
-                spotifyUrl:
-                    item.external_urls
-                        ?.spotify ||
-                    ""
-
+            const item=response.item;
+            this.currentTrack={
+                id:item.id,
+                name:item.name,
+                artist:item.artists?.map(a=>a.name).join(", ")||"Unknown Artist",
+                album:item.album?.name||"Unknown Album",
+                artwork:item.album?.images?.[0]?.url||"",
+                duration:item.duration_ms||0,
+                progress:response.progress_ms||0,
+                isPlaying:Boolean(response.is_playing),
+                spotifyUrl:item.external_urls?.spotify||""
             };
-
-
-            this.currentTrack =
-                track;
-
-
-            this.updateInterface(
-                track
-            );
-
+            this.updateInterface(this.currentTrack);
+        }catch(error){
+            console.warn("Spotify refresh failed:",error.message);
+            this.updateInterface(null);
         }
-
-
-        catch (
-            error
-        ) {
-
-            console.error(
-                "Spotify refresh failed:",
-                error
-            );
-
-        }
-
     },
 
-
-    /*
-        ====================================================
-        UPDATE INTERFACE
-        ====================================================
-    */
-
-    updateInterface(
-        track
-    ) {
-
-        if (
-            typeof window.updateSpotifyPlayer !==
-            "function"
-        ) {
-
-            return;
-
+    updateInterface(track){
+        if(typeof window.updateSpotifyPlayer==="function"){
+            window.updateSpotifyPlayer(track);
         }
-
-
-        window.updateSpotifyPlayer(
-            track
-        );
-
     },
 
-
-    /*
-        ====================================================
-        LOGIN
-        ====================================================
-    */
-
-    async login() {
-
-        try {
-
-            await window.electron.spotifyLogin();
-
-        }
-
-
-        catch (
-            error
-        ) {
-
-            console.error(
-                "Spotify login failed:",
-                error
-            );
-
-        }
-
+    async login(){
+        const result=await window.electron?.spotifyLogin?.();
+        if(result?.success===false)throw new Error(result.error||"Spotify login failed.");
     },
 
-
-    /*
-        ====================================================
-        PLAY / PAUSE
-        ====================================================
-    */
-
-    async togglePlayback() {
-
-        if (
-            !this.currentTrack
-        ) {
-
-            return;
-
-        }
-
-
-        try {
-
-            const endpoint =
-                this.currentTrack.isPlaying
-                    ? "/me/player/pause"
-                    : "/me/player/play";
-
-
-            await window.electron.spotifyApi(
-                {
-                    method: "PUT",
-
-                    endpoint:
-                        endpoint
-                }
-            );
-
-
-            /*
-                Refresh immediately rather than waiting
-                for the next five-second poll.
-            */
-
-            setTimeout(
-                () => {
-
-                    this.refreshNowPlaying();
-
-                },
-                300
-            );
-
-        }
-
-
-        catch (
-            error
-        ) {
-
-            console.error(
-                "Spotify playback toggle failed:",
-                error
-            );
-
-        }
-
+    async togglePlayback(){
+        if(!this.currentTrack)return;
+        const endpoint=this.currentTrack.isPlaying?"/me/player/pause":"/me/player/play";
+        try{
+            await this.api({method:"PUT",endpoint});
+            setTimeout(()=>this.refreshNowPlaying(),350);
+        }catch(error){console.warn("Spotify playback toggle failed:",error.message);}
     },
 
-
-    /*
-        ====================================================
-        NEXT
-        ====================================================
-    */
-
-    async next() {
-
-        try {
-
-            await window.electron.spotifyApi(
-                {
-                    method: "POST",
-
-                    endpoint:
-                        "/me/player/next"
-                }
-            );
-
-
-            setTimeout(
-                () => {
-
-                    this.refreshNowPlaying();
-
-                },
-                500
-            );
-
-        }
-
-
-        catch (
-            error
-        ) {
-
-            console.error(
-                "Spotify next failed:",
-                error
-            );
-
-        }
-
+    async next(){
+        try{await this.api({method:"POST",endpoint:"/me/player/next"});setTimeout(()=>this.refreshNowPlaying(),500);}
+        catch(error){console.warn("Spotify next failed:",error.message);}
     },
 
+    async previous(){
+        try{await this.api({method:"POST",endpoint:"/me/player/previous"});setTimeout(()=>this.refreshNowPlaying(),500);}
+        catch(error){console.warn("Spotify previous failed:",error.message);}
+    },
 
-    /*
-        ====================================================
-        PREVIOUS
-        ====================================================
-    */
-
-    async previous() {
-
-        try {
-
-            await window.electron.spotifyApi(
-                {
-                    method: "POST",
-
-                    endpoint:
-                        "/me/player/previous"
-                }
-            );
-
-
-            setTimeout(
-                () => {
-
-                    this.refreshNowPlaying();
-
-                },
-                500
-            );
-
+    async recentlyPlayed(limit=10){
+        try{
+            return await this.api({method:"GET",endpoint:`/me/player/recently-played?limit=${Math.min(50,Math.max(1,limit))}`});
+        }catch(error){
+            console.warn("Spotify recently played failed:",error.message);
+            return null;
         }
-
-
-        catch (
-            error
-        ) {
-
-            console.error(
-                "Spotify previous failed:",
-                error
-            );
-
-        }
-
     }
-
 };
 
+document.addEventListener("DOMContentLoaded",()=>{
+    const play=document.getElementById("media-play");
+    const next=document.getElementById("media-next");
+    const previous=document.getElementById("media-previous");
 
-/*
-    ========================================================
-    BUTTON EVENTS
-    ========================================================
-*/
+    play?.addEventListener("click",()=>spotifyService.togglePlayback());
+    next?.addEventListener("click",()=>spotifyService.next());
+    previous?.addEventListener("click",()=>spotifyService.previous());
 
+    window.electron?.onSpotifyAuthComplete?.(()=>{
+        spotifyService.refreshNowPlaying();
+    });
+});
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        const playButton =
-            document.getElementById(
-                "media-play"
-            );
-
-
-        const nextButton =
-            document.getElementById(
-                "media-next"
-            );
-
-
-        const previousButton =
-            document.getElementById(
-                "media-previous"
-            );
-
-
-        if (
-            playButton
-        ) {
-
-            playButton.addEventListener(
-                "click",
-                () => {
-
-                    spotifyService.togglePlayback();
-
-                }
-            );
-
-        }
-
-
-        if (
-            nextButton
-        ) {
-
-            nextButton.addEventListener(
-                "click",
-                () => {
-
-                    spotifyService.next();
-
-                }
-            );
-
-        }
-
-
-        if (
-            previousButton
-        ) {
-
-            previousButton.addEventListener(
-                "click",
-                () => {
-
-                    spotifyService.previous();
-
-                }
-            );
-
-        }
-
-    }
-);
-
-
-/*
-    ========================================================
-    EXPOSE SERVICE
-    ========================================================
-*/
-
-window.spotifyService =
-    spotifyService;
+window.spotifyService=spotifyService;
