@@ -1118,5 +1118,3 @@ document.addEventListener("keydown",event=>{
 
 window.spotifyService=spotifyService;
 window.spotifyUi=spotifyUi;
-
-window.spotifyService=spotifyService;
