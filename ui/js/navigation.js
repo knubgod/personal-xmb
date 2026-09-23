@@ -1031,6 +1031,34 @@ async function executeAction(
 
     /*
         =================================================
+        EXIT
+        =================================================
+    */
+
+    if (
+        action.action ===
+        "exit"
+    ) {
+
+        window.xmbAudio?.back?.();
+
+        if (
+            window.electron &&
+            typeof window.electron.quitApp ===
+            "function"
+        ) {
+
+            window.electron.quitApp();
+
+        }
+
+        return;
+
+    }
+
+
+    /*
+        =================================================
         SPOTIFY LOGIN
         =================================================
     */
