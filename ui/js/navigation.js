@@ -1230,6 +1230,24 @@ async function executeAction(
         return;
     }
 
+    if (action.action === "spotify-launch") {
+        const result = await window.electron?.spotifyLaunchDesktop?.();
+
+        if (result?.success) {
+            showTemporaryMessage(
+                result.alreadyRunning
+                    ? "Spotify is already running."
+                    : "Spotify launched in the background."
+            );
+        } else {
+            showTemporaryMessage(
+                result?.error || "Unable to launch Spotify."
+            );
+        }
+
+        return;
+    }
+
     if (action.action === "spotify-dj") {
         const result = await window.spotifyService?.openDj?.();
         if (result?.success === false) {
