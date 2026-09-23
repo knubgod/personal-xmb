@@ -1880,6 +1880,8 @@ ipcMain.handle(
         appId
     ) => {
 
+        requireTrustedRenderer(event);
+
         try {
 
             if (
@@ -3567,7 +3569,9 @@ function buildRendererArtworkManifest() {
 
 ipcMain.handle(
     "get-artwork-manifest",
-    async () => {
+    async event => {
+
+        requireTrustedRenderer(event);
 
         /*
             Never make the renderer wait for network artwork.
@@ -3593,6 +3597,8 @@ ipcMain.handle(
         artworkType = "logo",
         artworkSource = null
     ) => {
+
+        requireTrustedRenderer(event);
 
         try {
 
@@ -4743,6 +4749,8 @@ ipcMain.handle(
 
     ) => {
 
+        requireTrustedRenderer(event);
+
         try {
 
             if (
@@ -5771,7 +5779,9 @@ function findRiotClient() {
 
 ipcMain.handle(
     "quit-app",
-    async () => {
+    async event => {
+
+        requireTrustedRenderer(event);
 
         /*
             Keep quitting in the main process so the renderer
@@ -7229,7 +7239,7 @@ ipcMain.handle(
 );
 
 
-ipcMain.handle("save-account-config",async(_e,v)=>{try{const s=readSettingsFile();s.spotify=s.spotify||{};s.integrations=s.integrations||{};s.integrations.discord=s.integrations.discord||{};s.integrations.microsoft=s.integrations.microsoft||{};s.integrations.riot=s.integrations.riot||{};s.spotify.clientId=String(v?.spotifyClientId||"").trim();s.integrations.discord.clientId=String(v?.discordClientId||"").trim();s.integrations.microsoft.clientId=String(v?.microsoftClientId||"").trim();s.integrations.riot.clientId=String(v?.riotClientId||"").trim();writeSettingsFile(s);return{success:true};}catch(e){return{success:false,error:e.message};}});
+ipcMain.handle("save-account-config",async(event,v)=>{requireTrustedRenderer(event);try{const s=readSettingsFile();s.spotify=s.spotify||{};s.integrations=s.integrations||{};s.integrations.discord=s.integrations.discord||{};s.integrations.microsoft=s.integrations.microsoft||{};s.integrations.riot=s.integrations.riot||{};s.spotify.clientId=String(v?.spotifyClientId||"").trim();s.integrations.discord.clientId=String(v?.discordClientId||"").trim();s.integrations.microsoft.clientId=String(v?.microsoftClientId||"").trim();s.integrations.riot.clientId=String(v?.riotClientId||"").trim();writeSettingsFile(s);return{success:true};}catch(e){return{success:false,error:e.message};}});
 
 /*
     ========================================================
