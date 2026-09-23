@@ -1,19 +1,3 @@
-const serverService={status:"offline",services:{portainer:false,grafana:false,pihole:false,uptimeKuma:false,cockpit:false},async initialize(){console.log("Server service initialized.");},async getStatus(){return{connected:false,services:this.services};}};
-window.serverService=serverService;
-
-/* Load the Friends surface without changing the existing HTML layout. */
-const friendsScript=document.createElement("script");
-friendsScript.src="../services/friends.js";
-document.body.appendChild(friendsScript);
-
-const friendsStyle=document.createElement("style");
-friendsStyle.textContent=`#friends-overlay{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;padding:6vh 7vw;background:rgba(3,6,10,.72);backdrop-filter:blur(16px);opacity:0;pointer-events:none;transition:opacity .28s ease}
-#friends-overlay.visible{opacity:1;pointer-events:auto}
-.friends-panel{width:min(1180px,92vw);max-height:84vh;overflow:auto;padding:34px 38px;border:1px solid rgba(255,255,255,.16);background:rgba(13,18,26,.94);box-shadow:0 35px 100px rgba(0,0,0,.48)}
-.friends-header{display:flex;align-items:flex-start;justify-content:space-between;gap:30px;margin-bottom:30px}.friends-kicker{font-size:12px;letter-spacing:.28em;opacity:.58}.friends-header h2{margin:6px 0 4px;font-size:34px;font-weight:400}.friends-header p{margin:0;opacity:.68}
-#friends-close,#friends-refresh,.friends-actions button{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:inherit;padding:9px 14px;cursor:pointer}#friends-close:hover,#friends-refresh:hover,.friends-actions button:hover{background:rgba(255,255,255,.12)}
-.friends-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.friends-card{min-height:210px;padding:22px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035)}.friends-card.connected{border-color:rgba(255,255,255,.25)}
-.friends-card-top{display:flex;align-items:center;gap:13px}.friends-service-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.2);font-weight:600}.friends-service{font-size:12px;letter-spacing:.12em;opacity:.58;text-transform:uppercase}.friends-name{margin-top:3px;font-size:18px}.friends-status{margin-left:auto;font-size:9px;letter-spacing:.14em;opacity:.55}.friends-note{min-height:66px;margin:24px 0;line-height:1.5;font-size:13px;opacity:.7}.friends-actions{display:flex;gap:9px}.friends-footer{display:flex;justify-content:space-between;gap:20px;margin-top:25px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;opacity:.6}
-@media(max-width:900px){.friends-cards{grid-template-columns:1fr}.friends-panel{padding:25px}}
-`;
-document.head.appendChild(friendsStyle);
+const serverService={status:"offline",services:{portainer:false,grafana:false,pihole:false,uptimeKuma:false,cockpit:false},async initialize(){console.log("Server service initialized.");},async getStatus(){return{connected:false,services:this.services};}};window.serverService=serverService;
+const friendsScript=document.createElement("script");friendsScript.src="../services/friends.js";document.body.appendChild(friendsScript);
+const friendsStyle=document.createElement("link");friendsStyle.rel="stylesheet";friendsStyle.href="../ui/css/friends.css";document.head.appendChild(friendsStyle);
