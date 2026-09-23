@@ -7141,6 +7141,18 @@ ipcMain.handle(
                     "GET"
                 ).toUpperCase();
 
+            if (
+                ![
+                    "GET",
+                    "POST",
+                    "PUT"
+                ].includes(method)
+            ) {
+                throw new Error(
+                    "Spotify API method is not allowed."
+                );
+            }
+
 
             if (
                 !endpoint
