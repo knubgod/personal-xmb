@@ -80,45 +80,6 @@ function applyUserSettings() {
 
 }
 
-document.addEventListener(
-    "keydown",
-    event => {
-        if (
-            event.key === "Escape" &&
-            document.getElementById("settings-overlay")
-        ) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            closeSettingsPanel();
-        }
-    },
-    true
-);
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        const overlay =
-            document.getElementById(
-                "settings-overlay"
-            );
-
-        if (!overlay) {
-            return;
-        }
-
-        event.stopImmediatePropagation();
-
-        if (event.key === "Escape") {
-            event.preventDefault();
-            closeSettingsPanel();
-        }
-
-    },
-    true
-);
-
 function closeSettingsPanel() {
 
     document.getElementById(
