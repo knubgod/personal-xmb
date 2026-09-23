@@ -17,4 +17,14 @@ getAccounts:()=>ipcRenderer.invoke("accounts-get"),
 loginAccount:(provider)=>ipcRenderer.invoke("account-login",provider),
 logoutAccount:(provider)=>ipcRenderer.invoke("account-logout",provider),
 refreshAccounts:()=>ipcRenderer.invoke("accounts-refresh")
+
+        quitApp:
+            () => ipcRenderer.invoke("quit-app"),
+
+        setWindowState:
+            (state) => ipcRenderer.invoke("set-window-state", state),
+
+        clearArtworkCache:
+            () => ipcRenderer.invoke("clear-artwork-cache"),
+
 });
