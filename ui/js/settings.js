@@ -95,6 +95,30 @@ document.addEventListener(
     true
 );
 
+document.addEventListener(
+    "keydown",
+    event => {
+
+        const overlay =
+            document.getElementById(
+                "settings-overlay"
+            );
+
+        if (!overlay) {
+            return;
+        }
+
+        event.stopImmediatePropagation();
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeSettingsPanel();
+        }
+
+    },
+    true
+);
+
 function closeSettingsPanel() {
 
     document.getElementById(
