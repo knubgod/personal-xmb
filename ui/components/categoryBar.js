@@ -14,6 +14,38 @@ const categoryIconRequests = new Map();
     ========================================================
 */
 
+/*
+    ========================================================
+    PRELOADED CATEGORY ARTWORK
+    ========================================================
+*/
+
+const categoryArtworkManifest = {};
+
+function setCategoryArtworkManifest(
+    manifest
+) {
+
+    Object.keys(
+        categoryArtworkManifest
+    ).forEach(
+        key => delete categoryArtworkManifest[key]
+    );
+
+    Object.assign(
+        categoryArtworkManifest,
+        manifest || {}
+    );
+
+}
+
+
+/*
+    ========================================================
+    RENDER CATEGORY BAR
+    ========================================================
+*/
+
 function renderCategoryBar(
     categoryNames,
     selectedIndex = 0
@@ -235,9 +267,35 @@ async function loadCategoryIcon(
 
 
     /*
-        Ask the Electron main process for the icon.
+        Prefer the startup-ready manifest. This keeps category
+        navigation completely local after launch.
+    */
 
-        main.js handles downloading and caching.
+    const preloadedIcon =
+        categoryArtworkManifest[
+            categoryName
+        ];
+
+    if (preloadedIcon) {
+
+        categoryIconCache.set(
+            categoryName,
+            preloadedIcon
+        );
+
+        applyCategoryIcon(
+            container,
+            preloadedIcon
+        );
+
+        return;
+
+    }
+
+
+    /*
+        Fallback only when a category icon genuinely was not
+        available during startup.
     */
 
     const request =
@@ -406,6 +464,10 @@ function updateCategorySelection(
     PUBLIC API
     ========================================================
 */
+
+window.setCategoryArtworkManifest =
+    setCategoryArtworkManifest;
+
 
 window.renderCategoryBar =
     renderCategoryBar;
