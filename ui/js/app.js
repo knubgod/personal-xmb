@@ -623,6 +623,12 @@ async function startApplication() {
 
         applySettings();
 
+        if (typeof applyUserSettings === "function") {
+
+            applyUserSettings();
+
+        }
+
 
         /*
             ================================================
