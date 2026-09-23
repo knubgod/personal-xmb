@@ -1356,7 +1356,7 @@
 
         xmbStartupFade
 
-        6.8s
+        4.6s
 
         cubic-bezier(
             0.22,
@@ -1427,7 +1427,7 @@
 
         xmbStartupBloom
 
-        6.2s
+        4.3s
 
         cubic-bezier(
             0.22,
@@ -1475,7 +1475,7 @@
 
         xmbStartupMark
 
-        6.4s
+        4.35s
 
         cubic-bezier(
             0.16,
@@ -1616,7 +1616,7 @@
 
         xmbStartupCaption
 
-        6.8s
+        4.6s
 
         ease
 
@@ -1637,12 +1637,12 @@
         opacity: 1;
     }
 
-    62% {
+    58% {
         opacity: 1;
     }
 
-    82% {
-        opacity: 0.94;
+    76% {
+        opacity: 0.96;
     }
 
     100% {
@@ -1698,7 +1698,7 @@
         filter: blur(10px);
     }
 
-    18% {
+    16% {
         opacity: 0.18;
         transform:
             translate3d(22vw, 0, 0)
@@ -1706,7 +1706,8 @@
         filter: blur(7px);
     }
 
-    34% {
+    
+    31% {
         opacity: 0.92;
         transform:
             translate3d(0, 0, 0)
@@ -1714,7 +1715,7 @@
         filter: blur(0);
     }
 
-    52% {
+    48% {
         opacity: 1;
         transform:
             translate3d(0, 0, 0)
@@ -1722,7 +1723,8 @@
         filter: blur(0);
     }
 
-    68% {
+    
+    62% {
         opacity: 0.98;
         transform:
             translate3d(0, 0, 0)
