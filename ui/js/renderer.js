@@ -3509,6 +3509,7 @@ function updatePreviewArtwork(
 
     const logo =
         artwork.logo ||
+        (isSteamItem(item) ? item.icon : "") ||
         "";
 
 
