@@ -1155,13 +1155,21 @@ async function executeAction(
 
     if (
         action.action ===
-        "settings"
+        "settings" ||
+        action.action ===
+        "themes" ||
+        action.action ===
+        "audio"
     ) {
 
-        showTemporaryMessage(
-            "Settings are coming soon."
-        );
-
+        if (window.xmbSettings?.open) {
+            window.xmbSettings.open();
+        }
+        else {
+            showTemporaryMessage(
+                "Settings service is unavailable."
+            );
+        }
 
         return;
 
@@ -1179,10 +1187,9 @@ async function executeAction(
         "themes"
     ) {
 
-        showTemporaryMessage(
-            "Theme settings are coming soon."
-        );
-
+        if (window.xmbSettings?.open) {
+            window.xmbSettings.open();
+        }
 
         return;
 
@@ -1200,10 +1207,9 @@ async function executeAction(
         "audio"
     ) {
 
-        showTemporaryMessage(
-            "Audio settings are coming soon."
-        );
-
+        if (window.xmbSettings?.open) {
+            window.xmbSettings.open();
+        }
 
         return;
 
