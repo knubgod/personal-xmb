@@ -1230,6 +1230,16 @@ async function executeAction(
         return;
     }
 
+    if (action.action === "spotify-dj") {
+        const result = await window.spotifyService?.openDj?.();
+        if (result?.success === false) {
+            showTemporaryMessage(result.error || "Unable to open Spotify DJ.");
+        } else {
+            showTemporaryMessage("Opening Spotify DJ...");
+        }
+        return;
+    }
+
     /*
         =================================================
         FALLBACK
