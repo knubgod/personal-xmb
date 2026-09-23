@@ -9,12 +9,12 @@
         http-equiv="Content-Security-Policy"
         content="
             default-src 'self';
-            script-src 'self';
+            script-src 'self' https://sdk.scdn.co;
             style-src 'self';
             img-src 'self' data: xmb-artwork: https://i.scdn.co;
-            media-src 'self' blob:;
+            media-src 'self' blob: https://*.spotifycdn.com;
             font-src 'self';
-            connect-src 'self';
+            connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://sdk.scdn.co https://*.spotify.com wss://*.spotify.com;
         "
     >
 
@@ -683,6 +683,11 @@
 
     <script src="components/statusPanel.js"></script>
 
+
+    <!-- Spotify's official Web Playback SDK creates the local
+         Spotify Connect player used by XMB. -->
+
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
     <!-- Existing services -->
 
