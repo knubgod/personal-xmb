@@ -429,6 +429,7 @@ const enrichedCategoryItemsCache = {};
 */
 
 const failedIconSources = new Set();
+const failedArtworkSources = new Set();
 
 
 /*
@@ -1612,66 +1613,37 @@ function getItemListIcon(
 
     }
 
+    /*
+        The startup artwork manifest is authoritative.
 
-    if (
-        isSteamItem(
-            item
-        )
-    ) {
+        Do not fall back to arbitrary paths from categories.json.
+        main.js only publishes local files that actually exist.
+    */
 
-        return (
+    const cachedArtwork =
+        dynamicArtworkCache[item.id] ||
+        {};
 
-            steamArtworkRendererCache[
-                item.id
-            ]?.icon ||
-
-            steamArtworkRendererCache[
-                item.id
-            ]?.logo ||
-
-            steamArtworkRendererCache[
-                item.id
-            ]?.cover ||
-
-            steamArtworkRendererCache[
-                item.id
-            ]?.icon ||
-
-            item.artworkMetadata?.icon ||
-
-            item.artworkMetadata?.logo ||
-
-            item.artworkMetadata?.cover ||
-
-            item.icon ||
-
-            item.artwork ||
-
-            ""
-
-        );
-
-    }
-
+    const metadataArtwork =
+        item.artworkMetadata ||
+        {};
 
     return (
-
-        item.artworkMetadata?.icon ||
-
-        dynamicArtworkCache[item.id]?.icon ||
-
-        item.icon ||
-
-        item.artwork ||
-
+        metadataArtwork.icon ||
+        cachedArtwork.icon ||
+        metadataArtwork.logo ||
+        cachedArtwork.logo ||
+        metadataArtwork.cover ||
+        cachedArtwork.cover ||
         ""
-
     );
 
 }
 
 
 /*
+    ========================================================
+    GET ENRICHED CATEGORY ITEMS/*
     ========================================================
     GET ENRICHED CATEGORY ITEMS
     ========================================================
@@ -2021,12 +1993,10 @@ function refreshRenderedItemIcon(
 
     }
 
-
     const renderedItem =
         document.querySelector(
             `#items .item[data-item-id="${CSS.escape(String(item.id))}"]`
         );
-
 
     if (
         !renderedItem
@@ -2036,12 +2006,10 @@ function refreshRenderedItemIcon(
 
     }
 
-
     const icon =
         renderedItem.querySelector(
             ".item-icon"
         );
-
 
     if (
         !icon
@@ -2051,27 +2019,27 @@ function refreshRenderedItemIcon(
 
     }
 
-
     const source =
         getItemListIcon(
             item
         );
 
-
     if (
         !source
     ) {
+
+        icon.removeAttribute("src");
+        delete icon.dataset.xmbSource;
+        icon.classList.remove("loaded");
 
         return;
 
     }
 
-
     const resolvedSource =
         resolveLocalAssetPath(
             source
         );
-
 
     if (
         failedIconSources.has(
@@ -2083,16 +2051,21 @@ function refreshRenderedItemIcon(
 
     }
 
+    /*
+        Compare the logical source rather than image.src.
+        Chromium normalizes image.src into a file:// URL,
+        which previously made every refresh look like a
+        new source and caused repeated requests.
+    */
 
     if (
-        icon.src ===
+        icon.dataset.xmbSource ===
         resolvedSource
     ) {
 
         return;
 
     }
-
 
     icon.onload =
         () => {
@@ -2103,7 +2076,6 @@ function refreshRenderedItemIcon(
 
         };
 
-
     icon.onerror =
         () => {
 
@@ -2111,6 +2083,7 @@ function refreshRenderedItemIcon(
                 resolvedSource
             );
 
+            delete icon.dataset.xmbSource;
 
             icon.removeAttribute(
                 "src"
@@ -2118,6 +2091,8 @@ function refreshRenderedItemIcon(
 
         };
 
+    icon.dataset.xmbSource =
+        resolvedSource;
 
     icon.src =
         resolvedSource;
@@ -2126,6 +2101,8 @@ function refreshRenderedItemIcon(
 
 
 /*
+    ========================================================
+    ITEM SELECTION/*
     ========================================================
     ITEM SELECTION
     ========================================================
@@ -2938,121 +2915,67 @@ function getPreviewArtwork(
     ) {
 
         return {
-
-            icon:
-                "",
-
-            logo:
-                "",
-
-            cover:
-                "",
-
-            hero:
-                "",
-
-            grid:
-                "",
-
-            capsule:
-                "",
-
-            background:
-                ""
-
+            icon: "",
+            logo: "",
+            cover: "",
+            hero: "",
+            grid: "",
+            capsule: "",
+            background: ""
         };
 
     }
-
 
     const metadataArtwork =
         item.artworkMetadata ||
         {};
 
+    const cachedArtwork =
+        dynamicArtworkCache[item.id] ||
+        {};
 
     /*
-        ====================================================
-        STEAM
-        ====================================================
-    */
-
-    if (
-        isSteamItem(
-            item
-        )
-    ) {
-
-        return {
-
-            icon:
-                metadataArtwork.icon ||
-                item.icon ||
-                "",
-
-            logo:
-                metadataArtwork.logo ||
-                "",
-
-            hero:
-                metadataArtwork.hero ||
-                "",
-
-            cover:
-                metadataArtwork.cover ||
-                "",
-
-            capsule:
-                metadataArtwork.cover ||
-                "",
-
-            grid:
-                metadataArtwork.cover ||
-                "",
-
-            background:
-                metadataArtwork.background ||
-                ""
-
-        };
-
-    }
-
-
-    /*
-        ====================================================
-        GENERAL / THEGAMESDB
-        ====================================================
+        Universal artwork slots are the renderer's source of
+        truth. Raw config paths are deliberately not used as
+        fallback sources because a stale path can point to a
+        file that no longer exists.
     */
 
     return {
 
         icon:
             metadataArtwork.icon ||
-            item.icon ||
+            cachedArtwork.icon ||
             "",
 
         logo:
             metadataArtwork.logo ||
+            cachedArtwork.logo ||
             "",
 
         cover:
             metadataArtwork.cover ||
+            cachedArtwork.cover ||
             "",
 
         hero:
             metadataArtwork.hero ||
+            cachedArtwork.hero ||
             "",
 
         grid:
             metadataArtwork.cover ||
+            cachedArtwork.cover ||
             "",
 
         capsule:
             metadataArtwork.cover ||
+            cachedArtwork.cover ||
             "",
 
         background:
             metadataArtwork.background ||
+            cachedArtwork.background ||
             ""
 
     };
@@ -3061,6 +2984,8 @@ function getPreviewArtwork(
 
 
 /*
+    ========================================================
+    PRELOAD PREVIEW IMAGE/*
     ========================================================
     PRELOAD PREVIEW IMAGE
     ========================================================
@@ -3080,18 +3005,27 @@ function preloadPreviewImage(
                 !source
             ) {
 
-                resolve(
-                    false
-                );
-
+                resolve(false);
                 return;
 
             }
 
+            const resolvedSource =
+                resolveLocalAssetPath(source);
+
+            if (
+                failedArtworkSources.has(
+                    resolvedSource
+                )
+            ) {
+
+                resolve(false);
+                return;
+
+            }
 
             const image =
                 new Image();
-
 
             image.onload =
                 () => {
@@ -3101,36 +3035,28 @@ function preloadPreviewImage(
                         artworkSelectionRequestId
                     ) {
 
-                        resolve(
-                            false
-                        );
-
+                        resolve(false);
                         return;
 
                     }
 
-
-                    resolve(
-                        true
-                    );
+                    resolve(true);
 
                 };
-
 
             image.onerror =
                 () => {
 
-                    resolve(
-                        false
+                    failedArtworkSources.add(
+                        resolvedSource
                     );
+
+                    resolve(false);
 
                 };
 
-
             image.src =
-                resolveLocalAssetPath(
-                    source
-                );
+                resolvedSource;
 
         }
     );
@@ -3139,6 +3065,8 @@ function preloadPreviewImage(
 
 
 /*
+    ========================================================
+    SET PREVIEW COVER/*
     ========================================================
     SET PREVIEW COVER
     ========================================================
@@ -3527,7 +3455,6 @@ function updatePreviewArtwork(
 
     const logo =
         artwork.logo ||
-        (isSteamItem(item) ? item.icon : "") ||
         "";
 
 
