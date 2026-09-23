@@ -5993,6 +5993,8 @@ ipcMain.handle(
                 "user-read-currently-playing",
                 "user-read-playback-state",
                 "user-read-recently-played",
+                "playlist-read-private",
+                "user-read-private",
                 "user-modify-playback-state"
 
             ].join(
