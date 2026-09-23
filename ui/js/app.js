@@ -584,6 +584,17 @@ async function startApplication() {
     applicationStarted = true;
 
 
+    if (
+        window.xmbAudio &&
+        typeof window.xmbAudio.startup ===
+            "function"
+    ) {
+
+        window.xmbAudio.startup();
+
+    }
+
+
     try {
 
         /*
