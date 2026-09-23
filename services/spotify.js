@@ -14,6 +14,7 @@ const spotifyService={
     playerDeviceId:"",
     playerReady:false,
     playerConnecting:false,
+    playerReadyPromise:null,
 
     async initialize(){
         if(this.initialized)return;
@@ -146,9 +147,19 @@ const spotifyService={
     },
 
     async initializeWebPlayback(){
-        if(this.playerConnecting || this.playerReady)return this.playerReady;
+        if(this.playerReady)return true;
+
+        if(this.playerConnecting && this.playerReadyPromise){
+            try{
+                await this.playerReadyPromise;
+                return this.playerReady;
+            }catch(error){
+                return false;
+            }
+        }
 
         this.playerConnecting=true;
+        this.playerReadyPromise=null;
 
         try{
             if(!window.Spotify?.Player){
@@ -170,11 +181,27 @@ const spotifyService={
                 }
             });
 
-            player.addListener("ready",({device_id})=>{
-                this.playerDeviceId=device_id||"";
-                this.playerReady=Boolean(this.playerDeviceId);
-                console.log("Personal XMB Spotify player ready.");
-                this.showTemporaryMessage("Spotify player ready.");
+            this.playerReadyPromise=new Promise((resolve,reject)=>{
+                player.addListener("ready",({device_id})=>{
+                    this.playerDeviceId=device_id||"";
+                    this.playerReady=Boolean(this.playerDeviceId);
+                    console.log("Personal XMB Spotify player ready:",this.playerDeviceId);
+                    this.showTemporaryMessage("Spotify player ready.");
+                    if(this.playerReady)resolve(true);
+                    else reject(new Error("Spotify returned an empty playback device ID."));
+                });
+
+                player.addListener("initialization_error",({message})=>{
+                    reject(new Error(message||"Spotify Web Playback initialization failed."));
+                });
+
+                player.addListener("authentication_error",({message})=>{
+                    reject(new Error(message||"Spotify Web Playback authentication failed."));
+                });
+
+                player.addListener("account_error",({message})=>{
+                    reject(new Error(message||"Spotify Web Playback requires Spotify Premium."));
+                });
             });
 
             player.addListener("not_ready",({device_id})=>{
@@ -228,12 +255,17 @@ const spotifyService={
                 throw new Error("Spotify Web Playback could not connect.");
             }
 
+            await this.playerReadyPromise;
+
             this.playerConnecting=false;
-            return true;
+            return this.playerReady;
         }catch(error){
             this.playerConnecting=false;
             this.playerReady=false;
+            this.playerDeviceId="";
+            this.playerReadyPromise=null;
             console.error("Spotify Web Playback setup failed:",error);
+            this.showTemporaryMessage(error.message||"Spotify playback could not initialize.");
             return false;
         }
     },
@@ -415,6 +447,8 @@ document.addEventListener("DOMContentLoaded",()=>{
         await spotifyService.initialize();
     });
 });
+
+window.spotifyService=spotifyService;
 
 window.updateSpotifyPlayer=(track)=>{
     const title=document.getElementById("media-title");
