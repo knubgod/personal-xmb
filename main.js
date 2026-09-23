@@ -6051,108 +6051,130 @@ function isSpotifyRunning() {
 
 async function launchSpotifyDesktop() {
 
-    if (
-        await isSpotifyRunning()
-    ) {
-
+    if (await isSpotifyRunning()) {
         return {
-            success: true,
-            alreadyRunning: true
+            success:true,
+            alreadyRunning:true
         };
-
     }
 
+    if (process.platform==="win32") {
 
-    const executable =
-        getSpotifyExecutable();
+        const executable=getSpotifyExecutable();
 
+        if (executable) {
+            const launched=await new Promise(resolve=>{
+                let settled=false;
 
-    if (
-        process.platform === "win32"
-    ) {
+                const finish=value=>{
+                    if(settled)return;
+                    settled=true;
+                    resolve(value);
+                };
 
-        if (!executable) {
+                try{
+                    const child=spawn(
+                        executable,
+                        ["--autostart","--minimized"],
+                        {
+                            detached:true,
+                            windowsHide:true,
+                            stdio:"ignore"
+                        }
+                    );
 
-            /*
-                Spotify can also be installed through the
-                Microsoft Store or another managed installer,
-                where the executable is not in the normal
-                filesystem locations.
+                    child.once("error",()=>finish(false));
+                    child.once("spawn",()=>finish(true));
+                }catch(error){
+                    finish(false);
+                }
+            });
 
-                Spotify's own URI scheme lets the OS locate
-                the installed desktop client without exposing
-                that installation path to the renderer.
-            */
-            await shell.openExternal(
-                "spotify:"
-            );
+            if(launched){
+                return {
+                    success:true,
+                    alreadyRunning:false,
+                    launchedByExecutable:true
+                };
+            }
+        }
 
+        /*
+            Store installations and managed installs may not expose
+            Spotify.exe in a normal filesystem location. Let Windows
+            resolve the registered Spotify URI in that case.
+        */
+        try{
+            await shell.openExternal("spotify:");
             return {
-                success: true,
-                alreadyRunning: false,
-                launchedByProtocol: true
+                success:true,
+                alreadyRunning:false,
+                launchedByProtocol:true
+            };
+        }catch(error){
+            throw new Error(
+                "Spotify could not be launched. Install the Spotify desktop app or register the spotify: URI with Windows."
+            );
+        }
+    }
+
+    if(process.platform==="darwin"){
+
+        const executable=getSpotifyExecutable();
+
+        if(!executable){
+            try{
+                await shell.openExternal("spotify:");
+                return {
+                    success:true,
+                    alreadyRunning:false,
+                    launchedByProtocol:true
+                };
+            }catch(error){
+                throw new Error("Spotify desktop application could not be found.");
+            }
+        }
+
+        const launched=await new Promise(resolve=>{
+            let settled=false;
+
+            const finish=value=>{
+                if(settled)return;
+                settled=true;
+                resolve(value);
             };
 
+            try{
+                const child=spawn(
+                    executable,
+                    [],
+                    {
+                        detached:true,
+                        stdio:"ignore"
+                    }
+                );
+
+                child.once("error",()=>finish(false));
+                child.once("spawn",()=>finish(true));
+            }catch(error){
+                finish(false);
+            }
+        });
+
+        if(launched){
+            return {
+                success:true,
+                alreadyRunning:false,
+                launchedByExecutable:true
+            };
         }
 
-
-        spawn(
-            executable,
-            [
-                "--autostart",
-                "--minimized"
-            ],
-            {
-                detached: true,
-                windowsHide: true,
-                stdio: "ignore"
-            }
-        ).unref();
-
-
-        return {
-            success: true,
-            alreadyRunning: false
-        };
-
+        throw new Error("Spotify desktop application could not be launched.");
     }
-
-
-    if (
-        process.platform === "darwin"
-    ) {
-
-        if (!executable) {
-
-            throw new Error(
-                "Spotify desktop application could not be found."
-            );
-
-        }
-
-
-        spawn(
-            executable,
-            [],
-            {
-                detached: true,
-                stdio: "ignore"
-            }
-        ).unref();
-
-
-        return {
-            success: true,
-            alreadyRunning: false
-        };
-
-    }
-
 
     throw new Error(
         "Spotify desktop launching is currently supported on Windows and macOS."
     );
-
 }
 
 
