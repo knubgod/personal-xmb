@@ -3123,6 +3123,88 @@ function buildRendererArtworkManifest() {
 
     const manifest = {};
 
+    /*
+        Category chrome has its own manifest section.
+    */
+
+    manifest.__categories = {};
+
+    for (
+        const categoryName
+        of Object.keys(categories)
+    ) {
+
+        const categoryIconDirectory =
+            getCategoryIconDirectory();
+
+        const categoryIconPath =
+            path.join(
+                categoryIconDirectory,
+                getCategoryIconFileName(
+                    categoryName
+                )
+            );
+
+        manifest.__categories[categoryName] =
+            fs.existsSync(categoryIconPath)
+                ? pathToFileURL(categoryIconPath).href
+                : null;
+
+    }
+
+    /*
+        Build an item lookup from categories so local item
+        icons are also part of the startup-ready manifest.
+    */
+
+    const localItemIcons = {};
+
+    function collectLocalItemIcons(value) {
+
+        if (Array.isArray(value)) {
+
+            for (const entry of value) {
+                collectLocalItemIcons(entry);
+            }
+
+            return;
+
+        }
+
+        if (!value || typeof value !== "object") {
+            return;
+        }
+
+        if (
+            typeof value.id === "string" &&
+            typeof value.icon === "string" &&
+            value.icon.startsWith("assets/")
+        ) {
+
+            localItemIcons[value.id] =
+                pathToFileURL(
+                    path.join(
+                        __dirname,
+                        "ui",
+                        value.icon
+                    )
+                ).href;
+
+        }
+
+        for (const child of Object.values(value)) {
+            if (
+                child &&
+                typeof child === "object"
+            ) {
+                collectLocalItemIcons(child);
+            }
+        }
+
+    }
+
+    collectLocalItemIcons(categories);
+
     for (const itemId of new Set(itemIds)) {
 
         manifest[itemId] = {};
@@ -3139,6 +3221,21 @@ function buildRendererArtworkManifest() {
                 filePath
                     ? pathToFileURL(filePath).href
                     : null;
+        }
+
+        /*
+            A configured local icon is a legitimate universal
+            icon source even when no provider artwork exists.
+        */
+
+        if (
+            !manifest[itemId].icon &&
+            localItemIcons[itemId]
+        ) {
+
+            manifest[itemId].icon =
+                localItemIcons[itemId];
+
         }
 
     }
@@ -4988,6 +5085,67 @@ async function runArtworkPreloadQueue(
 
 
 /*
+    Preload one category icon during startup.
+
+    Category icons are part of the XMB chrome, so they should
+    be ready before the category bar is first displayed.
+*/
+
+async function preloadCategoryIconOnStartup(
+    categoryName,
+    categoryData
+) {
+
+    const iconUrl =
+        getCategoryIconUrl(
+            categoryName,
+            categoryData
+        );
+
+    if (!iconUrl) {
+        return;
+    }
+
+    const directory =
+        ensureCategoryIconDirectory();
+
+    const localPath =
+        path.join(
+            directory,
+            getCategoryIconFileName(
+                categoryName
+            )
+        );
+
+    if (fs.existsSync(localPath)) {
+        return;
+    }
+
+    try {
+
+        await downloadCategoryIcon(
+            iconUrl,
+            localPath
+        );
+
+        console.log(
+            `Startup category icon cached: ${categoryName}`
+        );
+
+    }
+    catch (error) {
+
+        console.warn(
+            `Startup category icon preload failed: ${categoryName}`,
+            error.message
+        );
+
+    }
+
+}
+
+
+/*
     Main startup preload function.
 */
 
@@ -5123,6 +5281,36 @@ async function preloadArtworkOnStartup() {
 
 
     const jobs = [];
+
+
+    /*
+        Category icons are preloaded alongside item artwork.
+    */
+
+    for (
+        const [
+            categoryName,
+            categoryData
+        ]
+        of Object.entries(
+            categories
+        )
+    ) {
+
+        jobs.push(
+
+            async () => {
+
+                await preloadCategoryIconOnStartup(
+                    categoryName,
+                    categoryData
+                );
+
+            }
+
+        );
+
+    }
 
 
     for (
