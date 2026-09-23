@@ -1643,7 +1643,7 @@ function getItemListIcon(
 
 /*
     ========================================================
-    GET ENRICHED CATEGORY ITEMS/*
+    GET ENRICHED CATEGORY ITEMS
     ========================================================
     GET ENRICHED CATEGORY ITEMS
     ========================================================
@@ -2985,7 +2985,7 @@ function getPreviewArtwork(
 
 /*
     ========================================================
-    PRELOAD PREVIEW IMAGE/*
+    PRELOAD PREVIEW IMAGE
     ========================================================
     PRELOAD PREVIEW IMAGE
     ========================================================
