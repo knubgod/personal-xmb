@@ -208,6 +208,12 @@ contextBridge.exposeInMainWorld(
                     artworkSource
                 ),
 
+        getArtworkManifest:
+            () =>
+                ipcRenderer.invoke(
+                    "get-artwork-manifest"
+                ),
+
 
         /*
             =================================================
