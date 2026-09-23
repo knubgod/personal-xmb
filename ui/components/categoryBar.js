@@ -6,6 +6,8 @@
 
 const categoryIconCache = new Map();
 const categoryIconRequests = new Map();
+const failedCategoryIcons = new Set();
+let categoryArtworkManifestReady = false;
 
 
 /*
@@ -36,6 +38,8 @@ function setCategoryArtworkManifest(
         categoryArtworkManifest,
         manifest || {}
     );
+
+    categoryArtworkManifestReady = true;
 
 }
 
@@ -294,9 +298,51 @@ async function loadCategoryIcon(
 
 
     /*
-        Fallback only when a category icon genuinely was not
-        available during startup.
+        Once the startup manifest exists, a null entry is
+        authoritative. Do not fall back to IPC/network calls
+        on every navigation event.
     */
+
+    if (
+        categoryArtworkManifestReady
+    ) {
+
+        failedCategoryIcons.add(
+            categoryName
+        );
+
+        return;
+
+    }
+
+    if (
+        failedCategoryIcons.has(
+            categoryName
+        )
+    ) {
+
+        return;
+
+    }
+
+    /*
+        Legacy fallback for callers that render the category
+        bar before the manifest has been installed.
+    */
+
+    if (
+        !window.electron ||
+        typeof window.electron.getCategoryIcon !==
+            "function"
+    ) {
+
+        failedCategoryIcons.add(
+            categoryName
+        );
+
+        return;
+
+    }
 
     const request =
         window.electron.getCategoryIcon(
