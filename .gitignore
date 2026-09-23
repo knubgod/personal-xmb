@@ -32,3 +32,12 @@ Thumbs.db
 .idea/
 # Runtime account settings
 config/settings.json
+
+
+# Credentials / private keys
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets/
