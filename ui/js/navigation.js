@@ -413,6 +413,9 @@ function goBack() {
         );
 
 
+        window.xmbAudio?.back?.();
+
+
         refreshNavigation(
             true
         );
@@ -434,6 +437,9 @@ function goBack() {
 
         navigationLevel =
             "categories";
+
+
+        window.xmbAudio?.back?.();
 
 
         currentItem =
@@ -813,6 +819,9 @@ async function selectCurrentItem() {
     };
 
 
+    window.xmbAudio?.select?.();
+
+
     await executeAction(
         launchAction
     );
@@ -942,6 +951,9 @@ async function executeAction(
             return;
 
         }
+
+
+        window.xmbAudio?.launch?.();
 
 
         showTemporaryMessage(
@@ -1278,6 +1290,16 @@ document.addEventListener(
     async (event) => {
 
         if (
+            window.xmbAudio &&
+            typeof window.xmbAudio.unlock ===
+                "function"
+        ) {
+
+            await window.xmbAudio.unlock();
+
+        }
+
+        if (
             event.repeat
         ) {
 
@@ -1312,6 +1334,8 @@ document.addEventListener(
                     -1
                 );
 
+                window.xmbAudio?.category?.();
+
                 return;
 
             }
@@ -1327,6 +1351,8 @@ document.addEventListener(
                 moveCategory(
                     1
                 );
+
+                window.xmbAudio?.category?.();
 
                 return;
 
@@ -1392,6 +1418,8 @@ document.addEventListener(
                     -1
                 );
 
+                window.xmbAudio?.navigation?.();
+
                 return;
 
             }
@@ -1407,6 +1435,8 @@ document.addEventListener(
                 moveItem(
                     1
                 );
+
+                window.xmbAudio?.navigation?.();
 
                 return;
 
@@ -1508,6 +1538,8 @@ document.addEventListener(
                     -1
                 );
 
+                window.xmbAudio?.navigation?.();
+
                 return;
 
             }
@@ -1523,6 +1555,8 @@ document.addEventListener(
                 moveAction(
                     1
                 );
+
+                window.xmbAudio?.navigation?.();
 
                 return;
 
