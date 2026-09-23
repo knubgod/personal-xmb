@@ -1,6 +1,6 @@
 {
     "Settings": {
-        "icon": "assets/icons/categories/settings.svg",
+        "icon": "",
         "description": "Configure Personal XMB.",
         "theme": "settings",
         "items": [
@@ -10,7 +10,7 @@
                 "type": "setting",
                 "description": "General launcher configuration.",
                 "status": "Available",
-                "icon": "assets/icons/categories/settings.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Open Settings",
@@ -24,7 +24,7 @@
                 "type": "setting",
                 "description": "Change the look and feel of Personal XMB.",
                 "status": "Available",
-                "icon": "assets/icons/categories/settings.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Open Themes",
@@ -38,7 +38,7 @@
                 "type": "setting",
                 "description": "Configure launcher sounds and audio behavior.",
                 "status": "Available",
-                "icon": "assets/icons/categories/settings.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Open Audio Settings",
@@ -52,7 +52,7 @@
                 "type": "setting",
                 "description": "Close Personal XMB.",
                 "status": "Available",
-                "icon": "assets/icons/categories/settings.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Exit Personal XMB",
@@ -63,7 +63,7 @@
         ]
     },
     "Friends": {
-        "icon": "assets/icons/categories/friends.svg",
+        "icon": "",
         "description": "See what your friends are doing across your services.",
         "theme": "friends",
         "items": [
@@ -73,7 +73,7 @@
                 "type": "social",
                 "description": "A combined view of your friends across supported services.",
                 "status": "Coming Soon",
-                "icon": "assets/icons/categories/friends.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Open Friends",
@@ -84,7 +84,7 @@
         ]
     },
     "Spotify": {
-        "icon": "assets/icons/categories/spotify.svg",
+        "icon": "",
         "description": "Control Spotify and view your recent music.",
         "theme": "spotify",
         "items": [
@@ -95,7 +95,7 @@
                 "platform": "Spotify",
                 "description": "Connect Personal XMB to Spotify.",
                 "status": "Available",
-                "icon": "assets/icons/categories/spotify.svg",
+                "icon": "",
                 "launchType": "spotify",
                 "actions": [
                     {
@@ -111,7 +111,7 @@
                 "platform": "Spotify",
                 "description": "View and control your currently playing music.",
                 "status": "Available",
-                "icon": "assets/icons/categories/spotify.svg",
+                "icon": "",
                 "launchType": "spotify",
                 "actions": [
                     {
@@ -127,7 +127,7 @@
                 "platform": "Spotify",
                 "description": "View your recently played music.",
                 "status": "Available",
-                "icon": "assets/icons/categories/spotify.svg",
+                "icon": "",
                 "launchType": "spotify",
                 "actions": [
                     {
@@ -139,7 +139,7 @@
         ]
     },
     "Steam": {
-        "icon": "assets/icons/categories/steam.svg",
+        "icon": "",
         "description": "Launch and manage your Steam games.",
         "theme": "steam",
         "items": [
@@ -150,7 +150,7 @@
                 "platform": "Steam",
                 "description": "A colorful four-player arcade adventure.",
                 "status": "Ready to Launch",
-                "icon": "assets/icons/games/castle-crashers.svg",
+                "icon": "",
                 "artwork": "assets/artwork/castle-crashers.jpg",
                 "theme": "castle-crashers",
                 "launchType": "steam",
@@ -231,7 +231,7 @@
                 "platform": "Steam",
                 "description": "Call of Duty: Black Ops III.",
                 "status": "Ready to Launch",
-                "icon": "assets/icons/games/black-ops-3.svg",
+                "icon": "",
                 "artwork": "assets/artwork/black-ops-3.jpg",
                 "theme": "black-ops-3",
                 "launchType": "steam",
@@ -258,7 +258,7 @@
                 "platform": "Steam",
                 "description": "A first-person puzzle adventure from Valve.",
                 "status": "Ready to Launch",
-                "icon": "assets/icons/games/portal-2.svg",
+                "icon": "",
                 "artwork": "assets/artwork/portal-2.jpg",
                 "theme": "portal-2",
                 "launchType": "steam",
@@ -281,7 +281,7 @@
         ]
     },
     "Xbox": {
-        "icon": "assets/icons/categories/xbox.svg",
+        "icon": "",
         "description": "Access Xbox and Game Pass content.",
         "theme": "xbox",
         "items": [
@@ -292,7 +292,7 @@
                 "platform": "Xbox",
                 "description": "Microsoft's Xbox application for Windows. Browse games, Game Pass, friends, and your PC gaming library.",
                 "status": "Available",
-                "icon": "assets/icons/apps/xbox.svg",
+                "icon": "",
                 "theme": "xbox",
                 "launchType": "xbox",
                 "xboxUri": "msxbox:",
@@ -314,7 +314,7 @@
                 "platform": "Xbox",
                 "description": "Browse Xbox Game Pass content.",
                 "status": "Available",
-                "icon": "assets/icons/categories/xbox.svg",
+                "icon": "",
                 "launchType": "xbox",
                 "xboxUri": "msxbox:",
                 "actions": [
@@ -352,7 +352,7 @@
         ]
     },
     "Riot": {
-        "icon": "assets/icons/categories/riot.svg",
+        "icon": "",
         "description": "League of Legends and other Riot Games.",
         "theme": "riot",
         "items": [
@@ -363,7 +363,7 @@
                 "platform": "Riot Games",
                 "description": "A team-based competitive multiplayer online battle arena game.",
                 "status": "Ready to Launch",
-                "icon": "assets/icons/games/league-of-legends.svg",
+                "icon": "",
                 "theme": "league-of-legends",
                 "launchType": "riot",
                 "riotProduct": "league_of_legends",
@@ -386,7 +386,7 @@
         ]
     },
     "PC": {
-        "icon": "assets/icons/categories/pc.svg",
+        "icon": "",
         "description": "Access additional PC games and applications.",
         "theme": "pc",
         "items": [
@@ -397,7 +397,7 @@
                 "platform": "PC",
                 "description": "Community-built Call of Duty multiplayer platform.",
                 "status": "Available",
-                "icon": "assets/icons/games/plutonium.svg",
+                "icon": "",
                 "theme": "plutonium",
                 "launchType": "plutonium",
                 "actions": [
@@ -418,7 +418,7 @@
                 "platform": "PC",
                 "description": "A frontend for emulators, game engines, and media players.",
                 "status": "Available",
-                "icon": "assets/icons/games/retroarch.svg",
+                "icon": "",
                 "theme": "retroarch",
                 "launchType": "retroarch",
                 "actions": [
@@ -435,7 +435,7 @@
         ]
     },
     "Work": {
-        "icon": "assets/icons/categories/work.svg",
+        "icon": "",
         "description": "Tools and services for work.",
         "theme": "work",
         "items": [
@@ -445,7 +445,7 @@
                 "type": "app",
                 "description": "Tools and resources for school work.",
                 "status": "Available",
-                "icon": "assets/icons/categories/work.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Open School Tools",
@@ -459,7 +459,7 @@
                 "type": "app",
                 "description": "Photography tools and resources for Knub Foto.",
                 "status": "Available",
-                "icon": "assets/icons/categories/work.svg",
+                "icon": "",
                 "actions": [
                     {
                         "name": "Open Knub Foto",
