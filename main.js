@@ -124,7 +124,15 @@ const ARTWORK_PRELOAD_DELAY_MS =
 */
 
 const ARTWORK_PRELOAD_CONCURRENCY =
-    2;
+    5;
+
+const UNIVERSAL_ARTWORK_TYPES = [
+    "icon",
+    "logo",
+    "cover",
+    "hero",
+    "background"
+];
 
 
 function getDailyArtworkRefreshPath() {
@@ -151,6 +159,8 @@ function getDailyArtworkRefreshPath() {
 */
 
 let mainWindow = null;
+
+let startupArtworkPreloadPromise = null;
 
 
 function createWindow() {
@@ -3024,6 +3034,133 @@ async function getConfiguredArtworkSource(
     ========================================================
 */
 
+
+/*
+    Unified renderer artwork manifest.
+
+    The main process is the only artwork downloader. The
+    renderer receives only persistent local file URLs.
+*/
+
+function findUniversalCachedArtworkFile(
+    itemId,
+    artworkType
+) {
+
+    const names =
+        artworkType === "cover"
+            ? ["cover", "grid", "capsule"]
+            : [artworkType];
+
+    const roots = [
+        getArtworkDirectory(itemId),
+        getSteamArtworkDirectory(itemId)
+    ];
+
+    for (const root of roots) {
+
+        for (const name of names) {
+
+            for (const extension of [
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".webp",
+                ".svg"
+            ]) {
+
+                const filePath =
+                    path.join(
+                        root,
+                        name + extension
+                    );
+
+                if (fs.existsSync(filePath)) {
+                    return filePath;
+                }
+
+            }
+
+        }
+
+    }
+
+    return null;
+}
+
+
+function buildRendererArtworkManifest() {
+
+    let categories = {};
+    let metadataConfig = {};
+
+    try {
+        categories =
+            readConfigFile("categories.json");
+    }
+    catch (error) {
+        console.error(
+            "Could not read categories.json for artwork manifest:",
+            error
+        );
+    }
+
+    try {
+        metadataConfig =
+            readConfigFile("metadata.json");
+    }
+    catch (error) {
+        console.error(
+            "Could not read metadata.json for artwork manifest:",
+            error
+        );
+    }
+
+    const itemIds = [
+        ...collectConfiguredItemIds(categories),
+        ...Object.keys(metadataConfig.items || {})
+    ];
+
+    const manifest = {};
+
+    for (const itemId of new Set(itemIds)) {
+
+        manifest[itemId] = {};
+
+        for (const artworkType of UNIVERSAL_ARTWORK_TYPES) {
+
+            const filePath =
+                findUniversalCachedArtworkFile(
+                    itemId,
+                    artworkType
+                );
+
+            manifest[itemId][artworkType] =
+                filePath
+                    ? pathToFileURL(filePath).href
+                    : null;
+        }
+
+    }
+
+    return manifest;
+}
+
+
+ipcMain.handle(
+    "get-artwork-manifest",
+    async () => {
+
+        if (startupArtworkPreloadPromise) {
+            await startupArtworkPreloadPromise;
+        }
+
+        return buildRendererArtworkManifest();
+
+    }
+);
+
+
 ipcMain.handle(
     "get-artwork",
     async (
@@ -3054,24 +3191,23 @@ ipcMain.handle(
             }
 
 
+            const requestedArtworkType =
+                String(artworkType);
+
+            const normalizedArtworkType =
+                requestedArtworkType === "grid" ||
+                requestedArtworkType === "capsule"
+                    ? "cover"
+                    : requestedArtworkType;
+
             const supportedArtworkTypes = [
-
-                "icon",
-                "logo",
-                "cover",
-                "grid",
-                "hero",
-                "background",
-                "capsule"
-
+                ...UNIVERSAL_ARTWORK_TYPES
             ];
 
 
             if (
                 !supportedArtworkTypes.includes(
-                    String(
-                        artworkType
-                    )
+                    normalizedArtworkType
                 )
             ) {
 
@@ -3079,6 +3215,9 @@ ipcMain.handle(
                     `Unsupported artwork type: ${artworkType}`
                 );
             }
+
+            artworkType =
+                normalizedArtworkType;
 
 
             let artworkUrl =
@@ -4368,44 +4507,8 @@ function getArtworkTypesForPreload(
     itemId
 ) {
 
-    /*
-        Minecraft currently uses all of these in the renderer.
-    */
-
-    if (
-        itemId ===
-        "minecraft"
-    ) {
-
-        return [
-
-            "icon",
-            "logo",
-            "cover",
-            "hero",
-            "background"
-
-        ];
-
-    }
-
-
-    /*
-        General items get the common artwork types.
-
-        If a particular item has no source for a type, it is
-        simply skipped.
-    */
-
     return [
-
-        "icon",
-        "logo",
-        "cover",
-        "grid",
-        "hero",
-        "background"
-
+        ...UNIVERSAL_ARTWORK_TYPES
     ];
 
 }
@@ -6896,65 +6999,27 @@ app.whenReady()
 
 
             /*
-                ====================================================
-                STARTUP ARTWORK PRELOAD
-                ====================================================
-
-                Build the artwork cache before showing the XMB.
-
-                FIRST LAUNCH
-                    ↓
-                Create hidden window
-                    ↓
-                Download/cache artwork
-                    ↓
-                Show XMB
-                    ↓
-                Artwork is already available
-
-                FUTURE LAUNCH
-                    ↓
-                Create hidden window
-                    ↓
-                Verify existing cache
-                    ↓
-                Show XMB
-                    ↓
-                Very little waiting
-                ====================================================
+                Start the one authoritative artwork preload
+                without blocking the visible Electron window.
             */
 
-            try {
+            startupArtworkPreloadPromise =
+                preloadArtworkOnStartup()
+                    .catch(
+                        error => {
 
-                await preloadArtworkOnStartup();
+                            console.error(
+                                "Startup artwork preload encountered an error:",
+                                error
+                            );
 
-            }
-
-            catch (
-                error
-            ) {
-
-                console.error(
-
-                    "Startup artwork preload encountered an error:",
-
-                    error
-
-                );
-
-            }
+                        }
+                    );
 
 
             /*
-                ====================================================
-                SHOW XMB
-                ====================================================
-
-                Artwork preload has finished.
-
-                Even if some individual artwork failed to
-                download, we still open the launcher.
-                ====================================================
+                Show immediately. The renderer startup animation
+                can run while the persistent artwork cache is built.
             */
 
             if (
