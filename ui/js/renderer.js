@@ -1600,7 +1600,11 @@ function getItemListIcon(
 
             steamArtworkRendererCache[
                 item.id
-            ]?.capsule ||
+            ]?.cover ||
+
+            steamArtworkRendererCache[
+                item.id
+            ]?.icon ||
 
             item.artworkMetadata?.icon ||
 
@@ -1622,6 +1626,8 @@ function getItemListIcon(
     return (
 
         item.artworkMetadata?.icon ||
+
+        dynamicArtworkCache[item.id]?.icon ||
 
         item.icon ||
 
@@ -2448,6 +2454,19 @@ async function loadDynamicArtwork(
 
         refreshRenderedItemIcon(item);
 
+        /*
+            A manifest entry with at least one real asset is
+            authoritative. A completely empty provider entry
+            still gets one provider-resolution attempt so a
+            missing provider URL cannot permanently hide a
+            valid configured fallback.
+        */
+
+        const hasManifestArtwork =
+            Object.values(artwork).some(
+                source => Boolean(source)
+            );
+
         if (
             requestId ===
             artworkSelectionRequestId
@@ -2468,7 +2487,9 @@ async function loadDynamicArtwork(
 
         }
 
-        return;
+        if (hasManifestArtwork) {
+            return;
+        }
 
     }
 
