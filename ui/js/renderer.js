@@ -164,7 +164,227 @@ const backgroundArtworkImage =
 
 const dynamicArtworkCache = {};
 
-const steamArtworkRendererCache = {};
+const steamArtworkRendererCache =
+    dynamicArtworkCache;
+
+const decodedArtworkCache = {};
+
+let rendererArtworkPreloadPromise = null;
+
+
+/*
+    ========================================================
+    UNIFIED STARTUP ARTWORK MANIFEST
+    ========================================================
+*/
+
+function preloadDecodedArtwork(
+    itemId,
+    artworkType,
+    source
+) {
+
+    return new Promise(
+        resolve => {
+
+            if (!source) {
+                resolve(false);
+                return;
+            }
+
+            const image = new Image();
+            let settled = false;
+
+            const finish = success => {
+
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+
+                if (success) {
+
+                    decodedArtworkCache[itemId] =
+                        decodedArtworkCache[itemId] || {};
+
+                    decodedArtworkCache[itemId][artworkType] =
+                        image;
+
+                }
+
+                resolve(success);
+
+            };
+
+            image.onload = async () => {
+
+                try {
+
+                    if (typeof image.decode === "function") {
+                        await image.decode();
+                    }
+
+                    finish(true);
+
+                }
+                catch (error) {
+                    finish(true);
+                }
+
+            };
+
+            image.onerror =
+                () => finish(false);
+
+            image.src =
+                resolveLocalAssetPath(source);
+
+        }
+    );
+
+}
+
+
+async function initializeRendererArtworkManifest() {
+
+    if (rendererArtworkPreloadPromise) {
+        return rendererArtworkPreloadPromise;
+    }
+
+    rendererArtworkPreloadPromise =
+        (async () => {
+
+            if (
+                !window.electron ||
+                typeof window.electron.getArtworkManifest !==
+                    "function"
+            ) {
+
+                console.warn(
+                    "Unified artwork manifest bridge is unavailable."
+                );
+
+                return;
+
+            }
+
+            let manifest = {};
+
+            try {
+
+                manifest =
+                    await window.electron.getArtworkManifest();
+
+            }
+            catch (error) {
+
+                console.error(
+                    "Failed to load artwork manifest:",
+                    error
+                );
+
+                return;
+
+            }
+
+            const jobs = [];
+
+            for (
+                const [itemId, artwork]
+                of Object.entries(manifest || {})
+            ) {
+
+                dynamicArtworkCache[itemId] = {};
+
+                for (
+                    const artworkType
+                    of [
+                        "icon",
+                        "logo",
+                        "cover",
+                        "hero",
+                        "background"
+                    ]
+                ) {
+
+                    const source =
+                        artwork?.[artworkType] ||
+                        null;
+
+                    dynamicArtworkCache[itemId][artworkType] =
+                        source;
+
+                    if (source) {
+
+                        jobs.push({
+                            itemId,
+                            artworkType,
+                            source
+                        });
+
+                    }
+
+                }
+
+            }
+
+            let nextIndex = 0;
+
+            async function worker() {
+
+                while (true) {
+
+                    const index = nextIndex++;
+
+                    if (index >= jobs.length) {
+                        return;
+                    }
+
+                    const job = jobs[index];
+
+                    await preloadDecodedArtwork(
+                        job.itemId,
+                        job.artworkType,
+                        job.source
+                    );
+
+                }
+
+            }
+
+            const workerCount =
+                Math.min(
+                    6,
+                    jobs.length
+                );
+
+            if (workerCount > 0) {
+
+                await Promise.all(
+                    Array.from(
+                        {
+                            length: workerCount
+                        },
+                        () => worker()
+                    )
+                );
+
+            }
+
+            console.log(
+                "Renderer artwork manifest ready:",
+                Object.keys(manifest || {}).length,
+                "items /",
+                jobs.length,
+                "decoded assets."
+            );
+
+        })();
+
+    return rendererArtworkPreloadPromise;
+
+}
 
 
 /*
@@ -609,7 +829,9 @@ function restartArtworkTransition(
     ========================================================
 */
 
-function initializeInterface() {
+async function initializeInterface() {
+
+    await initializeRendererArtworkManifest();
 
     initializeSelectionArtwork();
 
@@ -1384,7 +1606,7 @@ function getItemListIcon(
 
             item.artworkMetadata?.logo ||
 
-            item.artworkMetadata?.capsule ||
+            item.artworkMetadata?.cover ||
 
             item.icon ||
 
@@ -2205,6 +2427,61 @@ async function loadDynamicArtwork(
 
     /*
         ====================================================
+        UNIFIED STARTUP CACHE
+        ====================================================
+    */
+
+    if (
+        Object.prototype.hasOwnProperty.call(
+            dynamicArtworkCache,
+            item.id
+        )
+    ) {
+
+        const artwork =
+            dynamicArtworkCache[item.id] || {};
+
+        applyDynamicArtworkToItem(
+            item,
+            artwork
+        );
+
+        refreshRenderedItemIcon(item);
+
+        if (
+            requestId ===
+            artworkSelectionRequestId
+        ) {
+
+            const currentItem =
+                getRenderedCurrentItemData();
+
+            if (
+                !currentItem ||
+                currentItem.id === item.id
+            ) {
+
+                updatePreviewArtwork(item);
+                updateBackground(item);
+
+            }
+
+        }
+
+        return;
+
+    }
+
+
+    /*
+        ====================================================
+        LEGACY PROVIDER FALLBACK
+        ====================================================
+    */
+
+
+    /*
+        ====================================================
         STEAM
         ====================================================
     */
@@ -2651,15 +2928,15 @@ function getPreviewArtwork(
                 "",
 
             cover:
-                metadataArtwork.capsule ||
+                metadataArtwork.cover ||
                 "",
 
             capsule:
-                metadataArtwork.capsule ||
+                metadataArtwork.cover ||
                 "",
 
             grid:
-                metadataArtwork.grid ||
+                metadataArtwork.cover ||
                 "",
 
             background:
@@ -2697,11 +2974,11 @@ function getPreviewArtwork(
             "",
 
         grid:
-            metadataArtwork.grid ||
+            metadataArtwork.cover ||
             "",
 
         capsule:
-            metadataArtwork.capsule ||
+            metadataArtwork.cover ||
             "",
 
         background:
@@ -3136,7 +3413,7 @@ function updatePreviewArtwork(
         cover =
             artwork.hero ||
             artwork.background ||
-            artwork.capsule ||
+            artwork.cover ||
             "";
 
     }
@@ -3171,7 +3448,7 @@ function updatePreviewArtwork(
 
         cover =
             artwork.cover ||
-            artwork.grid ||
+            artwork.cover ||
             artwork.hero ||
             "";
 
@@ -3646,7 +3923,7 @@ function updateBackground(
             ? (
                 artwork.hero ||
                 artwork.background ||
-                artwork.capsule ||
+                artwork.cover ||
                 item?.background ||
                 ""
             )
