@@ -1808,17 +1808,3 @@
 
 }
 
-
-/* Keep the normal XMB controls hidden until the startup overlay is gone. */
-body:not(.xmb-startup-complete) #top-bar,
-body:not(.xmb-startup-complete) #bottom-bar {
-    opacity: 0;
-    pointer-events: none;
-}
-
-body.xmb-startup-complete #top-bar,
-body.xmb-startup-complete #bottom-bar {
-    opacity: 1;
-    pointer-events: auto;
-    transition: opacity 0.38s ease;
-}
