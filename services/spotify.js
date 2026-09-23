@@ -9,7 +9,7 @@ const spotifyService={
     recentCacheAt:0,
     recentCacheTtl:60000,
     shuffle:false,
-    repeat:"off",
+    repeat:"off",\n    player:null,\n    playerDeviceId:"",\n    playerReady:false,\n    playerConnecting:false,
 
     async initialize(){
         if(this.initialized)return;
@@ -136,78 +136,159 @@ const spotifyService={
         an arbitrary Spotify Connect device, which prevents XMB from
         accidentally starting music on an Echo, TV, or other remote device.
     */
-    async openUri(uri,fallbackUrl=""){
-        if(!uri&&!fallbackUrl)return false;
+    async initializeWebPlayback(){
+        if(this.playerConnecting || this.playerReady)return this.playerReady;
+
+        this.playerConnecting=true;
 
         try{
-            if(uri){
-                const opened=await window.electron?.openExternal?.(uri);
-                if(opened)return true;
+            if(!window.Spotify?.Player){
+                throw new Error("Spotify Web Playback SDK is not loaded.");
             }
+
+            const player=new window.Spotify.Player({
+                name:"Personal XMB",
+                volume:0.75,
+                enableMediaSession:true,
+                getOAuthToken:async callback=>{
+                    try{
+                        const result=await window.electron?.spotifyPlaybackToken?.();
+                        callback(result?.accessToken||"");
+                    }catch(error){
+                        console.warn("Spotify playback token failed:",error.message);
+                        callback("");
+                    }
+                }
+            });
+
+            player.addListener("ready",({device_id})=>{
+                this.playerDeviceId=device_id||"";
+                this.playerReady=Boolean(this.playerDeviceId);
+                console.log("Personal XMB Spotify player ready.");
+                this.showTemporaryMessage("Spotify player ready.");
+            });
+
+            player.addListener("not_ready",({device_id})=>{
+                if(device_id===this.playerDeviceId)this.playerReady=false;
+            });
+
+            player.addListener("initialization_error",({message})=>{
+                console.error("Spotify Web Playback initialization error:",message);
+                this.showTemporaryMessage("Spotify playback could not initialize.");
+            });
+
+            player.addListener("authentication_error",({message})=>{
+                console.error("Spotify Web Playback authentication error:",message);
+                this.showTemporaryMessage("Spotify playback authorization failed.");
+            });
+
+            player.addListener("account_error",({message})=>{
+                console.error("Spotify Web Playback account error:",message);
+                this.showTemporaryMessage("Spotify Web Playback requires Spotify Premium.");
+            });
+
+            player.addListener("playback_error",({message})=>{
+                console.error("Spotify Web Playback error:",message);
+                this.showTemporaryMessage("Spotify playback error.");
+            });
+
+            player.addListener("player_state_changed",state=>{
+                if(!state)return;
+                const track=state.track_window?.current_track;
+                if(track){
+                    this.currentTrack={
+                        id:track.id,
+                        uri:track.uri||"",
+                        name:track.name||"Unknown",
+                        artist:track.artists?.map(item=>item.name).join(", ")||"Unknown Artist",
+                        album:track.album?.name||"Unknown Album",
+                        artwork:track.album?.images?.[0]?.url||"",
+                        duration:state.duration||track.duration_ms||0,
+                        progress:state.position||0,
+                        isPlaying:!state.paused,
+                        spotifyUrl:""
+                    };
+                }
+                this.renderPlayer();
+            });
+
+            this.player=player;
+            const connected=await player.connect();
+
+            if(!connected){
+                throw new Error("Spotify Web Playback could not connect.");
+            }
+
+            this.playerConnecting=false;
+            return true;
         }catch(error){
-            console.warn("Spotify URI open failed:",error.message);
-        }
-
-        if(fallbackUrl){
-            try{
-                return !!(await window.electron?.openExternal?.(fallbackUrl));
-            }catch(error){
-                console.warn("Spotify web fallback failed:",error.message);
-            }
-        }
-
-        return false;
-    },
-
-    async togglePlayback(){
-        const track=this.currentTrack;
-
-        if(!track){
-            await this.openUri("spotify:", "https://open.spotify.com/");
-            return;
-        }
-
-        const opened=await this.openUri(
-            track.uri,
-            track.spotifyUrl||"https://open.spotify.com/"
-        );
-
-        if(!opened){
-            console.warn("Unable to open Spotify for the current item.");
-        }
-    },
-
-    async next(){
-        await this.openSpotifyDesktop();
-    },
-
-    async previous(){
-        await this.openSpotifyDesktop();
-    },
-
-    async openSpotifyDesktop(){
-        try{
-            const result=await window.electron?.spotifyLaunchDesktop?.();
-            if(result?.success===false){
-                throw new Error(result.error||"Unable to launch Spotify.");
-            }
-            return result?.success!==false;
-        }catch(error){
-            console.warn("Spotify desktop launch failed:",error.message);
+            this.playerConnecting=false;
+            this.playerReady=false;
+            console.error("Spotify Web Playback setup failed:",error);
             return false;
         }
     },
 
+    async ensureLocalPlayer(){
+        if(this.playerReady&&this.playerDeviceId)return true;
+
+        const ready=await this.initializeWebPlayback();
+        if(!ready||!this.playerDeviceId){
+            throw new Error("Spotify playback is not ready.");
+        }
+
+        return true;
+    },
+
+    async activatePlayer(){
+        await this.ensureLocalPlayer();
+        if(this.player?.activateElement)await this.player.activateElement();
+    },
+
+    async transferToLocalPlayer(){
+        await this.ensureLocalPlayer();
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player",
+            body:{device_ids:[this.playerDeviceId],play:false}
+        });
+    },
+
+    async togglePlayback(){
+        await this.activatePlayer();
+        await this.player.togglePlay();
+    },
+
+    async next(){
+        await this.activatePlayer();
+        await this.player.nextTrack();
+    },
+
+    async previous(){
+        await this.activatePlayer();
+        await this.player.previousTrack();
+    },
+
     async toggleShuffle(){
-        showTemporaryMessage(
-            "Playback controls are handled by Spotify."
-        );
+        await this.activatePlayer();
+        const next=!this.shuffle;
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/shuffle?state="+next+"&device_id="+encodeURIComponent(this.playerDeviceId)
+        });
+        this.shuffle=next;
+        this.updateModes();
     },
 
     async cycleRepeat(){
-        showTemporaryMessage(
-            "Playback controls are handled by Spotify."
-        );
+        await this.activatePlayer();
+        const next=this.repeat==="off"?"context":this.repeat==="context"?"track":"off";
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/repeat?state="+next+"&device_id="+encodeURIComponent(this.playerDeviceId)
+        });
+        this.repeat=next;
+        this.updateModes();
     },
 
     updateModes(){
@@ -238,62 +319,50 @@ const spotifyService={
     },
 
     async playTrack(uri){
-        if(!uri)return;
-
-        const opened=await this.openUri(
-            uri,
-            "https://open.spotify.com/"
-        );
-
-        if(!opened){
-            throw new Error("Unable to open Spotify.");
-        }
-
+        if(!uri)throw new Error("Spotify track URI is missing.");
+        await this.activatePlayer();
+        await this.transferToLocalPlayer();
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            body:{uris:[uri]}
+        });
         this.lastPlayerRefresh=0;
     },
 
     async playPlaylist(uri){
-        if(!uri)return;
-
-        const opened=await this.openUri(
-            uri,
-            "https://open.spotify.com/"
-        );
-
-        if(!opened){
-            throw new Error("Unable to open Spotify.");
-        }
-
+        if(!uri)throw new Error("Spotify playlist URI is missing.");
+        await this.activatePlayer();
+        await this.transferToLocalPlayer();
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            body:{context_uri:uri}
+        });
         this.lastPlayerRefresh=0;
     },
 
     async playContext(uri){
-        if(!uri)return;
-
-        const opened=await this.openUri(
-            uri,
-            "https://open.spotify.com/"
-        );
-
-        if(!opened){
-            throw new Error("Unable to open Spotify.");
-        }
-
+        if(!uri)throw new Error("Spotify context URI is missing.");
+        await this.activatePlayer();
+        await this.transferToLocalPlayer();
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            body:{context_uri:uri}
+        });
         this.lastPlayerRefresh=0;
     },
 
     async playPodcastShow(uri){
-        if(!uri)return;
-
-        const opened=await this.openUri(
-            uri,
-            "https://open.spotify.com/"
-        );
-
-        if(!opened){
-            throw new Error("Unable to open Spotify.");
-        }
-
+        if(!uri)throw new Error("Spotify podcast URI is missing.");
+        await this.activatePlayer();
+        await this.transferToLocalPlayer();
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            body:{context_uri:uri}
+        });
         this.lastPlayerRefresh=0;
     },
 
@@ -1040,3 +1109,4 @@ document.addEventListener("keydown",event=>{
 
 window.spotifyService=spotifyService;
 window.spotifyUi=spotifyUi;
+\nwindow.spotifyService=spotifyService;\n
