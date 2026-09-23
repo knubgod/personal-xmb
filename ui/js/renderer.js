@@ -4296,14 +4296,15 @@ function applyTheme(
         themeCollection.default;
 
 
+    /*
+        A stale item theme should never break the interface.
+        Fall back quietly to the default theme instead of
+        filling the console during normal navigation.
+    */
+
     if (
         !theme
     ) {
-
-        console.warn(
-            "Theme not found:",
-            themeName
-        );
 
         return;
 
