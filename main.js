@@ -5532,6 +5532,325 @@ ipcMain.handle(
 
 /*
     ========================================================
+    SPOTIFY DESKTOP LAUNCHER
+    ========================================================
+
+    Spotify playback is handled by the installed Spotify
+    desktop application. XMB controls Spotify through the
+    Spotify Web API while this helper makes sure the real
+    Spotify client is running in the background.
+
+    Windows:
+        Supports common per-user and system install paths.
+
+    macOS:
+        Uses the Spotify application bundle.
+
+    The launcher deliberately does not kill or restart an
+    existing Spotify process.
+*/
+
+function getSpotifyExecutable() {
+
+    if (process.platform === "win32") {
+
+        const candidates = [
+            path.join(
+                process.env.APPDATA || "",
+                "Spotify",
+                "Spotify.exe"
+            ),
+
+            path.join(
+                process.env.LOCALAPPDATA || "",
+                "Spotify",
+                "Spotify.exe"
+            ),
+
+            path.join(
+                process.env.ProgramFiles || "",
+                "Spotify",
+                "Spotify.exe"
+            ),
+
+            path.join(
+                process.env["ProgramFiles(x86)"] || "",
+                "Spotify",
+                "Spotify.exe"
+            )
+        ];
+
+        for (const candidate of candidates) {
+
+            if (
+                candidate &&
+                fs.existsSync(candidate)
+            ) {
+
+                return candidate;
+
+            }
+
+        }
+
+        return null;
+
+    }
+
+
+    if (process.platform === "darwin") {
+
+        const candidate =
+            "/Applications/Spotify.app/Contents/MacOS/Spotify";
+
+        if (
+            fs.existsSync(candidate)
+        ) {
+
+            return candidate;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+function isSpotifyRunning() {
+
+    return new Promise(
+        resolve => {
+
+            if (process.platform === "win32") {
+
+                const checker =
+                    spawn(
+                        "tasklist",
+                        [
+                            "/FI",
+                            "IMAGENAME eq Spotify.exe"
+                        ],
+                        {
+                            windowsHide: true,
+                            stdio: [
+                                "ignore",
+                                "pipe",
+                                "ignore"
+                            ]
+                        }
+                    );
+
+                let output = "";
+
+                checker.stdout.on(
+                    "data",
+                    chunk => {
+
+                        output +=
+                            chunk.toString();
+
+                    }
+                );
+
+                checker.on(
+                    "close",
+                    () => {
+
+                        resolve(
+                            output
+                                .toLowerCase()
+                                .includes("spotify.exe")
+                        );
+
+                    }
+                );
+
+                checker.on(
+                    "error",
+                    () => {
+
+                        resolve(false);
+
+                    }
+                );
+
+                return;
+
+            }
+
+
+            if (process.platform === "darwin") {
+
+                const checker =
+                    spawn(
+                        "pgrep",
+                        [
+                            "-x",
+                            "Spotify"
+                        ],
+                        {
+                            stdio: "ignore"
+                        }
+                    );
+
+                checker.on(
+                    "close",
+                    code => {
+
+                        resolve(
+                            code === 0
+                        );
+
+                    }
+                );
+
+                checker.on(
+                    "error",
+                    () => {
+
+                        resolve(false);
+
+                    }
+                );
+
+                return;
+
+            }
+
+
+            resolve(false);
+
+        }
+    );
+
+}
+
+
+async function launchSpotifyDesktop() {
+
+    if (
+        await isSpotifyRunning()
+    ) {
+
+        return {
+            success: true,
+            alreadyRunning: true
+        };
+
+    }
+
+
+    const executable =
+        getSpotifyExecutable();
+
+
+    if (
+        process.platform === "win32"
+    ) {
+
+        if (!executable) {
+
+            throw new Error(
+                "Spotify desktop application could not be found."
+            );
+
+        }
+
+
+        spawn(
+            executable,
+            [
+                "--autostart",
+                "--minimized"
+            ],
+            {
+                detached: true,
+                windowsHide: true,
+                stdio: "ignore"
+            }
+        ).unref();
+
+
+        return {
+            success: true,
+            alreadyRunning: false
+        };
+
+    }
+
+
+    if (
+        process.platform === "darwin"
+    ) {
+
+        if (!executable) {
+
+            throw new Error(
+                "Spotify desktop application could not be found."
+            );
+
+        }
+
+
+        spawn(
+            executable,
+            [],
+            {
+                detached: true,
+                stdio: "ignore"
+            }
+        ).unref();
+
+
+        return {
+            success: true,
+            alreadyRunning: false
+        };
+
+    }
+
+
+    throw new Error(
+        "Spotify desktop launching is currently supported on Windows and macOS."
+    );
+
+}
+
+
+ipcMain.handle(
+    "spotify-launch-desktop",
+    async () => {
+
+        try {
+
+            return await launchSpotifyDesktop();
+
+        }
+        catch (error) {
+
+            console.error(
+                "Spotify desktop launch failed:",
+                error
+            );
+
+            return {
+                success: false,
+                error:
+                    error?.message ||
+                    "Unable to launch Spotify."
+            };
+
+        }
+
+    }
+);
+
+
+/*
+    ========================================================
     LAUNCH ITEMS
     ========================================================
 */
