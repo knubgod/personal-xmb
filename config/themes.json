@@ -6,6 +6,20 @@
         "glow": "#5BA9FF"
     },
 
+    "settings": {
+        "primary": "#8A8F98",
+        "secondary": "#14171B",
+        "accent": "#D9DDE2",
+        "glow": "#AEB5BE"
+    },
+
+    "minecraft": {
+        "primary": "#55A85A",
+        "secondary": "#102014",
+        "accent": "#8AD88F",
+        "glow": "#69C66E"
+    },
+
     "friends": {
         "primary": "#7289DA",
         "secondary": "#1D2340",
