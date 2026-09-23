@@ -4,6 +4,10 @@ const spotifyService={
     pollTimer:null,
     progressTimer:null,
     currentTrack:null,
+    lastPlayerRefresh:0,
+    recentCache:null,
+    recentCacheAt:0,
+    recentCacheTtl:60000,
     shuffle:false,
     repeat:"off",
 
@@ -18,7 +22,9 @@ const spotifyService={
     startPolling(){
         if(this.polling)return;
         this.polling=true;
-        this.pollTimer=setInterval(()=>this.refreshNowPlaying(),5000);
+        // Spotify rate-limits the Web API. Five-second polling is
+        // unnecessarily aggressive for a desktop launcher.
+        this.pollTimer=setInterval(()=>this.refreshNowPlaying(),15000);
     },
 
     startProgressTicker(){
@@ -52,6 +58,12 @@ const spotifyService={
     },
 
     async refreshNowPlaying(){
+        const now=Date.now();
+
+        if(now-this.lastPlayerRefresh<10000)return;
+
+        this.lastPlayerRefresh=now;
+
         try{
             const data=await this.api({
                 method:"GET",
@@ -463,7 +475,12 @@ const spotifyUi={
     },
 
     async loadRecentActivity(){
-        if(this.recentCache)return this.recentCache;
+        if(
+            this.recentCache &&
+            Date.now()-this.recentCacheAt<this.recentCacheTtl
+        ){
+            return this.recentCache;
+        }
 
         this.recentCache=(async()=>{
             const data=await spotifyService.recentlyPlayed(50);
@@ -535,44 +552,17 @@ const spotifyUi={
                 }
             }
 
-            const enrichMap=async(map,type)=>{
-                await Promise.all([...map.values()].map(async item=>{
-                    try{
-                        const id=item.uri.split(":").pop();
-                        const endpoint=type==="playlist"
-                            ?"/playlists/"+encodeURIComponent(id)
-                            :type==="podcast"
-                                ?"/shows/"+encodeURIComponent(id)
-                                :"/artists/"+encodeURIComponent(id);
+            /*
+                Do not fan out one recently-played request into dozens
+                of additional Spotify API calls. A 50-track history can
+                contain many unique artists/playlists/shows, and the old
+                Promise.all() enrichment could immediately hit Spotify's
+                rate limit.
 
-                        const result=await spotifyService.api({
-                            method:"GET",
-                            endpoint
-                        });
-
-                        item.name=result?.name||item.name;
-                        item.image=
-                            result?.images?.[2]?.url||
-                            result?.images?.[0]?.url||
-                            result?.images?.[0]?.url||
-                            "";
-
-                        if(type==="artist"){
-                            item.subtitle="Artist";
-                        }else if(type==="podcast"){
-                            item.subtitle="Podcast show";
-                        }
-                    }catch(error){
-                        /* Keep the derived item usable if enrichment fails. */
-                    }
-                }));
-            };
-
-            await Promise.all([
-                enrichMap(artistMap,"artist"),
-                enrichMap(playlistMap,"playlist"),
-                enrichMap(podcastMap,"podcast")
-            ]);
+                The recent-history response already contains the useful
+                artist/playlist/show URIs. Keep those rows local and use
+                the metadata Spotify already returned.
+            */
 
             const artists=[...artistMap.values()];
             const playlists=[...playlistMap.values()];
@@ -603,9 +593,12 @@ const spotifyUi={
         })();
 
         try{
-            return await this.recentCache;
+            const result=await this.recentCache;
+            this.recentCacheAt=Date.now();
+            return result;
         }catch(error){
             this.recentCache=null;
+            this.recentCacheAt=0;
             throw error;
         }
     },
@@ -689,8 +682,8 @@ const spotifyUi={
 
     async showRecentlyPlayed(){
         this.selectedFilter=0;
-        this.recentCache=null;
         this.ensure();
+        this.recentCacheAt=0;
         await this.renderRecentFilter();
     },
 
