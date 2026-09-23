@@ -12,7 +12,6 @@ getArtwork:(itemId,type="logo",source={})=>ipcRenderer.invoke("get-artwork",item
 getArtworkManifest:()=>ipcRenderer.invoke("get-artwork-manifest"),
 spotifyLogin:()=>ipcRenderer.invoke("spotify-login"),
 spotifyLaunchDesktop:()=>ipcRenderer.invoke("spotify-launch-desktop"),
-spotifyPlaybackToken:()=>ipcRenderer.invoke("spotify-playback-token"),
 spotifyApi:(request)=>ipcRenderer.invoke("spotify-api",request),
 onSpotifyAuthComplete:(callback)=>ipcRenderer.on("spotify-auth-complete",()=>callback()),
 getAccounts:()=>ipcRenderer.invoke("accounts-get"),
