@@ -691,6 +691,8 @@ async function startApplication() {
         window.settingsData =
             await window.electron.getSettings();
 
+        window.xmbConfig = window.settingsData;
+
 
         window.themesData =
             await window.electron.getThemes();
