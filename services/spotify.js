@@ -9,7 +9,11 @@ const spotifyService={
     recentCacheAt:0,
     recentCacheTtl:60000,
     shuffle:false,
-    repeat:"off",\n    player:null,\n    playerDeviceId:"",\n    playerReady:false,\n    playerConnecting:false,
+    repeat:"off",
+    player:null,
+    playerDeviceId:"",
+    playerReady:false,
+    playerConnecting:false,
 
     async initialize(){
         if(this.initialized)return;
@@ -1109,4 +1113,5 @@ document.addEventListener("keydown",event=>{
 
 window.spotifyService=spotifyService;
 window.spotifyUi=spotifyUi;
-\nwindow.spotifyService=spotifyService;\n
+
+window.spotifyService=spotifyService;
