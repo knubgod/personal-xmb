@@ -357,7 +357,10 @@ window.updateSpotifyPlayer=(track)=>{
         if(current)current.textContent="0:00";
         if(duration)duration.textContent="0:00";
         if(fill)fill.className="progress-0";
-        if(play)play.textContent="▶";
+        if(play){
+            play.textContent="↗";
+            play.setAttribute("aria-label","Open Spotify");
+        }
         spotifyService.updateModes();
         return;
     }
@@ -380,8 +383,8 @@ window.updateSpotifyPlayer=(track)=>{
         fill.className="progress-"+Math.max(0,Math.min(100,percent));
     }
     if(play){
-        play.textContent=track.isPlaying?"❚❚":"▶";
-        play.setAttribute("aria-label",track.isPlaying?"Pause":"Play");
+        play.textContent="↗";
+        play.setAttribute("aria-label","Open in Spotify");
     }
     spotifyService.updateModes();
 };
