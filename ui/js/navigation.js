@@ -1237,7 +1237,9 @@ async function executeAction(
             showTemporaryMessage(
                 result.alreadyRunning
                     ? "Spotify is already running."
-                    : "Spotify launched in the background."
+                    : result.launchedByProtocol
+                        ? "Spotify launched."
+                        : "Spotify launched in the background."
             );
         } else {
             showTemporaryMessage(
