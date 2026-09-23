@@ -26,9 +26,37 @@ const spotifyService={
             so selecting music no longer depends on the Spotify
             desktop application being open.
         */
-        await this.initializeLocalPlayer();
+        /*
+            Spotify must never prevent the rest of XMB from starting.
+            The player is initialized in the background and normal
+            Web API state is refreshed only when authentication works.
+        */
+        try {
 
-        await this.refreshNowPlaying();
+            await this.initializeLocalPlayer();
+
+        } catch (error) {
+
+            console.warn(
+                "Spotify local player initialization failed:",
+                error
+            );
+
+        }
+
+        try {
+
+            await this.refreshNowPlaying();
+
+        } catch (error) {
+
+            console.warn(
+                "Spotify initial playback refresh failed:",
+                error
+            );
+
+        }
+
         this.startPolling();
         this.startProgressTicker();
     },

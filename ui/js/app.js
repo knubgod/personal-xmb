@@ -775,13 +775,35 @@ async function startApplication() {
         }
 
 
+        /*
+            Spotify is an optional service. Its Web Playback SDK
+            can fail because of authentication, account state, SDK
+            loading, or network conditions.
+
+            Do NOT let Spotify initialization block the XMB UI.
+            The renderer/navigation must always initialize even
+            when Spotify is unavailable.
+        */
         if (
             window.spotifyService &&
             typeof window.spotifyService.initialize ===
                 "function"
         ) {
 
-            await window.spotifyService.initialize();
+            try {
+
+                await window.spotifyService.initialize();
+
+            }
+
+            catch (error) {
+
+                console.warn(
+                    "Spotify initialization did not complete. XMB will continue:",
+                    error
+                );
+
+            }
 
         }
 
