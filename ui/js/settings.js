@@ -350,7 +350,11 @@ window.xmbSettings = {
     apply: applyUserSettings
 };
 
-document.addEventListener(
-    "DOMContentLoaded",
-    applyUserSettings
-);
+/*
+    Settings are applied by app.js after categories, themes,
+    metadata, and services have finished loading.
+
+    Do not apply them from a second DOMContentLoaded handler.
+    That handler ran before themesData existed and produced
+    the misleading "Theme not found: default" warning.
+*/
