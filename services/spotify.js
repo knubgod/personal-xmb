@@ -10,6 +10,7 @@ const spotifyService={
     recentCacheTtl:60000,
     shuffle:false,
     repeat:"off",
+    playbackDeviceId:"",
 
     async initialize(){
         if(this.initialized)return;
@@ -143,13 +144,46 @@ const spotifyService={
         }
     },
 
+    async getAvailableDevices(){
+        const data=await this.api({method:"GET",endpoint:"/me/player/devices"});
+        return Array.isArray(data?.devices)?data.devices:[];
+    },
+
+    async ensurePlaybackDevice({launchIfNeeded=true}={}){
+        let devices=[];
+        try{ devices=await this.getAvailableDevices(); }catch(error){ if(!launchIfNeeded)throw error; }
+        let device=devices.find(item=>item?.is_active&&!item?.is_restricted&&item?.id);
+
+        if(!device&&launchIfNeeded){
+            const launchResult=await window.electron?.spotifyLaunchDesktop?.();
+            if(launchResult?.success===false)throw new Error(launchResult.error||"Spotify could not be launched.");
+            for(let attempt=0;attempt<10;attempt++){
+                await new Promise(resolve=>setTimeout(resolve,700));
+                try{ devices=await this.getAvailableDevices(); }catch(error){ devices=[]; }
+                device=devices.find(item=>item?.is_active&&!item?.is_restricted&&item?.id)
+                    ||devices.find(item=>String(item?.type||"").toLowerCase()==="computer"&&!item?.is_restricted&&item?.id)
+                    ||devices.find(item=>!item?.is_restricted&&item?.id);
+                if(device)break;
+            }
+        }
+
+        if(!device)throw new Error("No playable Spotify device is available. Launch Spotify and try again.");
+        this.playbackDeviceId=device.id;
+        return device;
+    },
+
     async togglePlayback(){
         if(!this.currentTrack)return;
+        const wasPlaying=this.currentTrack.isPlaying;
         try{
+            const device=await this.ensurePlaybackDevice({launchIfNeeded:!wasPlaying});
             await this.api({
                 method:"PUT",
-                endpoint:this.currentTrack.isPlaying?"/me/player/pause":"/me/player/play"
+                endpoint:(wasPlaying?"/me/player/pause":"/me/player/play")+"?device_id="+encodeURIComponent(device.id)
             });
+            this.currentTrack.isPlaying=!wasPlaying;
+            this.renderPlayer();
+            this.lastPlayerRefresh=0;
             await this.refreshNowPlaying();
         }catch(error){
             console.warn("Spotify playback failed:",error.message);
@@ -159,6 +193,7 @@ const spotifyService={
     async next(){
         try{
             await this.api({method:"POST",endpoint:"/me/player/next"});
+            this.lastPlayerRefresh=0;
             setTimeout(()=>this.refreshNowPlaying(),500);
         }catch(error){
             console.warn("Spotify next failed:",error.message);
@@ -232,21 +267,25 @@ const spotifyService={
 
     async playTrack(uri){
         if(!uri)return;
+        const device=await this.ensurePlaybackDevice({launchIfNeeded:true});
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(device.id),
             body:{uris:[uri]}
         });
+        this.lastPlayerRefresh=0;
         await this.refreshNowPlaying();
     },
 
     async playPlaylist(uri){
         if(!uri)return;
+        const device=await this.ensurePlaybackDevice({launchIfNeeded:true});
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(device.id),
             body:{context_uri:uri}
         });
+        this.lastPlayerRefresh=0;
         await this.refreshNowPlaying();
     }
 };
@@ -334,6 +373,8 @@ const spotifyUi={
     ],
     selectedFilter:0,
     recentCache:null,
+    recentCacheAt:0,
+    recentCacheTtl:60000,
 
     ensure(){
         if(this.overlay)return this.overlay;
@@ -513,7 +554,7 @@ const spotifyUi={
                             type:"artist",
                             name:artist.name||"Unknown Artist",
                             subtitle:"Artist",
-                            image:"",
+                            image:track?.album?.images?.[2]?.url||track?.album?.images?.[0]?.url||"",
                             uri:artist.uri||"",
                             playedAt,
                             source:"derived"
@@ -528,7 +569,7 @@ const spotifyUi={
                             type:"playlist",
                             name:"Playlist",
                             subtitle:"Playlist",
-                            image:"",
+                            image:track?.album?.images?.[2]?.url||track?.album?.images?.[0]?.url||"",
                             uri:context.uri,
                             playedAt,
                             source:"derived"
@@ -543,7 +584,7 @@ const spotifyUi={
                             type:"podcast",
                             name:"Podcast",
                             subtitle:"Podcast show",
-                            image:"",
+                            image:track?.album?.images?.[2]?.url||track?.album?.images?.[0]?.url||"",
                             uri:context.uri,
                             playedAt,
                             source:"derived"
@@ -657,6 +698,20 @@ const spotifyUi={
             ).join("");
 
             const rows=[...content.querySelectorAll(".spotify-library-row")];
+
+            rows.forEach(row=>{
+                const image=row.querySelector("img");
+                if(image){
+                    image.referrerPolicy="no-referrer";
+                    image.addEventListener("error",()=>{
+                        const icon=document.createElement("span");
+                        icon.className="spotify-library-row-icon "+(row.dataset.type||"");
+                        icon.setAttribute("aria-hidden","true");
+                        icon.textContent=this.getRowIcon(row.dataset.type||"");
+                        image.replaceWith(icon);
+                    },{once:true});
+                }
+            });
 
             items.forEach((item,index)=>{
                 const row=rows[index];

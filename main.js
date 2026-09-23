@@ -6417,7 +6417,7 @@ async function launchSpotifyDesktop() {
                 try{
                     const child=spawn(
                         executable,
-                        ["--autostart","--minimized"],
+                        ["--minimized"],
                         {
                             detached:true,
                             windowsHide:true,
