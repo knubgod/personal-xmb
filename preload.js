@@ -16,9 +16,9 @@ onSpotifyAuthComplete:(callback)=>ipcRenderer.on("spotify-auth-complete",()=>cal
 getAccounts:()=>ipcRenderer.invoke("accounts-get"),
 loginAccount:(provider)=>ipcRenderer.invoke("account-login",provider),
 logoutAccount:(provider)=>ipcRenderer.invoke("account-logout",provider),
-refreshAccounts:()=>ipcRenderer.invoke("accounts-refresh")
+refreshAccounts:()=>ipcRenderer.invoke("accounts-refresh"),
 
-        quitApp:
+quitApp:
             () => ipcRenderer.invoke("quit-app"),
 
         setWindowState:
