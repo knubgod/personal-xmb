@@ -1638,6 +1638,21 @@ function getBuiltInItemIcon(
             '<path d="M10 5H5v14h5"/><path d="M13 8l4 4-4 4"/><path d="M9 12h8"/>',
 
         "spotify-now-playing":
+            '<path d="M5 4h14v16H5z"/><circle cx="12" cy="10" r="2.5"/><path d="M9 16h6"/>',
+
+        "spotify-recently-played":
+            '<path d="M4 12a8 8 0 1 0 2.34-5.66"/><path d="M4 4v5h5"/><path d="M12 8v4l3 2"/>',
+
+        "spotify-playlists":
+            '<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
+
+        "spotify-dj":
+            '<path d="M4 12a8 8 0 1 1 16 0"/><path d="M8 12v5M16 12v5"/><path d="M10 17h4"/><path d="M12 8v2"/>',
+
+        "spotify-launch-desktop":
+            '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+
+        "spotify-now-playing":
             '<path d="M8 5v14l11-7L8 5Z"/>',
 
         "spotify-recently-played":
