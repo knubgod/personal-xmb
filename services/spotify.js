@@ -32,6 +32,57 @@ const spotifyService={
         this.startProgressTicker();
     },
 
+    startPolling(){
+        if(this.polling)return;
+        this.polling=true;
+        this.pollTimer=setInterval(
+            ()=>this.refreshNowPlaying(),
+            15000
+        );
+    },
+
+    startProgressTicker(){
+        if(this.progressTimer)return;
+        this.progressTimer=setInterval(()=>{
+            if(!this.currentTrack)return;
+
+            if(
+                this.currentTrack.isPlaying &&
+                this.currentTrack.duration>0
+            ){
+                this.currentTrack.progress=Math.min(
+                    this.currentTrack.duration,
+                    this.currentTrack.progress+250
+                );
+            }
+
+            this.renderPlayer();
+        },250);
+    },
+
+    stopPolling(){
+        if(this.pollTimer)clearInterval(this.pollTimer);
+        if(this.progressTimer)clearInterval(this.progressTimer);
+
+        this.pollTimer=null;
+        this.progressTimer=null;
+        this.polling=false;
+    },
+
+    showTemporaryMessage(message){
+        const element=document.getElementById("temporary-message");
+        if(!element)return;
+
+        element.textContent=String(message||"");
+        element.classList.add("visible");
+
+        clearTimeout(this.messageTimeout);
+
+        this.messageTimeout=setTimeout(()=>{
+            element.classList.remove("visible");
+        },1800);
+    },
+
     async api(request){
         const result=await window.electron?.spotifyApi?.(request);
         if(!result?.success){
@@ -97,25 +148,6 @@ const spotifyService={
         if(typeof window.updateSpotifyPlayer==="function"){
             window.updateSpotifyPlayer(track);
             return;
-        }
-    },
-
-    async openDj(){
-        try{
-            const result=await window.electron?.openExternal?.("spotify:search:DJ");
-            if(result)return {success:true};
-        }catch(error){
-            console.warn("Spotify desktop DJ URI failed:",error.message);
-        }
-
-        try{
-            const result=await window.electron?.openExternal?.("https://open.spotify.com/search/DJ");
-            return {
-                success:!!result,
-                error:result?"":"Unable to open Spotify DJ."
-            };
-        }catch(error){
-            return {success:false,error:error.message};
         }
     },
 
