@@ -6995,7 +6995,8 @@ ipcMain.handle(
                 "http://127.0.0.1:53682/callback";
 
             const scopes = [
-                "streaming",\n                "user-read-currently-playing",
+                "streaming",
+                "user-read-currently-playing",
                 "user-read-playback-state",
                 "user-read-recently-played",
                 "playlist-read-private",
@@ -8353,7 +8354,16 @@ app.whenReady()
                 ====================================================
             */
 
-            registerArtworkProtocol();\n\n            if (components?.whenReady) {\n                try {\n                    await components.whenReady();\n                    console.log("Widevine components ready.");\n                } catch (error) {\n                    console.error("Widevine component initialization failed:",error);\n                }\n            }
+            registerArtworkProtocol();
+
+            if (components?.whenReady) {
+                try {
+                    await components.whenReady();
+                    console.log("Widevine components ready.");
+                } catch (error) {
+                    console.error("Widevine component initialization failed:",error);
+                }
+            }
 
             app.on(
                 "web-contents-created",
