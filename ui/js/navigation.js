@@ -1189,95 +1189,46 @@ async function executeAction(
     }
 
 
-    /*
-        =================================================
-        SETTINGS
-        =================================================
-    */
-
-    if (
-        action.action ===
-        "settings" ||
-        action.action ===
-        "themes" ||
-        action.action ===
-        "audio"
-    ) {
-
-        if (window.xmbSettings?.open) {
-            window.xmbSettings.open();
-        }
-        else {
-            showTemporaryMessage(
-                "Settings service is unavailable."
-            );
-        }
-
-        return;
-
-    }
-
-
-    /*
-        =================================================
-        THEMES
-        =================================================
-    */
-
-    if (
-        action.action ===
-        "themes"
-    ) {
-
-        if (window.xmbSettings?.open) {
-            window.xmbSettings.open();
-        }
-
-        return;
-
-    }
-
-
-    /*
-        =================================================
-        AUDIO
-        =================================================
-    */
-
-    if (
-        action.action ===
-        "audio"
-    ) {
-
-        if (window.xmbSettings?.open) {
-            window.xmbSettings.open();
-        }
-
-        return;
-
-    }
-
-
-    /*
-        =================================================
-        SPOTIFY RECENT
-        =================================================
-    */
-
-    if (
-        action.action ===
-        "spotify-recent"
-    ) {
-
-        showTemporaryMessage(
-            "Recently Played is coming soon."
+    if (["settings","themes","audio","accounts","artwork","system"].includes(action.action)) {
+        window.xmbSettings?.open?.(
+            action.action === "settings" ? "general" : action.action
         );
-
-
         return;
-
     }
 
+    if (action.action === "friends") {
+        window.friendsSurface?.open?.();
+        if (!window.friendsSurface) showTemporaryMessage("Friends service is unavailable.");
+        return;
+    }
+
+    if (action.action === "spotify-now-playing") {
+        await window.spotifyService?.refreshNowPlaying?.();
+        showTemporaryMessage("Now Playing refreshed.");
+        return;
+    }
+
+    if (action.action === "spotify-recent") {
+        window.spotifyUi?.showRecentlyPlayed?.();
+        return;
+    }
+
+    if (action.action === "spotify-playlists") {
+        window.spotifyUi?.showPlaylists?.();
+        return;
+    }
+
+    if (action.action === "spotify-shuffle") {
+        await window.spotifyService?.toggleShuffle?.();
+        showTemporaryMessage(window.spotifyService?.shuffle ? "Shuffle On" : "Shuffle Off");
+        return;
+    }
+
+    if (action.action === "spotify-repeat") {
+        await window.spotifyService?.cycleRepeat?.();
+        showTemporaryMessage("Repeat: " + (window.spotifyService?.repeat || "off"));
+        return;
+    }
 
     /*
         =================================================
