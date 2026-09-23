@@ -1635,7 +1635,22 @@ function getBuiltInItemIcon(
             '<path d="M5 10v4h3l4 3V7l-4 3H5Z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M17.5 6.5a7.5 7.5 0 0 1 0 11"/>',
 
         "exit-xmb":
-            '<path d="M10 5H5v14h5"/><path d="M13 8l4 4-4 4"/><path d="M9 12h8"/>'
+            '<path d="M10 5H5v14h5"/><path d="M13 8l4 4-4 4"/><path d="M9 12h8"/>',
+
+        "spotify-now-playing":
+            '<path d="M8 5v14l11-7L8 5Z"/>',
+
+        "spotify-recently-played":
+            '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8"/>',
+
+        "spotify-playlists":
+            '<path d="M5 6h14M5 12h14M5 18h9"/>',
+
+        "spotify-dj":
+            '<path d="M7 4h10v16H7Z"/><circle cx="10" cy="12" r="1.5"/><circle cx="14" cy="12" r="1.5"/>',
+
+        "spotify-launch-desktop":
+            '<path d="M8 4h8v16H8Z"/><path d="M5 9h3M5 15h3"/>'
 
     };
 
