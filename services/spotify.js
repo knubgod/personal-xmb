@@ -140,6 +140,11 @@ const spotifyService={
         an arbitrary Spotify Connect device, which prevents XMB from
         accidentally starting music on an Echo, TV, or other remote device.
     */
+    async openDj(){
+        this.showTemporaryMessage("Spotify DJ is not exposed to third-party playback apps.");
+        return {success:false,error:"Spotify DJ is not available through the Spotify Web Playback SDK."};
+    },
+
     async initializeWebPlayback(){
         if(this.playerConnecting || this.playerReady)return this.playerReady;
 
