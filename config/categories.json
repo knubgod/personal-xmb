@@ -45,10 +45,23 @@
                         "action": "audio"
                     }
                 ]
+            },
+            {
+                "id": "exit-xmb",
+                "name": "Exit Personal XMB",
+                "type": "setting",
+                "description": "Close Personal XMB.",
+                "status": "Available",
+                "icon": "assets/icons/categories/settings.svg",
+                "actions": [
+                    {
+                        "name": "Exit Personal XMB",
+                        "action": "exit"
+                    }
+                ]
             }
         ]
     },
-
     "Friends": {
         "icon": "assets/icons/categories/friends.svg",
         "description": "See what your friends are doing across your services.",
@@ -70,7 +83,6 @@
             }
         ]
     },
-
     "Spotify": {
         "icon": "assets/icons/categories/spotify.svg",
         "description": "Control Spotify and view your recent music.",
@@ -126,7 +138,6 @@
             }
         ]
     },
-
     "Steam": {
         "icon": "assets/icons/categories/steam.svg",
         "description": "Launch and manage your Steam games.",
@@ -269,7 +280,6 @@
             }
         ]
     },
-
     "Xbox": {
         "icon": "assets/icons/categories/xbox.svg",
         "description": "Access Xbox and Game Pass content.",
@@ -315,37 +325,32 @@
                 ]
             },
             {
-    "id": "minecraft",
-    "name": "Minecraft",
-    "type": "game",
-    "platform": "Xbox",
-    "description": "A sandbox game where you can build, explore, survive, and create in a block-based world.",
-    "status": "Ready to Launch",
-
-    "theme": "minecraft",
-
-    "launchType": "minecraft",
-
-    "artworkSources": {
-        "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png",
-        "logo": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png",
-        "background": "https://images.unsplash.com/photo-1627856013091-fed6e4e30025"
-    },
-
-    "actions": [
-        {
-            "name": "Launch Minecraft",
-            "action": "launch"
-        },
-        {
-            "name": "More Info",
-            "action": "info"
-        }
-    ]
-}
+                "id": "minecraft",
+                "name": "Minecraft",
+                "type": "game",
+                "platform": "Xbox",
+                "description": "A sandbox game where you can build, explore, survive, and create in a block-based world.",
+                "status": "Ready to Launch",
+                "theme": "minecraft",
+                "launchType": "minecraft",
+                "artworkSources": {
+                    "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png",
+                    "logo": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png",
+                    "background": "https://images.unsplash.com/photo-1627856013091-fed6e4e30025"
+                },
+                "actions": [
+                    {
+                        "name": "Launch Minecraft",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    }
+                ]
+            }
         ]
     },
-
     "Riot": {
         "icon": "assets/icons/categories/riot.svg",
         "description": "League of Legends and other Riot Games.",
@@ -380,7 +385,6 @@
             }
         ]
     },
-
     "PC": {
         "icon": "assets/icons/categories/pc.svg",
         "description": "Access additional PC games and applications.",
@@ -430,7 +434,6 @@
             }
         ]
     },
-
     "Work": {
         "icon": "assets/icons/categories/work.svg",
         "description": "Tools and services for work.",
@@ -466,105 +469,75 @@
             }
         ]
     },
-
     "Server": {
-    "icon": "server",
-    "description": "Monitor and manage your home server.",
-    "theme": "server",
-
-    "items": [
-
-        {
-            "id": "chatgpt",
-            "name": "ChatGPT",
-            "type": "web",
-
-            "description": "Open ChatGPT.",
-
-            "status": "Available",
-
-            "launchType": "url",
-
-            "url": "https://chatgpt.com",
-
-            "theme": "chatgpt",
-
-            "actions": [
-                {
-                    "name": "Open ChatGPT",
-                    "action": "launch"
-                }
-            ]
-        },
-
-        {
-            "id": "portainer",
-            "name": "Portainer",
-            "type": "web",
-
-            "description": "Manage Docker containers.",
-
-            "status": "Available",
-
-            "launchType": "url",
-
-            "url": "http://YOURSERVER:9000",
-
-            "theme": "portainer",
-
-            "actions": [
-                {
-                    "name": "Open Portainer",
-                    "action": "launch"
-                }
-            ]
-        },
-
-        {
-            "id": "grafana",
-            "name": "Grafana",
-            "type": "web",
-
-            "description": "View dashboards and metrics.",
-
-            "status": "Available",
-
-            "launchType": "url",
-
-            "url": "http://YOURSERVER:3000",
-
-            "theme": "grafana",
-
-            "actions": [
-                {
-                    "name": "Open Grafana",
-                    "action": "launch"
-                }
-            ]
-        },
-
-        {
-            "id": "uptime-kuma",
-            "name": "Uptime Kuma",
-            "type": "web",
-
-            "description": "Monitor service health.",
-
-            "status": "Available",
-
-            "launchType": "url",
-
-            "url": "http://YOURSERVER:3001",
-
-            "theme": "uptime-kuma",
-
-            "actions": [
-                {
-                    "name": "Open Uptime Kuma",
-                    "action": "launch"
-                }
-            ]
-        }
-    ]
-}
+        "icon": "server",
+        "description": "Monitor and manage your home server.",
+        "theme": "server",
+        "items": [
+            {
+                "id": "chatgpt",
+                "name": "ChatGPT",
+                "type": "web",
+                "description": "Open ChatGPT.",
+                "status": "Available",
+                "launchType": "url",
+                "url": "https://chatgpt.com",
+                "theme": "chatgpt",
+                "actions": [
+                    {
+                        "name": "Open ChatGPT",
+                        "action": "launch"
+                    }
+                ]
+            },
+            {
+                "id": "portainer",
+                "name": "Portainer",
+                "type": "web",
+                "description": "Manage Docker containers.",
+                "status": "Available",
+                "launchType": "url",
+                "url": "http://YOURSERVER:9000",
+                "theme": "portainer",
+                "actions": [
+                    {
+                        "name": "Open Portainer",
+                        "action": "launch"
+                    }
+                ]
+            },
+            {
+                "id": "grafana",
+                "name": "Grafana",
+                "type": "web",
+                "description": "View dashboards and metrics.",
+                "status": "Available",
+                "launchType": "url",
+                "url": "http://YOURSERVER:3000",
+                "theme": "grafana",
+                "actions": [
+                    {
+                        "name": "Open Grafana",
+                        "action": "launch"
+                    }
+                ]
+            },
+            {
+                "id": "uptime-kuma",
+                "name": "Uptime Kuma",
+                "type": "web",
+                "description": "Monitor service health.",
+                "status": "Available",
+                "launchType": "url",
+                "url": "http://YOURSERVER:3001",
+                "theme": "uptime-kuma",
+                "actions": [
+                    {
+                        "name": "Open Uptime Kuma",
+                        "action": "launch"
+                    }
+                ]
+            }
+        ]
+    }
 }
