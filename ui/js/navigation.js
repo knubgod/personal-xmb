@@ -1218,6 +1218,11 @@ async function executeAction(
         return;
     }
 
+    if (action.action === "spotify-search") {
+        window.spotifyUi?.showSearch?.();
+        return;
+    }
+
     if (action.action === "spotify-shuffle") {
         await window.spotifyService?.toggleShuffle?.();
         showTemporaryMessage(window.spotifyService?.shuffle ? "Shuffle On" : "Shuffle Off");
