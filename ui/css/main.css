@@ -696,15 +696,6 @@ body {
    SETTINGS / ACCESSIBILITY STATES
    ======================================================== */
 
-.hide-clock #clock {
-    opacity: 0;
-    pointer-events: none;
-}
-
-.hide-hints #bottom-bar {
-    opacity: 0;
-    pointer-events: none;
-}
 
 .reduced-xmb-motion * {
     animation-duration: 0.01ms !important;
