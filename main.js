@@ -197,7 +197,7 @@ function readSettingsFile() {
 
         try {
             bundledSettings =
-                readSettingsFile();
+                readConfigFile("settings.json");
         }
         catch (error) {
             bundledSettings = {};
