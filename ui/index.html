@@ -15,6 +15,7 @@
             media-src 'self' blob: https://*.spotifycdn.com https://*.scdn.co;
             font-src 'self';
             connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://sdk.scdn.co https://*.spotify.com https://*.scdn.co wss://*.spotify.com;
+            frame-src 'self' https://sdk.scdn.co;
         "
     >
 
@@ -683,6 +684,10 @@
 
     <script src="components/statusPanel.js"></script>
 
+
+    <!-- Define the SDK callback before Spotify's script loads. -->
+
+    <script src="js/spotify-sdk.js"></script>
 
     <!-- Spotify's official Web Playback SDK creates the local
          Spotify Connect player used by XMB. -->
