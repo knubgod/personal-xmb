@@ -1331,6 +1331,36 @@ document.addEventListener(
     "keydown",
     async (event) => {
 
+        /*
+            Settings is a real modal surface. While it is open,
+            global XMB navigation must not consume arrow keys,
+            Enter, or other form input.
+        */
+
+        const settingsOverlay =
+            document.getElementById(
+                "settings-overlay"
+            );
+
+        if (
+            settingsOverlay
+        ) {
+
+            if (
+                event.key.toLowerCase() ===
+                "escape"
+            ) {
+
+                event.preventDefault();
+
+                window.xmbSettings?.close?.();
+
+            }
+
+            return;
+
+        }
+
         if (
             window.xmbAudio &&
             typeof window.xmbAudio.unlock ===
@@ -1620,6 +1650,299 @@ document.addEventListener(
 
         }
 
+    }
+);
+
+
+/*
+    ========================================================
+    MOUSE / POINTER INPUT
+    ========================================================
+
+    Keyboard remains the primary XMB input, but the prototype
+    should also behave naturally with a mouse.
+
+    Single click selects. Double click activates.
+*/
+
+document.addEventListener(
+    "click",
+    async event => {
+
+        if (
+            document.getElementById(
+                "settings-overlay"
+            )
+        ) {
+
+            return;
+
+        }
+
+        const category =
+            event.target.closest(
+                ".category"
+            );
+
+        if (
+            category
+        ) {
+
+            const index =
+                Number(
+                    category.dataset.index
+                );
+
+            if (
+                Number.isInteger(index)
+            ) {
+
+                selectCategory(index);
+
+            }
+
+            return;
+
+        }
+
+        const item =
+            event.target.closest(
+                "#items .item"
+            );
+
+        if (
+            item
+        ) {
+
+            const index =
+                Number(
+                    item.dataset.index
+                );
+
+            if (
+                Number.isInteger(index)
+            ) {
+
+                if (
+                    navigationLevel !==
+                    "items"
+                ) {
+
+                    enterItemLevel();
+
+                }
+
+                selectItem(index);
+
+                if (
+                    event.detail >= 2
+                ) {
+
+                    await selectCurrentItem();
+
+                }
+
+            }
+
+            return;
+
+        }
+
+        const action =
+            event.target.closest(
+                "#actions .action"
+            );
+
+        if (
+            action
+        ) {
+
+            const index =
+                Number(
+                    action.dataset.index
+                );
+
+            if (
+                Number.isInteger(index) &&
+                navigationLevel !==
+                    "categories"
+            ) {
+
+                if (
+                    navigationLevel !==
+                    "options"
+                ) {
+
+                    openOptions();
+
+                }
+
+                currentAction =
+                    index;
+
+                refreshNavigation(
+                    true
+                );
+
+                if (
+                    event.detail >= 2
+                ) {
+
+                    await selectCurrentAction();
+
+                }
+
+            }
+
+            return;
+
+        }
+
+        if (
+            event.target.closest(
+                "#back-hint"
+            )
+        ) {
+
+            goBack();
+            return;
+
+        }
+
+        if (
+            event.target.closest(
+                "#options-hint"
+            )
+        ) {
+
+            openOptions();
+            return;
+
+        }
+
+        if (
+            event.target.closest(
+                "#select-hint"
+            )
+        ) {
+
+            if (
+                navigationLevel ===
+                "categories"
+            ) {
+
+                enterItemLevel();
+
+            }
+            else if (
+                navigationLevel ===
+                "items"
+            ) {
+
+                await selectCurrentItem();
+
+            }
+            else {
+
+                await selectCurrentAction();
+
+            }
+
+        }
+
+    }
+);
+
+
+/*
+    ========================================================
+    MOUSE WHEEL INPUT
+    ========================================================
+
+    Vertical wheel movement follows the active XMB axis.
+*/
+
+document.addEventListener(
+    "wheel",
+    event => {
+
+        if (
+            document.getElementById(
+                "settings-overlay"
+            )
+        ) {
+
+            return;
+
+        }
+
+        if (
+            navigationLevel ===
+            "categories"
+        ) {
+
+            if (
+                Math.abs(event.deltaX) >
+                Math.abs(event.deltaY)
+            ) {
+
+                moveCategory(
+                    event.deltaX > 0
+                        ? 1
+                        : -1
+                );
+
+            }
+
+            return;
+
+        }
+
+        if (
+            navigationLevel ===
+            "items"
+        ) {
+
+            if (
+                event.deltaY !==
+                0
+            ) {
+
+                moveItem(
+                    event.deltaY > 0
+                        ? 1
+                        : -1
+                );
+
+            }
+
+            return;
+
+        }
+
+        if (
+            navigationLevel ===
+            "options"
+        ) {
+
+            if (
+                event.deltaY !==
+                0
+            ) {
+
+                moveAction(
+                    event.deltaY > 0
+                        ? 1
+                        : -1
+                );
+
+            }
+
+        }
+
+    },
+    {
+        passive: true
     }
 );
 
