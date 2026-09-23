@@ -141,18 +141,27 @@ const spotifyService={
     },
 
     async ensureLocalPlayer(){
-        if(!this.localPlayer||!this.localPlayerReady){
-            const initialized=await this.initializeLocalPlayer();
-
-            if(!initialized||!this.localPlayer||!this.localPlayerReady){
-                throw new Error(
-                    this.localPlayerError||
-                    "Spotify's XMB player is not ready."
-                );
-            }
+        if(!this.localPlayer){
+            await this.initializeLocalPlayer();
         }
 
-        return this.localPlayer;
+        /*
+            player.connect() resolves before the SDK's ready event
+            necessarily arrives. Wait briefly for the actual device
+            ID instead of racing the first user interaction.
+        */
+        for(let attempt=0;attempt<150;attempt++){
+            if(this.localPlayer&&this.localPlayerReady){
+                return this.localPlayer;
+            }
+
+            await new Promise(resolve=>setTimeout(resolve,100));
+        }
+
+        throw new Error(
+            this.localPlayerError||
+            "Spotify's XMB player is not ready."
+        );
     },
 
     async transferPlaybackToLocal(play){
