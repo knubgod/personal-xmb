@@ -6562,6 +6562,8 @@ ipcMain.handle(
 );
 
 
+ipcMain.handle("save-account-config",async(_e,v)=>{try{const s=readConfigFile("settings.json");s.spotify=s.spotify||{};s.integrations=s.integrations||{};s.integrations.discord=s.integrations.discord||{};s.integrations.microsoft=s.integrations.microsoft||{};s.integrations.riot=s.integrations.riot||{};s.spotify.clientId=String(v?.spotifyClientId||"").trim();s.integrations.discord.clientId=String(v?.discordClientId||"").trim();s.integrations.microsoft.clientId=String(v?.microsoftClientId||"").trim();s.integrations.riot.clientId=String(v?.riotClientId||"").trim();fs.writeFileSync(path.join(__dirname,"config","settings.json"),JSON.stringify(s,null,4));return{success:true};}catch(e){return{success:false,error:e.message};}});
+
 /*
     ========================================================
     DAILY ARTWORK REFRESH
