@@ -1865,6 +1865,9 @@ function renderRendererItemList(
                 )
             ) {
 
+                icon.dataset.xmbSource =
+                    iconSource;
+
                 icon.src =
                     iconSource;
 
@@ -1885,24 +1888,7 @@ function renderRendererItemList(
 
                     }
 
-                    const fallback =
-                        item?.icon &&
-                        resolveLocalAssetPath(
-                            item.icon
-                        );
-
-                    if (
-                        fallback &&
-                        fallback !== iconSource &&
-                        !failedIconSources.has(fallback)
-                    ) {
-
-                        icon.src =
-                            fallback;
-
-                        return;
-
-                    }
+                    delete icon.dataset.xmbSource;
 
                     icon.removeAttribute(
                         "src"
