@@ -479,8 +479,6 @@ function goBack() {
 
 function moveCategory(
     direction
-) {function moveCategory(
-    direction
 ) {
 
     if (
@@ -492,10 +490,8 @@ function moveCategory(
 
     }
 
-
     const categories =
         getCategoryNames();
-
 
     if (
         categories.length === 0
@@ -505,10 +501,8 @@ function moveCategory(
 
     }
 
-
     currentCategory +=
         direction;
-
 
     if (
         currentCategory < 0
@@ -518,7 +512,6 @@ function moveCategory(
             categories.length - 1;
 
     }
-
 
     if (
         currentCategory >=
@@ -530,22 +523,19 @@ function moveCategory(
 
     }
 
-
     currentItem =
         0;
 
-
     currentAction =
         0;
-
 
     refreshNavigation(
         true
     );
 
 }
-
-
+ 
+ 
 /*
     ========================================================
     MOVE ITEM
