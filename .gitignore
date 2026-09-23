@@ -30,3 +30,5 @@ Thumbs.db
 # Editor settings
 .vscode/
 .idea/
+# Runtime account settings
+config/settings.json
