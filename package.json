@@ -1,0 +1,17 @@
+{
+  "name": "personal-xmb",
+  "version": "1.0.0",
+  "description": "Personal XMB Launcher",
+  "main": "main.js",
+
+  "scripts": {
+    "start": "electron ."
+  },
+
+  "author": "",
+  "license": "ISC",
+
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}

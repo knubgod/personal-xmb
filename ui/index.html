@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        http-equiv="Content-Security-Policy"
+        content="
+            default-src 'self';
+            script-src 'self';
+            style-src 'self';
+            img-src 'self' data:;
+            media-src 'self' blob:;
+            font-src 'self';
+            connect-src 'self';
+        "
+    >
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Personal XMB</title>
+
+
+    <link
+        rel="stylesheet"
+        href="css/main.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/xmb.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/animations.css"
+    >
+
+</head>
+
+
+<body>
+
+    <!--
+        ====================================================
+        STARTUP ANIMATION
+        ====================================================
+
+        This gives Personal XMB a short PS3-inspired
+        startup moment.
+
+        The XMB itself is already underneath this layer,
+        so the application can begin loading immediately
+        while the animation plays.
+    -->
+
+    <div
+        id="xmb-startup"
+        aria-hidden="true"
+    >
+
+        <div id="startup-glow"></div>
+
+        <div id="startup-title">
+            PERSONAL XMB
+        </div>
+
+    </div>
+
+
+    <!--
+        ====================================================
+        BACKGROUND
+        ====================================================
+    -->
+
+    <div id="background">
+
+        <div id="background-artwork">
+
+            <img
+                id="background-artwork-image"
+                alt=""
+            >
+
+        </div>
+
+
+        <div id="background-glow"></div>
+
+
+        <!--
+            Central coded XMB ribbon system.
+        -->
+
+        <svg
+            id="wave-system"
+            viewBox="0 0 1600 900"
+            preserveAspectRatio="none"
+        >
+
+            <!--
+                FRONT RIBBON
+            -->
+
+            <path
+                id="wave1"
+                d="
+                    M-120 565
+                    C140 455 300 610 520 535
+                    C760 455 900 245 1160 350
+                    C1370 435 1500 390 1720 270
+
+                    L1720 320
+                    C1500 440 1370 485 1160 400
+                    C900 295 760 505 520 585
+                    C300 660 140 505 -120 615
+                    Z
+                "
+            ></path>
+
+
+            <!--
+                MIDGROUND RIBBON
+            -->
+
+            <path
+                id="wave2"
+                d="
+                    M-120 625
+                    C150 535 320 690 555 605
+                    C790 520 950 350 1195 435
+                    C1400 505 1510 475 1720 355
+
+                    L1720 405
+                    C1510 525 1400 555 1195 485
+                    C950 400 790 570 555 655
+                    C320 740 150 585 -120 675
+                    Z
+                "
+            ></path>
+
+
+            <!--
+                DISTANT RIBBON
+            -->
+
+            <path
+                id="wave3"
+                d="
+                    M-120 690
+                    C130 600 340 755 590 675
+                    C825 600 1010 450 1250 520
+                    C1430 575 1530 555 1720 455
+
+                    L1720 495
+                    C1530 595 1430 615 1250 560
+                    C1010 490 825 640 590 715
+                    C340 795 130 640 -120 730
+                    Z
+                "
+            ></path>
+
+
+            <!--
+                DEEPEST RIBBON
+            -->
+
+            <path
+                id="wave4"
+                d="
+                    M-120 755
+                    C150 675 350 815 625 735
+                    C875 665 1040 535 1280 595
+                    C1450 640 1540 625 1720 535
+
+                    L1720 570
+                    C1540 660 1450 675 1280 630
+                    C1040 570 875 700 625 770
+                    C350 850 150 710 -120 790
+                    Z
+                "
+            ></path>
+
+
+            <!--
+                =================================================
+                XMB SPARKLES
+                =================================================
+            -->
+
+            <g id="sparkles">
+
+                <circle
+                    cx="120"
+                    cy="390"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="215"
+                    cy="520"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="315"
+                    cy="345"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="390"
+                    cy="470"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="475"
+                    cy="560"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="580"
+                    cy="600"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="665"
+                    cy="390"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="735"
+                    cy="510"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="810"
+                    cy="425"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="885"
+                    cy="620"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="950"
+                    cy="365"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="1030"
+                    cy="570"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="1105"
+                    cy="445"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="1175"
+                    cy="650"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="1230"
+                    cy="455"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="1305"
+                    cy="350"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="1370"
+                    cy="620"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="1450"
+                    cy="470"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="1520"
+                    cy="560"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="170"
+                    cy="680"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="350"
+                    cy="700"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="530"
+                    cy="430"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="700"
+                    cy="690"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="920"
+                    cy="520"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="1080"
+                    cy="700"
+                    r="2"
+                ></circle>
+
+                <circle
+                    cx="1260"
+                    cy="580"
+                    r="1.5"
+                ></circle>
+
+                <circle
+                    cx="1430"
+                    cy="690"
+                    r="2"
+                ></circle>
+
+            </g>
+
+        </svg>
+
+
+        <div id="particles"></div>
+
+    </div>
+
+
+    <!--
+        ====================================================
+        TOP BAR
+        ====================================================
+    -->
+
+    <header id="top-bar">
+
+        <div id="category-viewport">
+
+            <div id="categories"></div>
+
+        </div>
+
+
+        <div id="clock"></div>
+
+    </header>
+
+
+    <!--
+        ====================================================
+        MAIN XMB
+        ====================================================
+    -->
+
+    <main id="xmb-main">
+
+
+        <!--
+            =================================================
+            CATEGORY INFORMATION
+            =================================================
+        -->
+
+        <section
+            id="category-heading"
+        >
+
+            <div
+                id="selected-category"
+            ></div>
+
+            <div
+                id="category-description"
+            ></div>
+
+        </section>
+
+
+        <!--
+            =================================================
+            SELECTED ITEM PREVIEW
+            =================================================
+        -->
+
+        <section id="selection-preview">
+
+            <div id="selection-artwork">
+
+                <img
+                    id="selection-artwork-image"
+                    alt=""
+                >
+
+            </div>
+
+            <div id="selection-platform"></div>
+
+            <div id="selection-title"></div>
+
+            <div id="selection-description"></div>
+
+            <div id="selection-status"></div>
+
+        </section>
+
+
+        <!--
+            =================================================
+            VERTICAL LAUNCHER
+            =================================================
+        -->
+
+        <section
+            id="item-area"
+        >
+
+            <div id="items"></div>
+
+        </section>
+
+
+        <!--
+            =================================================
+            OPTIONS MENU
+            =================================================
+        -->
+
+        <section
+            id="action-area"
+        >
+
+            <div
+                id="action-title"
+            >
+                OPTIONS
+            </div>
+
+            <div id="actions"></div>
+
+        </section>
+
+
+        <!--
+            =================================================
+            SPOTIFY / MEDIA PLAYER
+            =================================================
+        -->
+
+        <section
+            id="media-player"
+        >
+
+            <div id="media-artwork">
+
+                <img
+                    id="media-artwork-image"
+                    alt=""
+                >
+
+            </div>
+
+
+            <div id="media-info">
+
+                <div id="media-label">
+                    NOW PLAYING
+                </div>
+
+                <div id="media-title">
+                    Nothing playing
+                </div>
+
+                <div id="media-artist">
+                    No active media
+                </div>
+
+
+                <div id="media-progress">
+
+                    <div
+                        id="media-progress-track"
+                    >
+
+                        <div
+                            id="media-progress-fill"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+                <div id="media-times">
+
+                    <span id="media-current">
+                        0:00
+                    </span>
+
+                    <span id="media-duration">
+                        0:00
+                    </span>
+
+                </div>
+
+
+                <div id="media-controls">
+
+                    <button
+                        id="media-previous"
+                        type="button"
+                    >
+                        ◀
+                    </button>
+
+                    <button
+                        id="media-play"
+                        type="button"
+                    >
+                        ▶
+                    </button>
+
+                    <button
+                        id="media-next"
+                        type="button"
+                    >
+                        ▶
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+    <!--
+        ====================================================
+        TEMPORARY MESSAGE
+        ====================================================
+    -->
+
+    <div
+        id="temporary-message"
+    ></div>
+
+
+    <!--
+        ====================================================
+        BOTTOM CONTROLS
+        ====================================================
+    -->
+
+    <footer id="bottom-bar">
+
+        <div id="input-mode">
+            KEYBOARD
+        </div>
+
+
+        <div
+            id="control-hints"
+        >
+
+            <div id="back-hint">
+
+                <span
+                    id="back-button"
+                    class="input-button"
+                >
+                    ESC
+                </span>
+
+                <span id="back-label">
+                    Back
+                </span>
+
+            </div>
+
+
+            <div id="options-hint">
+
+                <span
+                    id="options-button"
+                    class="input-button"
+                >
+                    O
+                </span>
+
+                <span id="options-label">
+                    Options
+                </span>
+
+            </div>
+
+
+            <div id="select-hint">
+
+                <span
+                    id="select-button"
+                    class="input-button"
+                >
+                    ENTER
+                </span>
+
+                <span id="select-label">
+                    Select
+                </span>
+
+            </div>
+
+        </div>
+
+    </footer>
+
+
+    <!--
+        ====================================================
+        JAVASCRIPT
+        ====================================================
+    -->
+
+    <script src="components/categoryBar.js"></script>
+
+    <script src="components/itemList.js"></script>
+
+    <script src="components/statusPanel.js"></script>
+
+
+    <!-- Existing services -->
+
+    <script src="../services/steam.js"></script>
+
+    <script src="../services/riot.js"></script>
+
+    <script src="../services/spotify.js"></script>
+
+    <script src="../services/server.js"></script>
+
+
+    <!-- Metadata -->
+
+    <script src="../services/metadata.js"></script>
+
+    <script src="../services/steamMetadata.js"></script>
+
+    <script src="../services/steamArtwork.js"></script>
+
+    <script src="../services/artwork.js"></script>
+
+
+    <!-- XMB logic -->
+
+    <script src="js/navigation.js"></script>
+
+    <script src="js/controller.js"></script>
+
+    <script src="js/renderer.js"></script>
+
+    <script src="js/clock.js"></script>
+
+    <script src="js/app.js"></script>
+
+</body>
+
+</html>

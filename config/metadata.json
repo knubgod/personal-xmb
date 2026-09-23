@@ -1,0 +1,491 @@
+{
+    "version": 5,
+    "items": {
+        "castle-crashers": {
+            "metadata": {
+                "name": "Castle Crashers",
+                "developer": "The Behemoth",
+                "publisher": "The Behemoth",
+                "genre": "Action / Adventure",
+                "platform": "PC",
+                "releaseDate": "2008",
+                "description": "A colorful four-player arcade adventure."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "steam",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "steam": {
+                    "appId": "204360"
+                }
+            }
+        },
+
+        "guilty-as-sock": {
+            "metadata": {
+                "name": "Guilty as Sock!",
+                "developer": "",
+                "publisher": "",
+                "genre": "",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "Guilty as Sock!"
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "steam",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "steam": {
+                    "appId": "3400930"
+                }
+            }
+        },
+
+        "meccha-chameleon": {
+            "metadata": {
+                "name": "MECCHA CHAMELEON",
+                "developer": "",
+                "publisher": "",
+                "genre": "",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "MECCHA CHAMELEON."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "steam",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "steam": {
+                    "appId": "4704690"
+                }
+            }
+        },
+
+        "black-ops-3": {
+            "metadata": {
+                "name": "Call of Duty: Black Ops III",
+                "developer": "Treyarch",
+                "publisher": "Activision",
+                "genre": "First-Person Shooter",
+                "platform": "PC",
+                "releaseDate": "2015",
+                "description": "A futuristic first-person shooter featuring campaign, multiplayer, and Zombies."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "steam",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "steam": {
+                    "appId": "311210"
+                }
+            }
+        },
+
+        "portal-2": {
+            "metadata": {
+                "name": "Portal 2",
+                "developer": "Valve",
+                "publisher": "Valve",
+                "genre": "Puzzle / Platformer",
+                "platform": "PC",
+                "releaseDate": "2011",
+                "description": "A first-person puzzle adventure from Valve."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "steam",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "steam": {
+                    "appId": "620"
+                }
+            }
+        },
+
+        "league-of-legends": {
+            "metadata": {
+                "name": "League of Legends",
+                "developer": "Riot Games",
+                "publisher": "Riot Games",
+                "genre": "MOBA",
+                "platform": "PC",
+                "releaseDate": "2009",
+                "description": "A team-based competitive multiplayer online battle arena game."
+            },
+            "artworkProfile": "riot",
+            "artworkProvider": "riot",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "riot": {
+                    "product": "league_of_legends",
+                    "patchline": "live"
+                }
+            }
+        },
+
+        "xbox-app": {
+            "metadata": {
+                "name": "Xbox App",
+                "developer": "Microsoft",
+                "publisher": "Microsoft",
+                "genre": "Gaming Platform",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "Microsoft's Xbox application for Windows. Browse games, Game Pass, friends, and your PC gaming library."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "xbox",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "xbox": {
+                    "product": "xbox-app"
+                }
+            }
+        },
+
+        "xbox-game-pass": {
+            "metadata": {
+                "name": "Game Pass",
+                "developer": "Microsoft",
+                "publisher": "Microsoft",
+                "genre": "Gaming Subscription",
+                "platform": "Xbox",
+                "releaseDate": "",
+                "description": "Browse and discover games available through Xbox Game Pass."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "xbox",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "xbox": {
+                    "product": "game-pass"
+                }
+            }
+        },
+
+        "minecraft": {
+            "metadata": {
+                "name": "Minecraft",
+                "developer": "Mojang Studios",
+                "publisher": "Xbox Game Studios",
+                "genre": "Sandbox / Survival",
+                "platform": "Xbox",
+                "releaseDate": "2011",
+                "description": "A sandbox game where you can build, explore, survive, and create in a block-based world."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "minecraft",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "minecraft": {
+                    "game": "minecraft"
+                }
+            }
+        },
+
+        "spotify-connect": {
+            "metadata": {
+                "name": "Spotify",
+                "developer": "Spotify",
+                "publisher": "Spotify",
+                "genre": "Music",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "Connect Personal XMB to Spotify."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "spotify",
+            "artwork": {
+                "icon": "https://cdn.simpleicons.org/spotify",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.simpleicons.org/spotify",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "spotify": {
+                    "type": "application"
+                }
+            }
+        },
+
+        "spotify-now-playing": {
+            "metadata": {
+                "name": "Now Playing",
+                "developer": "Spotify",
+                "publisher": "Spotify",
+                "genre": "Music",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "View and control your currently playing Spotify music."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "spotify",
+            "artwork": {
+                "icon": "https://cdn.simpleicons.org/spotify",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.simpleicons.org/spotify",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "spotify": {
+                    "type": "now-playing"
+                }
+            }
+        },
+
+        "spotify-recently-played": {
+            "metadata": {
+                "name": "Recently Played",
+                "developer": "Spotify",
+                "publisher": "Spotify",
+                "genre": "Music",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "View your recently played Spotify music."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "spotify",
+            "artwork": {
+                "icon": "https://cdn.simpleicons.org/spotify",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.simpleicons.org/spotify",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "spotify": {
+                    "type": "recently-played"
+                }
+            }
+        },
+
+        "retroarch": {
+            "metadata": {
+                "name": "RetroArch",
+                "developer": "Libretro",
+                "publisher": "Libretro",
+                "genre": "Emulator Frontend",
+                "platform": "PC",
+                "releaseDate": "2010",
+                "description": "A frontend for emulators, game engines, and media players."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "retroarch",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "retroarch": {
+                    "product": "retroarch"
+                }
+            }
+        },
+
+        "plutonium": {
+            "metadata": {
+                "name": "Plutonium",
+                "developer": "Plutonium",
+                "publisher": "Plutonium",
+                "genre": "Gaming Platform",
+                "platform": "PC",
+                "releaseDate": "",
+                "description": "A community-built platform for Call of Duty multiplayer."
+            },
+            "artworkProfile": "boxart",
+            "artworkProvider": "plutonium",
+            "artwork": {
+                "icon": "",
+                "grid": "",
+                "hero": "",
+                "logo": "",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "plutonium": {
+                    "product": "plutonium"
+                }
+            }
+        },
+
+        "chatgpt": {
+            "metadata": {
+                "name": "ChatGPT",
+                "developer": "OpenAI",
+                "publisher": "OpenAI",
+                "genre": "AI Assistant",
+                "platform": "Web",
+                "releaseDate": "",
+                "description": "Open ChatGPT."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "chatgpt",
+            "artwork": {
+                "icon": "https://cdn.simpleicons.org/openai",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.simpleicons.org/openai",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "chatgpt": {
+                    "type": "web"
+                }
+            }
+        },
+
+        "portainer": {
+            "metadata": {
+                "name": "Portainer",
+                "developer": "Portainer",
+                "publisher": "Portainer",
+                "genre": "Container Management",
+                "platform": "Web",
+                "releaseDate": "",
+                "description": "Manage Docker containers."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "portainer",
+            "artwork": {
+                "icon": "https://cdn.simpleicons.org/portainer",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.simpleicons.org/portainer",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "portainer": {
+                    "type": "web"
+                }
+            }
+        },
+
+        "grafana": {
+            "metadata": {
+                "name": "Grafana",
+                "developer": "Grafana Labs",
+                "publisher": "Grafana Labs",
+                "genre": "Monitoring / Observability",
+                "platform": "Web",
+                "releaseDate": "",
+                "description": "View dashboards and metrics."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "grafana",
+            "artwork": {
+                "icon": "https://cdn.simpleicons.org/grafana",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.simpleicons.org/grafana",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "grafana": {
+                    "type": "web"
+                }
+            }
+        },
+
+        "uptime-kuma": {
+            "metadata": {
+                "name": "Uptime Kuma",
+                "developer": "Louis Lam",
+                "publisher": "Uptime Kuma",
+                "genre": "Monitoring",
+                "platform": "Web",
+                "releaseDate": "",
+                "description": "Monitor service health."
+            },
+            "artworkProfile": "app",
+            "artworkProvider": "uptime-kuma",
+            "artwork": {
+                "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/uptime-kuma.png",
+                "grid": "",
+                "hero": "",
+                "logo": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/uptime-kuma.png",
+                "cover": "",
+                "background": ""
+            },
+            "sources": {
+                "uptime-kuma": {
+                    "type": "web"
+                }
+            }
+        }
+    }
+}

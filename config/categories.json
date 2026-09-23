@@ -1,0 +1,570 @@
+{
+    "Settings": {
+        "icon": "assets/icons/categories/settings.svg",
+        "description": "Configure Personal XMB.",
+        "theme": "settings",
+        "items": [
+            {
+                "id": "general-settings",
+                "name": "General Settings",
+                "type": "setting",
+                "description": "General launcher configuration.",
+                "status": "Available",
+                "icon": "assets/icons/categories/settings.svg",
+                "actions": [
+                    {
+                        "name": "Open Settings",
+                        "action": "settings"
+                    }
+                ]
+            },
+            {
+                "id": "themes",
+                "name": "Themes",
+                "type": "setting",
+                "description": "Change the look and feel of Personal XMB.",
+                "status": "Available",
+                "icon": "assets/icons/categories/settings.svg",
+                "actions": [
+                    {
+                        "name": "Open Themes",
+                        "action": "themes"
+                    }
+                ]
+            },
+            {
+                "id": "audio-settings",
+                "name": "Audio Settings",
+                "type": "setting",
+                "description": "Configure launcher sounds and audio behavior.",
+                "status": "Available",
+                "icon": "assets/icons/categories/settings.svg",
+                "actions": [
+                    {
+                        "name": "Open Audio Settings",
+                        "action": "audio"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "Friends": {
+        "icon": "assets/icons/categories/friends.svg",
+        "description": "See what your friends are doing across your services.",
+        "theme": "friends",
+        "items": [
+            {
+                "id": "friends-overview",
+                "name": "Friends Overview",
+                "type": "social",
+                "description": "A combined view of your friends across supported services.",
+                "status": "Coming Soon",
+                "icon": "assets/icons/categories/friends.svg",
+                "actions": [
+                    {
+                        "name": "Open Friends",
+                        "action": "friends"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "Spotify": {
+        "icon": "assets/icons/categories/spotify.svg",
+        "description": "Control Spotify and view your recent music.",
+        "theme": "spotify",
+        "items": [
+            {
+                "id": "spotify-connect",
+                "name": "Spotify",
+                "type": "app",
+                "platform": "Spotify",
+                "description": "Connect Personal XMB to Spotify.",
+                "status": "Available",
+                "icon": "assets/icons/categories/spotify.svg",
+                "launchType": "spotify",
+                "actions": [
+                    {
+                        "name": "Connect Spotify",
+                        "action": "spotify-connect"
+                    }
+                ]
+            },
+            {
+                "id": "spotify-now-playing",
+                "name": "Now Playing",
+                "type": "music",
+                "platform": "Spotify",
+                "description": "View and control your currently playing music.",
+                "status": "Available",
+                "icon": "assets/icons/categories/spotify.svg",
+                "launchType": "spotify",
+                "actions": [
+                    {
+                        "name": "Open Now Playing",
+                        "action": "spotify-now-playing"
+                    }
+                ]
+            },
+            {
+                "id": "spotify-recently-played",
+                "name": "Recently Played",
+                "type": "music",
+                "platform": "Spotify",
+                "description": "View your recently played music.",
+                "status": "Available",
+                "icon": "assets/icons/categories/spotify.svg",
+                "launchType": "spotify",
+                "actions": [
+                    {
+                        "name": "View Recently Played",
+                        "action": "spotify-recently-played"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "Steam": {
+        "icon": "assets/icons/categories/steam.svg",
+        "description": "Launch and manage your Steam games.",
+        "theme": "steam",
+        "items": [
+            {
+                "id": "castle-crashers",
+                "name": "Castle Crashers",
+                "type": "game",
+                "platform": "Steam",
+                "description": "A colorful four-player arcade adventure.",
+                "status": "Ready to Launch",
+                "icon": "assets/icons/games/castle-crashers.svg",
+                "artwork": "assets/artwork/castle-crashers.jpg",
+                "theme": "castle-crashers",
+                "launchType": "steam",
+                "steamAppId": "204360",
+                "actions": [
+                    {
+                        "name": "Launch Game",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    },
+                    {
+                        "name": "Game Source",
+                        "action": "source"
+                    }
+                ]
+            },
+            {
+                "id": "guilty-as-sock",
+                "name": "Guilty as Sock!",
+                "type": "game",
+                "platform": "Steam",
+                "description": "Guilty as Sock!",
+                "status": "Ready to Launch",
+                "icon": "assets/icons/games/guilty-as-sock.svg",
+                "artwork": "assets/artwork/guilty-as-sock.jpg",
+                "theme": "guilty-as-sock",
+                "launchType": "steam",
+                "steamAppId": "3400930",
+                "actions": [
+                    {
+                        "name": "Launch Game",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    },
+                    {
+                        "name": "Game Source",
+                        "action": "source"
+                    }
+                ]
+            },
+            {
+                "id": "meccha-chameleon",
+                "name": "MECCHA CHAMELEON",
+                "type": "game",
+                "platform": "Steam",
+                "description": "MECCHA CHAMELEON.",
+                "status": "Ready to Launch",
+                "icon": "assets/icons/games/meccha-chameleon.svg",
+                "artwork": "assets/artwork/meccha-chameleon.jpg",
+                "theme": "meccha-chameleon",
+                "launchType": "steam",
+                "steamAppId": "4704690",
+                "actions": [
+                    {
+                        "name": "Launch Game",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    },
+                    {
+                        "name": "Game Source",
+                        "action": "source"
+                    }
+                ]
+            },
+            {
+                "id": "black-ops-3",
+                "name": "Call of Duty: Black Ops III",
+                "type": "game",
+                "platform": "Steam",
+                "description": "Call of Duty: Black Ops III.",
+                "status": "Ready to Launch",
+                "icon": "assets/icons/games/black-ops-3.svg",
+                "artwork": "assets/artwork/black-ops-3.jpg",
+                "theme": "black-ops-3",
+                "launchType": "steam",
+                "steamAppId": "311210",
+                "actions": [
+                    {
+                        "name": "Launch Game",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    },
+                    {
+                        "name": "Game Source",
+                        "action": "source"
+                    }
+                ]
+            },
+            {
+                "id": "portal-2",
+                "name": "Portal 2",
+                "type": "game",
+                "platform": "Steam",
+                "description": "A first-person puzzle adventure from Valve.",
+                "status": "Ready to Launch",
+                "icon": "assets/icons/games/portal-2.svg",
+                "artwork": "assets/artwork/portal-2.jpg",
+                "theme": "portal-2",
+                "launchType": "steam",
+                "steamAppId": "620",
+                "actions": [
+                    {
+                        "name": "Launch Game",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    },
+                    {
+                        "name": "Game Source",
+                        "action": "source"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "Xbox": {
+        "icon": "assets/icons/categories/xbox.svg",
+        "description": "Access Xbox and Game Pass content.",
+        "theme": "xbox",
+        "items": [
+            {
+                "id": "xbox-app",
+                "name": "Xbox App",
+                "type": "app",
+                "platform": "Xbox",
+                "description": "Microsoft's Xbox application for Windows. Browse games, Game Pass, friends, and your PC gaming library.",
+                "status": "Available",
+                "icon": "assets/icons/apps/xbox.svg",
+                "theme": "xbox",
+                "launchType": "xbox",
+                "xboxUri": "msxbox:",
+                "actions": [
+                    {
+                        "name": "Launch Xbox",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    }
+                ]
+            },
+            {
+                "id": "xbox-game-pass",
+                "name": "Game Pass",
+                "type": "service",
+                "platform": "Xbox",
+                "description": "Browse Xbox Game Pass content.",
+                "status": "Available",
+                "icon": "assets/icons/categories/xbox.svg",
+                "launchType": "xbox",
+                "xboxUri": "msxbox:",
+                "actions": [
+                    {
+                        "name": "Open Game Pass",
+                        "action": "launch"
+                    }
+                ]
+            },
+            {
+    "id": "minecraft",
+    "name": "Minecraft",
+    "type": "game",
+    "platform": "Xbox",
+    "description": "A sandbox game where you can build, explore, survive, and create in a block-based world.",
+    "status": "Ready to Launch",
+
+    "theme": "minecraft",
+
+    "launchType": "minecraft",
+
+    "artworkSources": {
+        "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png",
+        "logo": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png",
+        "background": "https://images.unsplash.com/photo-1627856013091-fed6e4e30025"
+    },
+
+    "actions": [
+        {
+            "name": "Launch Minecraft",
+            "action": "launch"
+        },
+        {
+            "name": "More Info",
+            "action": "info"
+        }
+    ]
+}
+        ]
+    },
+
+    "Riot": {
+        "icon": "assets/icons/categories/riot.svg",
+        "description": "League of Legends and other Riot Games.",
+        "theme": "riot",
+        "items": [
+            {
+                "id": "league-of-legends",
+                "name": "League of Legends",
+                "type": "game",
+                "platform": "Riot Games",
+                "description": "A team-based competitive multiplayer online battle arena game.",
+                "status": "Ready to Launch",
+                "icon": "assets/icons/games/league-of-legends.svg",
+                "theme": "league-of-legends",
+                "launchType": "riot",
+                "riotProduct": "league_of_legends",
+                "riotPatchline": "live",
+                "actions": [
+                    {
+                        "name": "Launch Game",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    },
+                    {
+                        "name": "Game Source",
+                        "action": "source"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "PC": {
+        "icon": "assets/icons/categories/pc.svg",
+        "description": "Access additional PC games and applications.",
+        "theme": "pc",
+        "items": [
+            {
+                "id": "plutonium",
+                "name": "Plutonium",
+                "type": "game",
+                "platform": "PC",
+                "description": "Community-built Call of Duty multiplayer platform.",
+                "status": "Available",
+                "icon": "assets/icons/games/plutonium.svg",
+                "theme": "plutonium",
+                "launchType": "plutonium",
+                "actions": [
+                    {
+                        "name": "Launch Plutonium",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    }
+                ]
+            },
+            {
+                "id": "retroarch",
+                "name": "RetroArch",
+                "type": "app",
+                "platform": "PC",
+                "description": "A frontend for emulators, game engines, and media players.",
+                "status": "Available",
+                "icon": "assets/icons/games/retroarch.svg",
+                "theme": "retroarch",
+                "launchType": "retroarch",
+                "actions": [
+                    {
+                        "name": "Launch RetroArch",
+                        "action": "launch"
+                    },
+                    {
+                        "name": "More Info",
+                        "action": "info"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "Work": {
+        "icon": "assets/icons/categories/work.svg",
+        "description": "Tools and services for work.",
+        "theme": "work",
+        "items": [
+            {
+                "id": "school-tools",
+                "name": "School Tools",
+                "type": "app",
+                "description": "Tools and resources for school work.",
+                "status": "Available",
+                "icon": "assets/icons/categories/work.svg",
+                "actions": [
+                    {
+                        "name": "Open School Tools",
+                        "action": "launch"
+                    }
+                ]
+            },
+            {
+                "id": "knub-foto",
+                "name": "Knub Foto",
+                "type": "app",
+                "description": "Photography tools and resources for Knub Foto.",
+                "status": "Available",
+                "icon": "assets/icons/categories/work.svg",
+                "actions": [
+                    {
+                        "name": "Open Knub Foto",
+                        "action": "launch"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "Server": {
+    "icon": "server",
+    "description": "Monitor and manage your home server.",
+    "theme": "server",
+
+    "items": [
+
+        {
+            "id": "chatgpt",
+            "name": "ChatGPT",
+            "type": "web",
+
+            "description": "Open ChatGPT.",
+
+            "status": "Available",
+
+            "launchType": "url",
+
+            "url": "https://chatgpt.com",
+
+            "theme": "chatgpt",
+
+            "actions": [
+                {
+                    "name": "Open ChatGPT",
+                    "action": "launch"
+                }
+            ]
+        },
+
+        {
+            "id": "portainer",
+            "name": "Portainer",
+            "type": "web",
+
+            "description": "Manage Docker containers.",
+
+            "status": "Available",
+
+            "launchType": "url",
+
+            "url": "http://YOURSERVER:9000",
+
+            "theme": "portainer",
+
+            "actions": [
+                {
+                    "name": "Open Portainer",
+                    "action": "launch"
+                }
+            ]
+        },
+
+        {
+            "id": "grafana",
+            "name": "Grafana",
+            "type": "web",
+
+            "description": "View dashboards and metrics.",
+
+            "status": "Available",
+
+            "launchType": "url",
+
+            "url": "http://YOURSERVER:3000",
+
+            "theme": "grafana",
+
+            "actions": [
+                {
+                    "name": "Open Grafana",
+                    "action": "launch"
+                }
+            ]
+        },
+
+        {
+            "id": "uptime-kuma",
+            "name": "Uptime Kuma",
+            "type": "web",
+
+            "description": "Monitor service health.",
+
+            "status": "Available",
+
+            "launchType": "url",
+
+            "url": "http://YOURSERVER:3001",
+
+            "theme": "uptime-kuma",
+
+            "actions": [
+                {
+                    "name": "Open Uptime Kuma",
+                    "action": "launch"
+                }
+            ]
+        }
+    ]
+}
+}

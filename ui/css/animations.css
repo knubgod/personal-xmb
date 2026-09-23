@@ -1,0 +1,1286 @@
+/*
+    ========================================================
+    PERSONAL XMB
+
+    ANIMATIONS
+    ========================================================
+
+    The goal here is NOT fast animation.
+
+    The PS3 XMB background feels alive because everything
+    moves slowly and independently.
+
+    Think:
+
+        foreground waves
+            ↓
+        midground waves
+            ↓
+        distant waves
+            ↓
+        drifting particles
+            ↓
+        occasional sparkle pulses
+
+    Nothing should feel synchronized.
+*/
+
+
+/*
+    ========================================================
+    SPARKLE SYSTEM
+    ========================================================
+*/
+
+#sparkles {
+
+    opacity: 1;
+
+}
+
+
+/*
+    ========================================================
+    BASE SPARKLE
+    ========================================================
+
+    Each particle gets its own animation timing below.
+
+    We deliberately keep the movement subtle.
+*/
+
+#sparkles circle {
+
+    fill: #ffffff;
+
+    opacity: 0.18;
+
+    transform-box:
+        fill-box;
+
+    transform-origin:
+        center;
+
+    filter:
+        drop-shadow(
+            0 0 4px
+            rgba(
+                255,
+                255,
+                255,
+                0.28
+            )
+        );
+
+    animation:
+
+        sparkleFloat
+
+        8s
+
+        ease-in-out
+
+        infinite;
+
+}
+
+
+/*
+    ========================================================
+    SPARKLE FLOAT
+    ========================================================
+
+    Notice that this is NOT simply:
+
+        small → big → small
+
+    The particles drift slightly while changing size
+    and brightness.
+
+    This makes them feel like they're floating in space.
+*/
+
+@keyframes sparkleFloat {
+
+    0% {
+
+        opacity:
+            0.08;
+
+        transform:
+            translate3d(
+                -3px,
+                3px,
+                0
+            )
+            scale(
+                0.65
+            );
+
+    }
+
+
+    25% {
+
+        opacity:
+            0.20;
+
+        transform:
+            translate3d(
+                2px,
+                -1px,
+                0
+            )
+            scale(
+                0.82
+            );
+
+    }
+
+
+    50% {
+
+        opacity:
+            0.42;
+
+        transform:
+            translate3d(
+                4px,
+                -5px,
+                0
+            )
+            scale(
+                1
+            );
+
+    }
+
+
+    75% {
+
+        opacity:
+            0.18;
+
+        transform:
+            translate3d(
+                -2px,
+                -2px,
+                0
+            )
+            scale(
+                0.78
+            );
+
+    }
+
+
+    100% {
+
+        opacity:
+            0.08;
+
+        transform:
+            translate3d(
+                -4px,
+                4px,
+                0
+            )
+            scale(
+                0.62
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    SPARKLE DEPTH
+    ========================================================
+
+    Different groups behave like they're sitting at
+    different distances from the viewer.
+*/
+
+
+#sparkles circle:nth-child(3n) {
+
+    animation-duration:
+        11s;
+
+}
+
+
+#sparkles circle:nth-child(3n + 1) {
+
+    animation-duration:
+        7s;
+
+}
+
+
+#sparkles circle:nth-child(3n + 2) {
+
+    animation-duration:
+        9s;
+
+}
+
+
+/*
+    ========================================================
+    SPARKLE SIZE GROUPS
+    ========================================================
+*/
+
+#sparkles circle:nth-child(4n) {
+
+    transform:
+        scale(
+            0.55
+        );
+
+    opacity:
+        0.12;
+
+}
+
+
+#sparkles circle:nth-child(4n + 1) {
+
+    transform:
+        scale(
+            0.8
+        );
+
+}
+
+
+#sparkles circle:nth-child(4n + 2) {
+
+    transform:
+        scale(
+            1
+        );
+
+}
+
+
+#sparkles circle:nth-child(4n + 3) {
+
+    transform:
+        scale(
+            1.2
+        );
+
+    opacity:
+        0.28;
+
+}
+
+
+/*
+    ========================================================
+    FEATURE SPARKLES
+    ========================================================
+
+    These are the occasional brighter particles.
+
+    They shouldn't all behave the same way.
+*/
+
+
+#sparkles circle:nth-child(7n) {
+
+    filter:
+
+        drop-shadow(
+            0 0 7px
+            rgba(
+                255,
+                255,
+                255,
+                0.45
+            )
+        );
+
+}
+
+
+#sparkles circle:nth-child(11n) {
+
+    animation-duration:
+        13s;
+
+}
+
+
+#sparkles circle:nth-child(13n) {
+
+    animation-duration:
+        6.5s;
+
+}
+
+
+/*
+    ========================================================
+    SPARKLE TIMING
+    ========================================================
+
+    Large gaps prevent the background from looking like
+    one synchronized animation.
+*/
+
+
+#sparkles circle:nth-child(1) {
+    animation-delay: -1.2s;
+}
+
+#sparkles circle:nth-child(2) {
+    animation-delay: -4.8s;
+}
+
+#sparkles circle:nth-child(3) {
+    animation-delay: -2.4s;
+}
+
+#sparkles circle:nth-child(4) {
+    animation-delay: -7.1s;
+}
+
+#sparkles circle:nth-child(5) {
+    animation-delay: -3.7s;
+}
+
+#sparkles circle:nth-child(6) {
+    animation-delay: -5.9s;
+}
+
+#sparkles circle:nth-child(7) {
+    animation-delay: -8.4s;
+}
+
+#sparkles circle:nth-child(8) {
+    animation-delay: -2.1s;
+}
+
+#sparkles circle:nth-child(9) {
+    animation-delay: -6.7s;
+}
+
+#sparkles circle:nth-child(10) {
+    animation-delay: -4.2s;
+}
+
+#sparkles circle:nth-child(11) {
+    animation-delay: -9.3s;
+}
+
+#sparkles circle:nth-child(12) {
+    animation-delay: -1.8s;
+}
+
+#sparkles circle:nth-child(13) {
+    animation-delay: -5.2s;
+}
+
+#sparkles circle:nth-child(14) {
+    animation-delay: -7.8s;
+}
+
+#sparkles circle:nth-child(15) {
+    animation-delay: -3.1s;
+}
+
+#sparkles circle:nth-child(16) {
+    animation-delay: -10.2s;
+}
+
+#sparkles circle:nth-child(17) {
+    animation-delay: -6.1s;
+}
+
+#sparkles circle:nth-child(18) {
+    animation-delay: -2.9s;
+}
+
+#sparkles circle:nth-child(19) {
+    animation-delay: -8.8s;
+}
+
+#sparkles circle:nth-child(20) {
+    animation-delay: -4.6s;
+}
+
+#sparkles circle:nth-child(21) {
+    animation-delay: -11.4s;
+}
+
+#sparkles circle:nth-child(22) {
+    animation-delay: -3.4s;
+}
+
+#sparkles circle:nth-child(23) {
+    animation-delay: -7.4s;
+}
+
+#sparkles circle:nth-child(24) {
+    animation-delay: -5.5s;
+}
+
+#sparkles circle:nth-child(25) {
+    animation-delay: -9.7s;
+}
+
+#sparkles circle:nth-child(26) {
+    animation-delay: -1.6s;
+}
+
+#sparkles circle:nth-child(27) {
+    animation-delay: -6.4s;
+}
+
+
+/*
+    ========================================================
+    WAVE SYSTEM
+    ========================================================
+
+    The important change here is that the waves no longer
+    simply move left and right.
+
+    They now:
+
+        drift
+        rotate
+        scale
+        move vertically
+        change their apparent depth
+
+    at different speeds.
+*/
+
+
+#wave1,
+#wave2,
+#wave3,
+#wave4 {
+
+    transform-box:
+        fill-box;
+
+    transform-origin:
+        center;
+
+    will-change:
+        transform;
+
+}
+
+
+/*
+    ========================================================
+    FRONT WAVE
+    ========================================================
+
+    Fastest and largest movement.
+*/
+
+#wave1 {
+
+    animation:
+
+        waveFront
+
+        34s
+
+        cubic-bezier(
+            0.45,
+            0.05,
+            0.55,
+            0.95
+        )
+
+        infinite
+        alternate;
+
+}
+
+
+@keyframes waveFront {
+
+    0% {
+
+        transform:
+            translate3d(
+                -35px,
+                8px,
+                0
+            )
+            rotate(
+                -0.35deg
+            )
+            scale(
+                1.015
+            );
+
+    }
+
+
+    25% {
+
+        transform:
+            translate3d(
+                -5px,
+                -4px,
+                0
+            )
+            rotate(
+                0.1deg
+            )
+            scale(
+                1.025
+            );
+
+    }
+
+
+    50% {
+
+        transform:
+            translate3d(
+                30px,
+                -10px,
+                0
+            )
+            rotate(
+                0.4deg
+            )
+            scale(
+                1.035
+            );
+
+    }
+
+
+    75% {
+
+        transform:
+            translate3d(
+                10px,
+                2px,
+                0
+            )
+            rotate(
+                0.05deg
+            )
+            scale(
+                1.02
+            );
+
+    }
+
+
+    100% {
+
+        transform:
+            translate3d(
+                -30px,
+                10px,
+                0
+            )
+            rotate(
+                -0.3deg
+            )
+            scale(
+                1.01
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    MIDGROUND WAVE
+    ========================================================
+*/
+
+#wave2 {
+
+    animation:
+
+        waveMiddle
+
+        46s
+
+        cubic-bezier(
+            0.45,
+            0.05,
+            0.55,
+            0.95
+        )
+
+        infinite
+        alternate;
+
+}
+
+
+@keyframes waveMiddle {
+
+    0% {
+
+        transform:
+            translate3d(
+                28px,
+                -4px,
+                0
+            )
+            rotate(
+                0.25deg
+            )
+            scale(
+                1.01
+            );
+
+    }
+
+
+    30% {
+
+        transform:
+            translate3d(
+                -12px,
+                -12px,
+                0
+            )
+            rotate(
+                -0.15deg
+            )
+            scale(
+                1.018
+            );
+
+    }
+
+
+    60% {
+
+        transform:
+            translate3d(
+                -38px,
+                3px,
+                0
+            )
+            rotate(
+                -0.35deg
+            )
+            scale(
+                1.025
+            );
+
+    }
+
+
+    100% {
+
+        transform:
+            translate3d(
+                24px,
+                12px,
+                0
+            )
+            rotate(
+                0.2deg
+            )
+            scale(
+                1.012
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    DISTANT WAVE
+    ========================================================
+*/
+
+#wave3 {
+
+    animation:
+
+        waveDistant
+
+        58s
+
+        cubic-bezier(
+            0.45,
+            0.05,
+            0.55,
+            0.95
+        )
+
+        infinite
+        alternate;
+
+}
+
+
+@keyframes waveDistant {
+
+    0% {
+
+        transform:
+            translate3d(
+                -20px,
+                12px,
+                0
+            )
+            rotate(
+                -0.15deg
+            )
+            scale(
+                1
+            );
+
+    }
+
+
+    35% {
+
+        transform:
+            translate3d(
+                15px,
+                -6px,
+                0
+            )
+            rotate(
+                0.15deg
+            )
+            scale(
+                1.01
+            );
+
+    }
+
+
+    70% {
+
+        transform:
+            translate3d(
+                40px,
+                -2px,
+                0
+            )
+            rotate(
+                0.3deg
+            )
+            scale(
+                1.015
+            );
+
+    }
+
+
+    100% {
+
+        transform:
+            translate3d(
+                -10px,
+                10px,
+                0
+            )
+            rotate(
+                -0.1deg
+            )
+            scale(
+                1.005
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    DEEPEST WAVE
+    ========================================================
+*/
+
+#wave4 {
+
+    animation:
+
+        waveDeep
+
+        72s
+
+        cubic-bezier(
+            0.45,
+            0.05,
+            0.55,
+            0.95
+        )
+
+        infinite
+        alternate;
+
+}
+
+
+@keyframes waveDeep {
+
+    0% {
+
+        transform:
+            translate3d(
+                18px,
+                4px,
+                0
+            )
+            rotate(
+                0.1deg
+            )
+            scale(
+                1
+            );
+
+    }
+
+
+    40% {
+
+        transform:
+            translate3d(
+                -25px,
+                -8px,
+                0
+            )
+            rotate(
+                -0.1deg
+            )
+            scale(
+                1.008
+            );
+
+    }
+
+
+    75% {
+
+        transform:
+            translate3d(
+                -8px,
+                5px,
+                0
+            )
+            rotate(
+                0.12deg
+            )
+            scale(
+                1.012
+            );
+
+    }
+
+
+    100% {
+
+        transform:
+            translate3d(
+                25px,
+                10px,
+                0
+            )
+            rotate(
+                0.2deg
+            )
+            scale(
+                1.005
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    BACKGROUND ARTWORK
+    ========================================================
+
+    Background artwork moves much more slowly than the
+    foreground selection artwork.
+
+    This keeps it feeling like part of the environment
+    instead of an image changing behind the interface.
+*/
+
+#background-artwork-image {
+
+    transition:
+
+        opacity
+        1.2s
+        ease,
+
+        transform
+        2s
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+
+        ),
+
+        filter
+        1.4s
+        ease;
+
+}
+
+
+/*
+    ========================================================
+    SELECTION ARTWORK
+    ========================================================
+
+    The renderer creates these layers:
+
+        .selection-cover
+        .selection-artwork-overlay
+        .selection-logo
+
+    The cover arrives first.
+
+    The transparent logo follows slightly behind it.
+
+    This creates a subtle depth effect when moving through
+    games in the XMB.
+*/
+
+
+#selection-artwork {
+
+    will-change:
+        opacity,
+        transform;
+
+}
+
+
+/*
+    ========================================================
+    COVER ENTER
+    ========================================================
+*/
+
+#selection-artwork .selection-cover {
+
+    will-change:
+        opacity,
+        transform;
+
+}
+
+
+/*
+    The visible state itself is defined in xmb.css.
+
+    These animations are layered on top of those styles.
+*/
+
+#selection-artwork .selection-cover.visible {
+
+    animation:
+        artworkCoverEnter
+        0.75s
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        );
+
+}
+
+
+@keyframes artworkCoverEnter {
+
+    0% {
+
+        opacity:
+            0;
+
+        transform:
+            scale(
+                1.055
+            )
+            translate3d(
+                12px,
+                0,
+                0
+            );
+
+    }
+
+
+    100% {
+
+        opacity:
+            0.78;
+
+        transform:
+            scale(
+                1
+            )
+            translate3d(
+                0,
+                0,
+                0
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    LOGO ENTER
+    ========================================================
+
+    The logo comes in slightly after the cover.
+
+    This is intentionally subtle.
+
+    We do not want the interface to look like it is
+    performing a dramatic animation every time the user
+    moves one item.
+*/
+
+#selection-artwork .selection-logo.visible {
+
+    animation:
+        artworkLogoEnter
+        0.6s
+        0.08s
+        both
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        );
+
+}
+
+
+@keyframes artworkLogoEnter {
+
+    0% {
+
+        opacity:
+            0;
+
+        transform:
+            scale(
+                0.94
+            )
+            translate3d(
+                0,
+                8px,
+                0
+            );
+
+    }
+
+
+    100% {
+
+        opacity:
+            1;
+
+        transform:
+            scale(
+                1
+            )
+            translate3d(
+                0,
+                0,
+                0
+            );
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    ARTWORK OVERLAY ENTER
+    ========================================================
+*/
+
+#selection-artwork
+    .selection-artwork-overlay.visible {
+
+    animation:
+        artworkOverlayEnter
+        0.7s
+        ease-out;
+
+}
+
+
+@keyframes artworkOverlayEnter {
+
+    0% {
+
+        opacity:
+            0;
+
+    }
+
+
+    100% {
+
+        opacity:
+            1;
+
+    }
+
+}
+
+
+/*
+    ========================================================
+    ARTWORK EXIT STATE
+    ========================================================
+
+    The renderer removes .visible before assigning the
+    next artwork.
+
+    Keeping the transition here lets the old artwork
+    disappear naturally rather than snapping away.
+*/
+
+#selection-artwork .selection-cover:not(.visible) {
+
+    transition:
+
+        opacity
+        0.25s
+        ease,
+
+        transform
+        0.4s
+        ease;
+
+}
+
+
+#selection-artwork .selection-logo:not(.visible) {
+
+    transition:
+
+        opacity
+        0.2s
+        ease,
+
+        transform
+        0.3s
+        ease;
+
+}
+
+
+/*
+    ========================================================
+    CATEGORY TRANSITION
+    ========================================================
+*/
+
+#categories {
+
+    transition:
+
+        transform
+        0.8s
+        cubic-bezier(
+            0.22,
+            1,
+            0.36,
+            1
+        );
+
+}
+
+
+/*
+    ========================================================
+    REDUCED MOTION
+    ========================================================
+*/
+
+@media (
+    prefers-reduced-motion: reduce
+) {
+
+    #sparkles circle {
+
+        animation:
+            none;
+
+        opacity:
+            0.25;
+
+    }
+
+
+    #wave1,
+    #wave2,
+    #wave3,
+    #wave4 {
+
+        animation:
+            none;
+
+    }
+
+
+    #background-artwork-image {
+
+        transition:
+
+            opacity
+            0.2s
+            ease;
+
+    }
+
+
+    #selection-artwork .selection-cover,
+    #selection-artwork .selection-logo,
+    #selection-artwork .selection-artwork-overlay {
+
+        animation:
+            none;
+
+        transition:
+            opacity
+            0.15s
+            ease;
+
+    }
+
+}

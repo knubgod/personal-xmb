@@ -1,0 +1,120 @@
+{
+    "default": {
+        "primary": "#4A90E2",
+        "secondary": "#07111F",
+        "accent": "#8CC8FF",
+        "glow": "#5BA9FF"
+    },
+
+    "friends": {
+        "primary": "#7289DA",
+        "secondary": "#1D2340",
+        "accent": "#AAB8FF",
+        "glow": "#7289DA"
+    },
+
+    "steam": {
+        "primary": "#1B9FFF",
+        "secondary": "#071C32",
+        "accent": "#66C0F4",
+        "glow": "#2FA8FF"
+    },
+
+    "xbox": {
+        "primary": "#107C10",
+        "secondary": "#062806",
+        "accent": "#45D545",
+        "glow": "#32C832"
+    },
+
+    "riot": {
+        "primary": "#D13639",
+        "secondary": "#350D10",
+        "accent": "#FF666A",
+        "glow": "#E8474B"
+    },
+
+    "league-of-legends": {
+        "primary": "#1596C7",
+        "secondary": "#071E2D",
+        "accent": "#C89B3C",
+        "glow": "#3AB8E8"
+    },
+
+    "spotify": {
+        "primary": "#1DB954",
+        "secondary": "#06361A",
+        "accent": "#54E985",
+        "glow": "#29D965"
+    },
+
+    "work": {
+        "primary": "#E7A83B",
+        "secondary": "#38260B",
+        "accent": "#FFD77A",
+        "glow": "#F0B84C"
+    },
+
+    "server": {
+        "primary": "#4FA3A5",
+        "secondary": "#0A2829",
+        "accent": "#82D5D7",
+        "glow": "#62C5C7"
+    },
+
+    "pc": {
+        "primary": "#8A8F98",
+        "secondary": "#15171A",
+        "accent": "#D9DDE2",
+        "glow": "#AEB5BE"
+    },
+
+    "castle-crashers": {
+        "primary": "#D98A32",
+        "secondary": "#24150A",
+        "accent": "#FFD27A",
+        "glow": "#F1A64A"
+    },
+
+    "guilty-as-sock": {
+        "primary": "#C66A86",
+        "secondary": "#241017",
+        "accent": "#FFB0C4",
+        "glow": "#E987A3"
+    },
+
+    "meccha-chameleon": {
+        "primary": "#53B8A0",
+        "secondary": "#0B211D",
+        "accent": "#8DE4CC",
+        "glow": "#62D5B8"
+    },
+
+    "black-ops-3": {
+        "primary": "#E36B28",
+        "secondary": "#21130B",
+        "accent": "#FFAA6A",
+        "glow": "#F27B36"
+    },
+
+    "portal-2": {
+        "primary": "#D8B03A",
+        "secondary": "#211D0B",
+        "accent": "#FFE57A",
+        "glow": "#EBCB4F"
+    },
+
+    "retroarch": {
+        "primary": "#B22A35",
+        "secondary": "#22090D",
+        "accent": "#FF737D",
+        "glow": "#D8404B"
+    },
+
+    "plutonium": {
+        "primary": "#6E8DB5",
+        "secondary": "#0D1722",
+        "accent": "#AFCBEB",
+        "glow": "#7FA5D0"
+    }
+}
