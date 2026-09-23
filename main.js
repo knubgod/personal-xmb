@@ -47,7 +47,8 @@ const {
     ipcMain,
     shell,
     protocol,
-    net
+    net,
+    safeStorage
 } = require(
     "electron"
 );
@@ -255,6 +256,325 @@ function writeSettingsFile(settings) {
         "utf8"
     );
 }
+
+
+function getLocalSettingsPath() {
+
+    return path.join(
+        app.getPath("userData"),
+        "local-settings.json"
+    );
+
+}
+
+
+function readLocalSettings() {
+
+    const filePath =
+        getLocalSettingsPath();
+
+    try {
+
+        return JSON.parse(
+            fs.readFileSync(
+                filePath,
+                "utf8"
+            )
+        );
+
+    }
+    catch (error) {
+
+        return {};
+
+    }
+
+}
+
+
+function writeLocalSettings(settings) {
+
+    const filePath =
+        getLocalSettingsPath();
+
+    fs.mkdirSync(
+        path.dirname(filePath),
+        {recursive:true}
+    );
+
+    fs.writeFileSync(
+        filePath,
+        JSON.stringify(
+            settings,
+            null,
+            4
+        ),
+        "utf8"
+    );
+
+}
+
+
+function getSpotifyLocalSettings() {
+
+    const local =
+        readLocalSettings();
+
+    local.spotify =
+        local.spotify ||
+        {};
+
+    return local.spotify;
+
+}
+
+
+function getSpotifyClientId() {
+
+    const local =
+        getSpotifyLocalSettings();
+
+    if (
+        typeof local.clientId === "string" &&
+        local.clientId.trim()
+    ) {
+
+        return local.clientId.trim();
+
+    }
+
+    /*
+        Migrate a legacy client ID from the old settings
+        location into the local-only settings file.
+    */
+
+    const legacy =
+        readSettingsFile();
+
+    const legacyClientId =
+        legacy.spotify?.clientId;
+
+    if (
+        typeof legacyClientId === "string" &&
+        legacyClientId.trim()
+    ) {
+
+        local.clientId =
+            legacyClientId.trim();
+
+        const allLocal =
+            readLocalSettings();
+
+        allLocal.spotify =
+            allLocal.spotify ||
+            {};
+
+        allLocal.spotify.clientId =
+            local.clientId;
+
+        writeLocalSettings(
+            allLocal
+        );
+
+        return local.clientId;
+
+    }
+
+    return "";
+
+}
+
+
+function setSpotifyLocalIdentity(
+    values = {}
+) {
+
+    const local =
+        readLocalSettings();
+
+    local.spotify =
+        local.spotify ||
+        {};
+
+    if (
+        typeof values.clientId === "string" &&
+        values.clientId.trim()
+    ) {
+
+        local.spotify.clientId =
+            values.clientId.trim();
+
+    }
+
+    if (
+        typeof values.accountId === "string" &&
+        values.accountId.trim()
+    ) {
+
+        local.spotify.accountId =
+            values.accountId.trim();
+
+    }
+
+    if (
+        typeof values.userId === "string" &&
+        values.userId.trim()
+    ) {
+
+        local.spotify.userId =
+            values.userId.trim();
+
+    }
+
+    writeLocalSettings(
+        local
+    );
+
+    return local.spotify;
+
+}
+
+
+async function saveSpotifyTokens(
+    tokens
+) {
+
+    if (
+        !safeStorage.isEncryptionAvailable()
+    ) {
+
+        throw new Error(
+            "OS secure storage is unavailable. Spotify credentials were not saved."
+        );
+
+    }
+
+    const encrypted =
+        safeStorage.encryptString(
+            JSON.stringify({
+                accessToken:
+                    tokens.accessToken || "",
+                refreshToken:
+                    tokens.refreshToken || "",
+                expiresAt:
+                    Number(tokens.expiresAt || 0)
+            })
+        );
+
+    const local =
+        readLocalSettings();
+
+    local.spotify =
+        local.spotify ||
+        {};
+
+    local.spotify.tokens =
+        encrypted.toString(
+            "base64"
+        );
+
+    writeLocalSettings(
+        local
+    );
+
+}
+
+
+function loadSpotifyTokens() {
+
+    const local =
+        getSpotifyLocalSettings();
+
+    if (
+        !local.tokens
+    ) {
+
+        return null;
+
+    }
+
+    if (
+        !safeStorage.isEncryptionAvailable()
+    ) {
+
+        throw new Error(
+            "OS secure storage is unavailable. Spotify credentials cannot be read."
+        );
+
+    }
+
+    try {
+
+        const encrypted =
+            Buffer.from(
+                local.tokens,
+                "base64"
+            );
+
+        return JSON.parse(
+            safeStorage.decryptString(
+                encrypted
+            )
+        );
+
+    }
+    catch (error) {
+
+        throw new Error(
+            "Stored Spotify credentials could not be decrypted."
+        );
+
+    }
+
+}
+
+
+function clearSpotifyTokens() {
+
+    const local =
+        readLocalSettings();
+
+    if (
+        local.spotify
+    ) {
+
+        delete local.spotify.tokens;
+
+        writeLocalSettings(
+            local
+        );
+
+    }
+
+}
+
+
+function getRendererSpotifySettings() {
+
+    const local =
+        getSpotifyLocalSettings();
+
+    return {
+
+        clientId:
+            local.clientId || "",
+
+        accountId:
+            local.accountId || "",
+
+        userId:
+            local.userId || "",
+
+        connected:
+            Boolean(
+                local.tokens
+            )
+
+    };
+
+}
+
+
 
 
 function redactSensitiveSettings(
@@ -581,7 +901,16 @@ ipcMain.handle(
 
         requireTrustedRenderer(event);
 
-        return getRendererSafeSettings();
+        const settings =
+            getRendererSafeSettings();
+
+        settings.spotify =
+            {
+                ...settings.spotify,
+                ...getRendererSpotifySettings()
+            };
+
+        return settings;
     }
 );
 
@@ -6426,8 +6755,15 @@ ipcMain.handle(
 
 /*
     ========================================================
-    SPOTIFY
+    SPOTIFY AUTHENTICATION + LOCAL CREDENTIAL STORAGE
     ========================================================
+
+    Spotify client/account identifiers live in the local
+    user-data directory and are never part of the repository.
+
+    Access and refresh tokens are encrypted with Electron's
+    OS-backed safeStorage API and are never exposed to the
+    renderer process.
 */
 
 function createRandomString(
@@ -6439,12 +6775,13 @@ function createRandomString(
             length
         )
         .toString(
-            "hex"
+            "base64url"
         )
         .slice(
             0,
             length
         );
+
 }
 
 
@@ -6460,166 +6797,145 @@ function createCodeChallenge(
             verifier
         )
         .digest(
-            "base64"
-        )
-        .replace(
-            /\+/g,
-            "-"
-        )
-        .replace(
-            /\//g,
-            "_"
-        )
-        .replace(
-            /=+$/g,
-            ""
+            "base64url"
         );
+
 }
 
 
-async function refreshSpotifyToken(
-    settings
+async function fetchSpotifyProfile(
+    accessToken
 ) {
 
-    if (
-        !settings.spotify?.refreshToken
-    ) {
-
-        return null;
-    }
-
-
-    const clientId =
-        settings.spotify.clientId;
-
-
-    if (
-        !clientId
-    ) {
-
-        return null;
-    }
-
-
-    const body =
-        new URLSearchParams({
-
-            grant_type:
-                "refresh_token",
-
-            refresh_token:
-                settings.spotify.refreshToken,
-
-            client_id:
-                clientId
-        });
-
-
-    if (
-                ![
-                    "GET",
-                    "POST",
-                    "PUT"
-                ].includes(method)
-            ) {
-                throw new Error(
-                    "Spotify API method is not allowed."
-                );
-            }
-
-            if (
-                !(
-                    endpoint.startsWith("/me/") ||
-                    endpoint.startsWith("/playlists/")
-                )
-            ) {
-                throw new Error(
-                    "Spotify API endpoint is not allowed."
-                );
-            }
-
-            const response =
-                await fetch(
-            "https://accounts.spotify.com/api/token",
+    const response =
+        await fetch(
+            "https://api.spotify.com/v1/me",
             {
-
-                method:
-                    "POST",
-
                 headers: {
-
-                    "Content-Type":
-                        "application/x-www-form-urlencoded"
-                },
-
-                body:
-                    body.toString()
+                    Authorization:
+                        "Bearer " +
+                        accessToken
+                }
             }
         );
 
+    const data =
+        await response.json();
 
     if (
         !response.ok
     ) {
 
         throw new Error(
-            `Spotify token refresh failed: ${response.status}`
+            data.error?.message ||
+            `Spotify profile request failed: ${response.status}`
         );
+
     }
 
+    return data;
 
-    const token =
-        await response.json();
-
-
-    const settingsPath =
-        getSettingsPath();
+}
 
 
-    const currentSettings =
-        readSettingsFile();
+async function refreshSpotifyToken() {
 
+    const clientId =
+        getSpotifyClientId();
 
-    currentSettings.spotify =
-        currentSettings.spotify ||
-        {};
-
-
-    currentSettings.spotify.accessToken =
-        token.access_token;
-
+    const tokens =
+        loadSpotifyTokens();
 
     if (
-        token.refresh_token
+        !clientId ||
+        !tokens?.refreshToken
     ) {
 
-        currentSettings.spotify.refreshToken =
-            token.refresh_token;
+        return null;
+
     }
 
+    const body =
+        new URLSearchParams({
+            grant_type:
+                "refresh_token",
+            refresh_token:
+                tokens.refreshToken,
+            client_id:
+                clientId
+        });
 
-    currentSettings.spotify.expiresAt =
-        Date.now() +
-        (
-            token.expires_in *
-            1000
+    const response =
+        await fetch(
+            "https://accounts.spotify.com/api/token",
+            {
+                method:
+                    "POST",
+                headers: {
+                    "Content-Type":
+                        "application/x-www-form-urlencoded"
+                },
+                body:
+                    body.toString()
+            }
         );
 
+    const data =
+        await response.json();
 
-    fs.writeFileSync(
+    if (
+        !response.ok
+    ) {
 
-        settingsPath,
+        /*
+            invalid_grant means the refresh token is no
+            longer usable. Remove the local credential so
+            XMB will require a fresh Spotify authorization.
+        */
 
-        JSON.stringify(
-            currentSettings,
-            null,
-            4
-        )
+        if (
+            response.status === 400 &&
+            data.error === "invalid_grant"
+        ) {
 
+            clearSpotifyTokens();
+
+        }
+
+        throw new Error(
+            data.error_description ||
+            data.error ||
+            `Spotify token refresh failed: ${response.status}`
+        );
+
+    }
+
+    const refreshed = {
+
+        accessToken:
+            data.access_token,
+
+        refreshToken:
+            data.refresh_token ||
+            tokens.refreshToken,
+
+        expiresAt:
+            Date.now() +
+            (
+                Number(
+                    data.expires_in || 3600
+                ) *
+                1000
+            )
+
+    };
+
+    await saveSpotifyTokens(
+        refreshed
     );
 
+    return refreshed.accessToken;
 
-    return token.access_token;
 }
 
 
@@ -6631,95 +6947,85 @@ ipcMain.handle(
 
         try {
 
-            const settings =
-                readSettingsFile();
-
-
             const clientId =
-                settings.spotify?.clientId;
-
+                getSpotifyClientId();
 
             if (
                 !clientId
             ) {
 
                 throw new Error(
-                    "Spotify Client ID is missing from settings.json."
+                    "Spotify Client ID is missing. Enter it in Settings > Accounts."
                 );
-            }
 
+            }
 
             const verifier =
                 createRandomString(
                     64
                 );
 
-
             const challenge =
                 createCodeChallenge(
                     verifier
                 );
 
+            const state =
+                createRandomString(
+                    32
+                );
 
             const redirectUri =
                 "http://127.0.0.1:53682/callback";
 
-
             const scopes = [
-
                 "user-read-currently-playing",
                 "user-read-playback-state",
                 "user-read-recently-played",
                 "playlist-read-private",
                 "user-read-private",
                 "user-modify-playback-state"
-
-            ].join(
-                " "
-            );
-
+            ].join(" ");
 
             const authorizeUrl =
                 new URL(
                     "https://accounts.spotify.com/authorize"
                 );
 
-
             authorizeUrl.searchParams.set(
                 "client_id",
                 clientId
             );
-
 
             authorizeUrl.searchParams.set(
                 "response_type",
                 "code"
             );
 
-
             authorizeUrl.searchParams.set(
                 "redirect_uri",
                 redirectUri
             );
-
 
             authorizeUrl.searchParams.set(
                 "code_challenge_method",
                 "S256"
             );
 
-
             authorizeUrl.searchParams.set(
                 "code_challenge",
                 challenge
             );
-
 
             authorizeUrl.searchParams.set(
                 "scope",
                 scopes
             );
 
+            authorizeUrl.searchParams.set(
+                "state",
+                state
+            );
 
             const server =
                 http.createServer(
@@ -6736,7 +7042,6 @@ ipcMain.handle(
                                     redirectUri
                                 );
 
-
                             if (
                                 requestUrl.pathname !==
                                 "/callback"
@@ -6746,27 +7051,42 @@ ipcMain.handle(
                                     404
                                 );
 
-
                                 response.end(
                                     "Not Found"
                                 );
 
-
                                 return;
+
                             }
 
-
-                            const code =
+                            const returnedState =
                                 requestUrl.searchParams.get(
-                                    "code"
+                                    "state"
                                 );
 
+                            if (
+                                returnedState !==
+                                state
+                            ) {
+
+                                response.writeHead(
+                                    400
+                                );
+
+                                response.end(
+                                    "Invalid OAuth state."
+                                );
+
+                                server.close();
+
+                                return;
+
+                            }
 
                             const error =
                                 requestUrl.searchParams.get(
                                     "error"
                                 );
-
 
                             if (
                                 error
@@ -6776,22 +7096,24 @@ ipcMain.handle(
                                     400,
                                     {
                                         "Content-Type":
-                                            "text/html"
+                                            "text/html; charset=utf-8"
                                     }
                                 );
 
-
                                 response.end(
-                                    "<h1>Spotify authorization failed.</h1>"
+                                    "<h1>Spotify authorization cancelled.</h1>"
                                 );
-
 
                                 server.close();
 
-
                                 return;
+
                             }
 
+                            const code =
+                                requestUrl.searchParams.get(
+                                    "code"
+                                );
 
                             if (
                                 !code
@@ -6801,161 +7123,113 @@ ipcMain.handle(
                                     400
                                 );
 
-
                                 response.end(
                                     "Authorization code missing."
                                 );
 
-
                                 server.close();
 
-
                                 return;
-                            }
 
+                            }
 
                             const tokenBody =
                                 new URLSearchParams({
-
                                     client_id:
                                         clientId,
-
                                     grant_type:
                                         "authorization_code",
-
-                                    code:
-                                        code,
-
+                                    code,
                                     redirect_uri:
                                         redirectUri,
-
                                     code_verifier:
                                         verifier
                                 });
-
 
                             const tokenResponse =
                                 await fetch(
                                     "https://accounts.spotify.com/api/token",
                                     {
-
                                         method:
                                             "POST",
-
                                         headers: {
-
                                             "Content-Type":
                                                 "application/x-www-form-urlencoded"
                                         },
-
                                         body:
                                             tokenBody.toString()
                                     }
                                 );
 
+                            const token =
+                                await tokenResponse.json();
 
                             if (
                                 !tokenResponse.ok
                             ) {
 
                                 throw new Error(
+                                    token.error_description ||
+                                    token.error ||
                                     `Spotify token exchange failed: ${tokenResponse.status}`
                                 );
+
                             }
 
-
-                            const token =
-                                await tokenResponse.json();
-
-
-                            const settingsPath =
-                                path.join(
-
-                                    __dirname,
-                                    "config",
-                                    "settings.json"
-
-                                );
-
-
-                            const currentSettings =
-                                readSettingsFile();
-
-
-                            currentSettings.spotify =
-                                currentSettings.spotify ||
-                                {};
-
-
-                            currentSettings.spotify.accessToken =
-                                token.access_token;
-
-
-                            currentSettings.spotify.refreshToken =
-                                token.refresh_token;
-
-
-                            currentSettings.spotify.expiresAt =
+                            const expiresAt =
                                 Date.now() +
                                 (
-                                    token.expires_in *
+                                    Number(
+                                        token.expires_in || 3600
+                                    ) *
                                     1000
                                 );
 
+                            await saveSpotifyTokens({
+                                accessToken:
+                                    token.access_token,
+                                refreshToken:
+                                    token.refresh_token,
+                                expiresAt
+                            });
 
-                            fs.writeFileSync(
+                            const profile =
+                                await fetchSpotifyProfile(
+                                    token.access_token
+                                );
 
-                                settingsPath,
-
-                                JSON.stringify(
-                                    currentSettings,
-                                    null,
-                                    4
-                                )
-
-                            );
-
+                            setSpotifyLocalIdentity({
+                                clientId,
+                                accountId:
+                                    profile.account_id ||
+                                    "",
+                                userId:
+                                    profile.id ||
+                                    ""
+                            });
 
                             response.writeHead(
                                 200,
                                 {
-
                                     "Content-Type":
-                                        "text/html"
+                                        "text/html; charset=utf-8"
                                 }
                             );
 
-
                             response.end(
-                                `
-                                    <html>
-
-                                        <body>
-
-                                            <h1>
-                                                Spotify connected.
-                                            </h1>
-
-                                            <p>
-                                                You can close this window.
-                                            </p>
-
-                                        </body>
-
-                                    </html>
-                                `
+                                "<h1>Spotify connected.</h1><p>You can close this window.</p>"
                             );
 
-
                             if (
-                                mainWindow
+                                mainWindow &&
+                                !mainWindow.isDestroyed()
                             ) {
 
                                 mainWindow.webContents.send(
                                     "spotify-auth-complete"
                                 );
-                            }
 
+                            }
 
                             server.close();
 
@@ -6969,27 +7243,24 @@ ipcMain.handle(
                                 error
                             );
 
-
                             response.writeHead(
                                 500,
                                 {
-
                                     "Content-Type":
-                                        "text/html"
+                                        "text/html; charset=utf-8"
                                 }
                             );
-
 
                             response.end(
                                 "<h1>Spotify authentication failed.</h1>"
                             );
 
-
                             server.close();
+
                         }
+
                     }
                 );
-
 
             await new Promise(
                 (
@@ -6998,33 +7269,24 @@ ipcMain.handle(
                 ) => {
 
                     server.listen(
-
                         53682,
-
                         "127.0.0.1",
-
-                        () => {
-
-                            resolve();
-                        }
+                        resolve
                     );
 
-
-                    server.on(
+                    server.once(
                         "error",
                         reject
                     );
+
                 }
             );
-
 
             await shell.openExternal(
                 authorizeUrl.toString()
             );
 
-
             return {
-
                 success:
                     true
             };
@@ -7039,19 +7301,17 @@ ipcMain.handle(
                 error
             );
 
-
             return {
-
                 success:
                     false,
-
                 error:
                     error.message
             };
+
         }
+
     }
 );
-
 
 /*
     ========================================================
@@ -7070,54 +7330,20 @@ ipcMain.handle(
 
         try {
 
-            const settings =
-                readSettingsFile();
-
-
-            let accessToken =
-                settings.spotify?.accessToken;
-
-
             if (
-                !accessToken
+                !request ||
+                typeof request !== "object"
             ) {
 
                 throw new Error(
-                    "Spotify is not connected."
+                    "Spotify API request is invalid."
                 );
+
             }
-
-
-            if (
-                settings.spotify?.expiresAt &&
-                Date.now() >=
-                    settings.spotify.expiresAt
-            ) {
-
-                accessToken =
-                    await refreshSpotifyToken(
-                        settings
-                    );
-
-
-                if (
-                    !accessToken
-                ) {
-
-                    throw new Error(
-                        "Spotify token refresh failed."
-                    );
-                }
-            }
-
-
-            const endpoint =
-                request?.endpoint;
-
 
             const method =
                 String(
-                    request?.method ||
+                    request.method ||
                     "GET"
                 ).toUpperCase();
 
@@ -7126,107 +7352,195 @@ ipcMain.handle(
                     "GET",
                     "POST",
                     "PUT"
-                ].includes(method)
+                ].includes(
+                    method
+                )
             ) {
+
                 throw new Error(
                     "Spotify API method is not allowed."
                 );
+
             }
 
+            const endpoint =
+                request.endpoint;
 
             if (
-                !endpoint
-            ) {
-
-                throw new Error(
-                    "Spotify API endpoint is missing."
-                );
-            }
-
-
-            if (
-                typeof endpoint !==
-                    "string" ||
+                typeof endpoint !== "string" ||
                 !endpoint.startsWith("/") ||
                 endpoint.includes("\\") ||
-                endpoint.includes("://")
+                endpoint.includes("://") ||
+                endpoint.includes(" ") ||
+                endpoint.length > 500
             ) {
 
                 throw new Error(
-                    "Spotify API endpoint must be a relative /v1 path."
+                    "Spotify API endpoint is invalid."
                 );
+
             }
 
+            if (
+                !(
+                    endpoint.startsWith("/me/") ||
+                    endpoint.startsWith("/playlists/") ||
+                    endpoint.startsWith("/artists/") ||
+                    endpoint.startsWith("/shows/")
+                )
+            ) {
+
+                throw new Error(
+                    "Spotify API endpoint is not allowed."
+                );
+
+            }
+
+            let tokens =
+                loadSpotifyTokens();
+
+            if (
+                !tokens?.accessToken
+            ) {
+
+                throw new Error(
+                    "Spotify is not connected."
+                );
+
+            }
+
+            if (
+                tokens.expiresAt &&
+                Date.now() >=
+                    tokens.expiresAt - 30000
+            ) {
+
+                tokens.accessToken =
+                    await refreshSpotifyToken();
+
+                if (
+                    !tokens.accessToken
+                ) {
+
+                    throw new Error(
+                        "Spotify token refresh failed."
+                    );
+
+                }
+
+            }
 
             const response =
                 await fetch(
-
                     `https://api.spotify.com/v1${endpoint}`,
-
                     {
-
                         method,
-
                         headers: {
-
                             Authorization:
-                                `Bearer ${accessToken}`,
-
+                                `Bearer ${tokens.accessToken}`,
                             "Content-Type":
                                 "application/json"
                         },
-
                         body:
-                            request?.body
-                                ? JSON.stringify(
-                                    request.body
-                                )
-                                : undefined
+                            method === "GET"
+                                ? undefined
+                                : request.body
+                                    ? JSON.stringify(
+                                        request.body
+                                    )
+                                    : undefined
                     }
                 );
 
+            const data =
+                await response.json().catch(
+                    () => ({})
+                );
 
             if (
-                response.status ===
-                204
+                response.status === 401
             ) {
 
-                return {
+                /*
+                    A token can be rejected before its local
+                    expiry time. Refresh once, then retry.
+                */
 
+                const refreshed =
+                    await refreshSpotifyToken();
+
+                if (
+                    !refreshed
+                ) {
+
+                    throw new Error(
+                        "Spotify authorization expired. Please reconnect Spotify."
+                    );
+
+                }
+
+                const retry =
+                    await fetch(
+                        `https://api.spotify.com/v1${endpoint}`,
+                        {
+                            method,
+                            headers: {
+                                Authorization:
+                                    `Bearer ${refreshed}`,
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body:
+                                method === "GET"
+                                    ? undefined
+                                    : request.body
+                                        ? JSON.stringify(
+                                            request.body
+                                        )
+                                        : undefined
+                        }
+                    );
+
+                const retryData =
+                    await retry.json().catch(
+                        () => ({})
+                    );
+
+                if (
+                    !retry.ok
+                ) {
+
+                    throw new Error(
+                        retryData.error?.message ||
+                        `Spotify API request failed: ${retry.status}`
+                    );
+
+                }
+
+                return {
                     success:
                         true,
-
                     data:
-                        null
+                        retryData
                 };
+
             }
-
-
-            const data =
-                await response.json();
-
 
             if (
                 !response.ok
             ) {
 
                 throw new Error(
-
                     data.error?.message ||
-
                     `Spotify API request failed: ${response.status}`
-
                 );
+
             }
 
-
             return {
-
                 success:
                     true,
-
                 data
-
             };
 
         }
@@ -7239,21 +7553,100 @@ ipcMain.handle(
                 error
             );
 
-
             return {
-
                 success:
                     false,
-
                 error:
                     error.message
             };
+
         }
+
     }
 );
 
 
-ipcMain.handle("save-account-config",async(event,v)=>{requireTrustedRenderer(event);try{const s=readSettingsFile();s.spotify=s.spotify||{};s.integrations=s.integrations||{};s.integrations.discord=s.integrations.discord||{};s.integrations.microsoft=s.integrations.microsoft||{};s.integrations.riot=s.integrations.riot||{};s.spotify.clientId=String(v?.spotifyClientId||"").trim();s.integrations.discord.clientId=String(v?.discordClientId||"").trim();s.integrations.microsoft.clientId=String(v?.microsoftClientId||"").trim();s.integrations.riot.clientId=String(v?.riotClientId||"").trim();writeSettingsFile(s);return{success:true};}catch(e){return{success:false,error:e.message};}});
+ipcMain.handle(
+    "save-account-config",
+    async (
+        event,
+        value
+    ) => {
+
+        requireTrustedRenderer(event);
+
+        try {
+
+            setSpotifyLocalIdentity({
+                clientId:
+                    String(
+                        value?.spotifyClientId ||
+                        ""
+                    ).trim()
+            });
+
+            const settings =
+                readSettingsFile();
+
+            settings.integrations =
+                settings.integrations ||
+                {};
+
+            settings.integrations.discord =
+                settings.integrations.discord ||
+                {};
+
+            settings.integrations.microsoft =
+                settings.integrations.microsoft ||
+                {};
+
+            settings.integrations.riot =
+                settings.integrations.riot ||
+                {};
+
+            settings.integrations.discord.clientId =
+                String(
+                    value?.discordClientId ||
+                    ""
+                ).trim();
+
+            settings.integrations.microsoft.clientId =
+                String(
+                    value?.microsoftClientId ||
+                    ""
+                ).trim();
+
+            settings.integrations.riot.clientId =
+                String(
+                    value?.riotClientId ||
+                    ""
+                ).trim();
+
+            writeSettingsFile(
+                settings
+            );
+
+            return {
+                success:
+                    true
+            };
+
+        }
+        catch (
+            error
+        ) {
+
+            return {
+                success:
+                    false,
+                error:
+                    error.message
+            };
+
+        }
+
+    }
+);
 
 /*
     ========================================================
