@@ -21,9 +21,7 @@
     },
     "spotify": {
         "clientId": "",
-        "accessToken": "",
-        "refreshToken": "",
-        "expiresAt": 0
+        "accountId": ""
     },
     "integrations": {
         "discord": {
