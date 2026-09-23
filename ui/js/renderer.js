@@ -1622,6 +1622,15 @@ function getBuiltInItemIcon(
         "themes":
             '<path d="M12 4a8 8 0 1 0 7.8 9.8c.2-1.1-.7-2-1.8-2h-2.2a2 2 0 0 1-2-2V8a4 4 0 0 0-4-4Z"/><circle cx="8" cy="9" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="8" r="1"/>',
 
+        "accounts":
+            '<path d="M16 20a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="3"/><path d="M20 20a4 4 0 0 0-3-3.9"/><path d="M4 20a4 4 0 0 1 3-3.9"/>',
+
+        "artwork-settings":
+            '<path d="m4 15 4-4 3 3 4-5 5 6"/><rect x="3" y="4" width="18" height="16" rx="2"/>',
+
+        "system-settings":
+            '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 21h8"/>',
+
         "audio-settings":
             '<path d="M5 10v4h3l4 3V7l-4 3H5Z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M17.5 6.5a7.5 7.5 0 0 1 0 11"/>',
 
