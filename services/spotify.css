@@ -1,3 +1,69 @@
+
+.spotify-search-form{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+}
+
+.spotify-search-form input{
+    flex:1;
+    min-width:0;
+    border:1px solid rgba(255,255,255,.16);
+    background:rgba(255,255,255,.05);
+    color:#fff;
+    padding:12px 14px;
+    font:inherit;
+    outline:none;
+}
+
+.spotify-search-form input:focus{
+    border-color:rgba(255,255,255,.5);
+    background:rgba(255,255,255,.08);
+}
+
+.spotify-search-form button{
+    border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.08);
+    color:#fff;
+    padding:0 18px;
+    cursor:pointer;
+}
+
+.spotify-search-form button:hover{
+    background:rgba(255,255,255,.14);
+}
+
+.spotify-search-typebar{
+    display:flex;
+    gap:4px;
+    margin-bottom:14px;
+    overflow-x:auto;
+    scrollbar-width:none;
+}
+
+.spotify-search-typebar::-webkit-scrollbar{
+    display:none;
+}
+
+.spotify-search-type{
+    flex:0 0 auto;
+    border:0;
+    background:transparent;
+    color:rgba(255,255,255,.5);
+    padding:8px 11px;
+    font:inherit;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    cursor:pointer;
+}
+
+.spotify-search-type.selected,
+.spotify-search-type:hover{
+    color:#fff;
+    background:rgba(255,255,255,.08);
+}
+
 #spotify-library-overlay{
     position:fixed;
     inset:0;
