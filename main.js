@@ -45,7 +45,9 @@ const {
     app,
     BrowserWindow,
     ipcMain,
-    shell
+    shell,
+    protocol,
+    net
 } = require(
     "electron"
 );
@@ -86,6 +88,17 @@ const {
 } = require(
     "url"
 );
+
+protocol.registerSchemesAsPrivileged([
+    {
+        scheme: "xmb-artwork",
+        privileges: {
+            standard: true,
+            secure: true,
+            supportFetchAPI: true
+        }
+    }
+]);
 
 
 /*
@@ -163,6 +176,234 @@ let mainWindow = null;
 let startupArtworkPreloadPromise = null;
 
 
+function getSettingsPath() {
+
+    return path.join(
+        app.getPath("userData"),
+        "settings.json"
+    );
+
+}
+
+
+function readSettingsFile() {
+
+    const settingsPath =
+        getSettingsPath();
+
+    if (!fs.existsSync(settingsPath)) {
+
+        let bundledSettings = {};
+
+        try {
+            bundledSettings =
+                readSettingsFile();
+        }
+        catch (error) {
+            bundledSettings = {};
+        }
+
+        fs.mkdirSync(
+            path.dirname(settingsPath),
+            {recursive:true}
+        );
+
+        fs.writeFileSync(
+            settingsPath,
+            JSON.stringify(
+                bundledSettings,
+                null,
+                4
+            ),
+            "utf8"
+        );
+    }
+
+    try {
+        return JSON.parse(
+            fs.readFileSync(
+                settingsPath,
+                "utf8"
+            )
+        );
+    }
+    catch (error) {
+        throw new Error(
+            "Personal XMB settings could not be read."
+        );
+    }
+}
+
+
+function writeSettingsFile(settings) {
+
+    const settingsPath =
+        getSettingsPath();
+
+    fs.mkdirSync(
+        path.dirname(settingsPath),
+        {recursive:true}
+    );
+
+    fs.writeFileSync(
+        settingsPath,
+        JSON.stringify(
+            settings,
+            null,
+            4
+        ),
+        "utf8"
+    );
+}
+
+
+function getRendererSafeSettings() {
+
+    const settings =
+        readSettingsFile();
+
+    return {
+        ...settings,
+        spotify: {
+            ...(settings.spotify || {}),
+            accessToken: "",
+            refreshToken: "",
+            expiresAt: 0
+        }
+    };
+}
+
+
+function toArtworkUrl(localPath) {
+
+    const userData =
+        path.resolve(
+            app.getPath("userData")
+        );
+
+    const resolvedPath =
+        path.resolve(localPath);
+
+    const relativePath =
+        path.relative(
+            userData,
+            resolvedPath
+        );
+
+    if (
+        !relativePath ||
+        relativePath.startsWith("..") ||
+        path.isAbsolute(relativePath)
+    ) {
+        throw new Error(
+            "Artwork path is outside the Personal XMB data directory."
+        );
+    }
+
+    return (
+        "xmb-artwork://local/" +
+        encodeURIComponent(
+            relativePath.replace(/\\/g,"/")
+        )
+    );
+}
+
+
+function registerArtworkProtocol() {
+
+    protocol.handle(
+        "xmb-artwork",
+        request => {
+
+            try {
+
+                const requestUrl =
+                    new URL(request.url);
+
+                if (
+                    requestUrl.host !==
+                    "local"
+                ) {
+                    return new Response(
+                        "Not Found",
+                        {status:404}
+                    );
+                }
+
+                const relativePath =
+                    decodeURIComponent(
+                        requestUrl.pathname.replace(
+                            /^//,
+                            ""
+                        )
+                    );
+
+                const userData =
+                    path.resolve(
+                        app.getPath("userData")
+                    );
+
+                const resolvedPath =
+                    path.resolve(
+                        userData,
+                        relativePath
+                    );
+
+                const relativeCheck =
+                    path.relative(
+                        userData,
+                        resolvedPath
+                    );
+
+                if (
+                    !relativeCheck ||
+                    relativeCheck.startsWith("..") ||
+                    path.isAbsolute(relativeCheck)
+                ) {
+                    return new Response(
+                        "Forbidden",
+                        {status:403}
+                    );
+                }
+
+                return net.fetch(
+                    pathToFileURL(
+                        resolvedPath
+                    ).toString()
+                );
+            }
+            catch (error) {
+                return new Response(
+                    "Not Found",
+                    {status:404}
+                );
+            }
+        }
+    );
+}
+
+
+function isTrustedRenderer(event) {
+
+    return Boolean(
+        mainWindow &&
+        !mainWindow.isDestroyed() &&
+        event?.sender === mainWindow.webContents &&
+        event?.senderFrame === mainWindow.webContents.mainFrame
+    );
+}
+
+
+function requireTrustedRenderer(event) {
+
+    if (!isTrustedRenderer(event)) {
+        throw new Error(
+            "Untrusted renderer IPC request rejected."
+        );
+    }
+}
+
+
 function createWindow() {
 
     mainWindow =
@@ -209,7 +450,7 @@ function createWindow() {
                     false,
 
                 sandbox:
-                    false
+                    true
             }
         });
 
@@ -273,7 +514,9 @@ function readConfigFile(
 
 ipcMain.handle(
     "get-categories",
-    () => {
+    event => {
+
+        requireTrustedRenderer(event);
 
         return readConfigFile(
             "categories.json"
@@ -284,18 +527,20 @@ ipcMain.handle(
 
 ipcMain.handle(
     "get-settings",
-    () => {
+    event => {
 
-        return readConfigFile(
-            "settings.json"
-        );
+        requireTrustedRenderer(event);
+
+        return getRendererSafeSettings();
     }
 );
 
 
 ipcMain.handle(
     "get-themes",
-    () => {
+    event => {
+
+        requireTrustedRenderer(event);
 
         return readConfigFile(
             "themes.json"
@@ -973,16 +1218,13 @@ function downloadCategoryIcon(
 
 
 ipcMain.handle(
-
     "get-category-icon",
-
     async (
-
         event,
-
         categoryName
-
     ) => {
+
+        requireTrustedRenderer(event);
 
         try {
 
@@ -1044,7 +1286,7 @@ ipcMain.handle(
                 );
 
 
-                return pathToFileURL(
+                return toArtworkUrl(
                     localPath
                 ).href;
 
@@ -1100,7 +1342,7 @@ ipcMain.handle(
             );
 
 
-            return pathToFileURL(
+            return toArtworkUrl(
                 localPath
             ).href;
 
@@ -2469,7 +2711,7 @@ async function downloadAndCacheArtwork(
         )
     ) {
 
-        return pathToFileURL(
+        return toArtworkUrl(
             existingPath
         ).href;
 
@@ -2579,7 +2821,7 @@ async function downloadAndCacheArtwork(
         );
 
 
-        return pathToFileURL(
+        return toArtworkUrl(
             finalPath
         ).href;
 
@@ -2612,7 +2854,7 @@ async function downloadAndCacheArtwork(
             );
 
 
-            return pathToFileURL(
+            return toArtworkUrl(
                 existingPath
             ).href;
 
@@ -2967,9 +3209,7 @@ async function getConfiguredArtworkSource(
         ) {
 
             const settings =
-                readConfigFile(
-                    "settings.json"
-                );
+                readSettingsFile();
 
 
             const apiKey =
@@ -3153,7 +3393,7 @@ function buildRendererArtworkManifest() {
 
         manifest.__categories[categoryName] =
             fs.existsSync(categoryIconPath)
-                ? pathToFileURL(categoryIconPath).href
+                ? toArtworkUrl(categoryIconPath).href
                 : null;
 
     }
@@ -3207,7 +3447,7 @@ function buildRendererArtworkManifest() {
             if (fs.existsSync(localIconPath)) {
 
                 localItemIcons[value.id] =
-                    pathToFileURL(
+                    toArtworkUrl(
                         localIconPath
                     ).href;
 
@@ -3250,7 +3490,7 @@ function buildRendererArtworkManifest() {
 
             manifest[itemId][artworkType] =
                 filePath
-                    ? pathToFileURL(filePath).href
+                    ? toArtworkUrl(filePath).href
                     : null;
         }
 
@@ -4054,7 +4294,7 @@ async function cacheSteamArtwork(
                 cachedArtwork[
                     artworkType
                 ] =
-                    pathToFileURL(
+                    toArtworkUrl(
                         existingPath
                     ).href;
 
@@ -4181,7 +4421,7 @@ async function cacheSteamArtwork(
                 cachedArtwork[
                     artworkType
                 ] =
-                    pathToFileURL(
+                    toArtworkUrl(
                         destination
                     ).href;
 
@@ -4259,7 +4499,7 @@ async function cacheSteamArtwork(
             cachedArtwork[
                 artworkType
             ] =
-                pathToFileURL(
+                toArtworkUrl(
                     existingPath
                 ).href;
 
@@ -4412,7 +4652,7 @@ async function getExistingSteamArtwork(
             artwork[
                 artworkType
             ] =
-                pathToFileURL(
+                toArtworkUrl(
                     filePath
                 ).href;
 
@@ -5512,16 +5752,36 @@ ipcMain.handle(
         url
     ) => {
 
-        if (
-            !url
-        ) {
+        requireTrustedRenderer(event);
+
+        if (!url) {
 
             return false;
         }
 
 
+        const parsedUrl =
+            new URL(
+                String(url)
+            );
+
+        if (
+            ![
+                "https:",
+                "spotify:",
+                "steam:",
+                "msxbox:"
+            ].includes(
+                parsedUrl.protocol
+            )
+        ) {
+            throw new Error(
+                "External URL protocol is not allowed."
+            );
+        }
+
         await shell.openExternal(
-            url
+            parsedUrl.toString()
         );
 
 
@@ -5822,7 +6082,9 @@ async function launchSpotifyDesktop() {
 
 ipcMain.handle(
     "spotify-launch-desktop",
-    async () => {
+    async event => {
+
+        requireTrustedRenderer(event);
 
         try {
 
@@ -5862,8 +6124,11 @@ ipcMain.handle(
         item
     ) => {
 
+        requireTrustedRenderer(event);
+
         if (
-            !item
+            !item ||
+            typeof item !== "object"
         ) {
 
             return {
@@ -6172,8 +6437,31 @@ async function refreshSpotifyToken(
         });
 
 
-    const response =
-        await fetch(
+    if (
+                ![
+                    "GET",
+                    "POST",
+                    "PUT"
+                ].includes(method)
+            ) {
+                throw new Error(
+                    "Spotify API method is not allowed."
+                );
+            }
+
+            if (
+                !(
+                    endpoint.startsWith("/me/") ||
+                    endpoint.startsWith("/playlists/")
+                )
+            ) {
+                throw new Error(
+                    "Spotify API endpoint is not allowed."
+                );
+            }
+
+            const response =
+                await fetch(
             "https://accounts.spotify.com/api/token",
             {
 
@@ -6207,19 +6495,11 @@ async function refreshSpotifyToken(
 
 
     const settingsPath =
-        path.join(
-
-            __dirname,
-            "config",
-            "settings.json"
-
-        );
+        getSettingsPath();
 
 
     const currentSettings =
-        readConfigFile(
-            "settings.json"
-        );
+        readSettingsFile();
 
 
     currentSettings.spotify =
@@ -6267,14 +6547,14 @@ async function refreshSpotifyToken(
 
 ipcMain.handle(
     "spotify-login",
-    async () => {
+    async event => {
+
+        requireTrustedRenderer(event);
 
         try {
 
             const settings =
-                readConfigFile(
-                    "settings.json"
-                );
+                readSettingsFile();
 
 
             const clientId =
@@ -6521,9 +6801,7 @@ ipcMain.handle(
 
 
                             const currentSettings =
-                                readConfigFile(
-                                    "settings.json"
-                                );
+                                readSettingsFile();
 
 
                             currentSettings.spotify =
@@ -6710,12 +6988,12 @@ ipcMain.handle(
         request
     ) => {
 
+        requireTrustedRenderer(event);
+
         try {
 
             const settings =
-                readConfigFile(
-                    "settings.json"
-                );
+                readSettingsFile();
 
 
             let accessToken =
@@ -6760,8 +7038,10 @@ ipcMain.handle(
 
 
             const method =
-                request?.method ||
-                "GET";
+                String(
+                    request?.method ||
+                    "GET"
+                ).toUpperCase();
 
 
             if (
@@ -6777,9 +7057,9 @@ ipcMain.handle(
             if (
                 typeof endpoint !==
                     "string" ||
-                !endpoint.startsWith(
-                    "/"
-                )
+                !endpoint.startsWith("/") ||
+                endpoint.includes("\\") ||
+                endpoint.includes("://")
             ) {
 
                 throw new Error(
@@ -6883,7 +7163,7 @@ ipcMain.handle(
 );
 
 
-ipcMain.handle("save-account-config",async(_e,v)=>{try{const s=readConfigFile("settings.json");s.spotify=s.spotify||{};s.integrations=s.integrations||{};s.integrations.discord=s.integrations.discord||{};s.integrations.microsoft=s.integrations.microsoft||{};s.integrations.riot=s.integrations.riot||{};s.spotify.clientId=String(v?.spotifyClientId||"").trim();s.integrations.discord.clientId=String(v?.discordClientId||"").trim();s.integrations.microsoft.clientId=String(v?.microsoftClientId||"").trim();s.integrations.riot.clientId=String(v?.riotClientId||"").trim();fs.writeFileSync(path.join(__dirname,"config","settings.json"),JSON.stringify(s,null,4));return{success:true};}catch(e){return{success:false,error:e.message};}});
+ipcMain.handle("save-account-config",async(_e,v)=>{try{const s=readSettingsFile();s.spotify=s.spotify||{};s.integrations=s.integrations||{};s.integrations.discord=s.integrations.discord||{};s.integrations.microsoft=s.integrations.microsoft||{};s.integrations.riot=s.integrations.riot||{};s.spotify.clientId=String(v?.spotifyClientId||"").trim();s.integrations.discord.clientId=String(v?.discordClientId||"").trim();s.integrations.microsoft.clientId=String(v?.microsoftClientId||"").trim();s.integrations.riot.clientId=String(v?.riotClientId||"").trim();writeSettingsFile(s);return{success:true};}catch(e){return{success:false,error:e.message};}});
 
 /*
     ========================================================
@@ -7570,6 +7850,96 @@ app.whenReady()
                 has completed.
                 ====================================================
             */
+
+            registerArtworkProtocol();
+
+            app.on(
+                "web-contents-created",
+                (
+                    _event,
+                    contents
+                ) => {
+
+                    contents.on(
+                        "will-navigate",
+                        (
+                            event,
+                            navigationUrl
+                        ) => {
+
+                            if (
+                                contents !==
+                                mainWindow?.webContents
+                            ) {
+                                event.preventDefault();
+                                return;
+                            }
+
+                            try {
+
+                                const parsedUrl =
+                                    new URL(navigationUrl);
+
+                                if (
+                                    parsedUrl.protocol !== "file:" &&
+                                    parsedUrl.protocol !== "xmb-artwork:"
+                                ) {
+                                    event.preventDefault();
+                                }
+
+                            }
+                            catch (error) {
+                                event.preventDefault();
+                            }
+                        }
+                    );
+
+                    contents.setWindowOpenHandler(
+                        ({url}) => {
+
+                            try {
+
+                                const parsedUrl =
+                                    new URL(url);
+
+                                if (
+                                    [
+                                        "https:",
+                                        "spotify:",
+                                        "steam:",
+                                        "msxbox:"
+                                    ].includes(
+                                        parsedUrl.protocol
+                                    )
+                                ) {
+                                    setImmediate(
+                                        () => {
+                                            shell.openExternal(
+                                                parsedUrl.toString()
+                                            );
+                                        }
+                                    );
+                                }
+
+                            }
+                            catch (error) {
+                                /* Reject malformed URLs. */
+                            }
+
+                            return {
+                                action: "deny"
+                            };
+                        }
+                    );
+
+                    contents.on(
+                        "will-attach-webview",
+                        event => {
+                            event.preventDefault();
+                        }
+                    );
+                }
+            );
 
             createWindow();
 
