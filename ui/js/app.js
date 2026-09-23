@@ -776,12 +776,12 @@ async function startApplication() {
 
 
         if (
-            window.xmbSpotify &&
-            typeof window.xmbSpotify.initialize ===
+            window.spotifyService &&
+            typeof window.spotifyService.initialize ===
                 "function"
         ) {
 
-            await window.xmbSpotify.initialize();
+            await window.spotifyService.initialize();
 
         }
 
@@ -890,12 +890,13 @@ function initializeSpotifyAuthListener() {
 
 
             if (
-                window.xmbSpotify &&
-                typeof window.xmbSpotify.initialize ===
+                window.spotifyService &&
+                typeof window.spotifyService.initialize ===
                     "function"
             ) {
 
-                await window.xmbSpotify.initialize();
+                window.spotifyService.initialized = false;
+                await window.spotifyService.initialize();
 
             }
 
