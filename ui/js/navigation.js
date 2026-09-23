@@ -814,22 +814,46 @@ async function selectCurrentItem() {
     }
 
 
-    const launchAction = {
+    const actions =
+        getCurrentActions();
 
-        name:
-            "Launch",
+    /*
+        Game/app items with a launch action activate directly.
+        Settings-style items do not have launchType; Enter should
+        execute their configured action instead of sending an
+        invalid synthetic launch request to main.js.
+    */
 
-        action:
-            "launch"
+    const launchAction =
+        actions.find(
+            action =>
+                action?.action ===
+                "launch"
+        );
 
-    };
+    const directAction =
+        launchAction ||
+        (
+            actions.length === 1
+                ? actions[0]
+                : null
+        );
+
+    if (
+        !directAction
+    ) {
+
+        openOptions();
+        return;
+
+    }
 
 
     window.xmbAudio?.select?.();
 
 
     await executeAction(
-        launchAction
+        directAction
     );
 
 }
