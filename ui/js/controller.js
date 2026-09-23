@@ -55,6 +55,16 @@ function handleSpotifyOverlay(gamepad){
         return true;
     }
 
+    if(buttonJustPressed(gamepad,15)){
+        window.spotifyUi.moveFilter?.(1);
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,14)){
+        window.spotifyUi.moveFilter?.(-1);
+        return true;
+    }
+
     if(buttonJustPressed(gamepad,0)){
         window.spotifyUi.select?.();
         return true;
