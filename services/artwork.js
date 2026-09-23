@@ -62,7 +62,6 @@ const ARTWORK_TYPES = [
     "icon",
     "logo",
     "cover",
-    "grid",
     "hero",
     "background"
 
@@ -116,8 +115,14 @@ async function getArtwork(
         String(itemId);
 
 
-    const normalizedArtworkType =
+    const requestedArtworkType =
         String(artworkRequest);
+
+    const normalizedArtworkType =
+        requestedArtworkType === "grid" ||
+        requestedArtworkType === "capsule"
+            ? "cover"
+            : requestedArtworkType;
 
 
     if (
@@ -758,7 +763,6 @@ async function getBestArtwork(
         cover: [
 
             "cover",
-            "grid",
             "hero",
             "background"
 
@@ -768,7 +772,6 @@ async function getBestArtwork(
         preview: [
 
             "cover",
-            "grid",
             "hero",
             "logo",
             "icon"
@@ -779,7 +782,6 @@ async function getBestArtwork(
         hero: [
 
             "hero",
-            "grid",
             "cover",
             "background"
 
