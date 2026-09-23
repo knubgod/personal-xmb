@@ -1646,6 +1646,9 @@ function getBuiltInItemIcon(
         "spotify-playlists":
             '<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
 
+        "spotify-search":
+            '<circle cx="11" cy="11" r="6"/><path d="m16 16 5 5"/>',
+
         "spotify-dj":
             '<path d="M4 12a8 8 0 1 1 16 0"/><path d="M8 12v5M16 12v5"/><path d="M10 17h4"/><path d="M12 8v2"/>',
 
@@ -1660,6 +1663,9 @@ function getBuiltInItemIcon(
 
         "spotify-playlists":
             '<path d="M5 6h14M5 12h14M5 18h9"/>',
+
+        "spotify-search":
+            '<circle cx="11" cy="11" r="6"/><path d="m16 16 5 5"/>',
 
         "spotify-dj":
             '<path d="M7 4h10v16H7Z"/><circle cx="10" cy="12" r="1.5"/><circle cx="14" cy="12" r="1.5"/>',

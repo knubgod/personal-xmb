@@ -176,6 +176,21 @@
                 ]
             },
             {
+                "id": "spotify-search",
+                "name": "Search Spotify",
+                "type": "music",
+                "platform": "Spotify",
+                "description": "Search Spotify for songs, artists, albums, playlists, podcasts, and episodes.",
+                "status": "Available",
+                "icon": "",
+                "actions": [
+                    {
+                        "name": "Search Spotify",
+                        "action": "spotify-search"
+                    }
+                ]
+            },
+            {
                 "id": "spotify-dj",
                 "name": "DJ",
                 "type": "music",

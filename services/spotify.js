@@ -10,271 +10,21 @@ const spotifyService={
     recentCacheTtl:60000,
     shuffle:false,
     repeat:"off",
-    playbackDeviceId:"",
-    localPlayer:null,
-    localDeviceId:"",
-    localPlayerReady:false,
-    localPlayerError:"",
 
     async initialize(){
         if(this.initialized)return;
         this.initialized=true;
 
         /*
-            The Web Playback SDK is the actual XMB audio engine.
-            It creates a Spotify Connect device inside Electron,
-            so selecting music no longer depends on the Spotify
-            desktop application being open.
+            XMB uses Spotify's Web API for library, metadata, and
+            playback status. Audio playback itself is handed to the
+            installed Spotify application rather than a remote
+            Spotify Connect device.
         */
-        /*
-            Spotify must never prevent the rest of XMB from starting.
-            The player is initialized in the background and normal
-            Web API state is refreshed only when authentication works.
-        */
-        try {
-
-            await this.initializeLocalPlayer();
-
-        } catch (error) {
-
-            console.warn(
-                "Spotify local player initialization failed:",
-                error
-            );
-
-        }
-
-        try {
-
-            await this.refreshNowPlaying();
-
-        } catch (error) {
-
-            console.warn(
-                "Spotify initial playback refresh failed:",
-                error
-            );
-
-        }
+        await this.refreshNowPlaying();
 
         this.startPolling();
         this.startProgressTicker();
-    },
-
-    async getPlaybackToken(){
-        const result=await window.electron?.spotifyPlaybackToken?.();
-
-        if(!result?.success){
-            const error=new Error(
-                result?.error||"Spotify playback authentication failed."
-            );
-            error.requiresReauth=!!result?.requiresReauth;
-            throw error;
-        }
-
-        return result.accessToken;
-    },
-
-    async initializeLocalPlayer(){
-        if(this.localPlayerReady&&this.localPlayer)return true;
-        if(this.localPlayer)return false;
-
-        if(!window.Spotify){
-            this.localPlayerError="Spotify's Web Playback SDK did not load.";
-            console.warn(this.localPlayerError);
-            return false;
-        }
-
-        try{
-            const player=new window.Spotify.Player({
-                name:"Personal XMB",
-                getOAuthToken:async callback=>{
-                    try{
-                        callback(await this.getPlaybackToken());
-                    }catch(error){
-                        console.warn("Spotify playback token refresh failed:",error.message);
-                        callback("");
-                    }
-                },
-                volume:0.75,
-                enableMediaSession:true
-            });
-
-            player.addListener("ready",({device_id})=>{
-                this.localDeviceId=device_id||"";
-                this.playbackDeviceId=this.localDeviceId;
-                this.localPlayerReady=!!this.localDeviceId;
-                this.localPlayerError="";
-                player.setName("Personal XMB").catch(()=>{});
-                console.log("Spotify XMB player ready:",this.localDeviceId);
-            });
-
-            player.addListener("not_ready",({device_id})=>{
-                if(!device_id||device_id===this.localDeviceId){
-                    this.localPlayerReady=false;
-                }
-                console.warn("Spotify XMB player is not ready.");
-            });
-
-            player.addListener("player_state_changed",state=>{
-                if(state)this.applyLocalPlayerState(state);
-            });
-
-            player.addListener("autoplay_failed",()=>{
-                this.localPlayerError="Spotify playback needs a direct XMB interaction.";
-                console.warn(this.localPlayerError);
-            });
-
-            player.addListener("initialization_error",({message})=>{
-                this.localPlayerError=message||"Spotify could not initialize local playback.";
-                console.error("Spotify Web Playback initialization error:",message);
-            });
-
-            player.addListener("authentication_error",({message})=>{
-                this.localPlayerError=
-                    "Spotify playback authorization needs to be renewed in Settings > Accounts.";
-                console.error("Spotify Web Playback authentication error:",message);
-            });
-
-            player.addListener("account_error",({message})=>{
-                this.localPlayerError=
-                    "Spotify Web Playback requires a Premium account.";
-                console.error("Spotify Web Playback account error:",message);
-            });
-
-            player.addListener("playback_error",({message})=>{
-                this.localPlayerError=message||"Spotify could not play this item.";
-                console.error("Spotify Web Playback error:",message);
-            });
-
-            this.localPlayer=player;
-
-            const connected=await player.connect();
-
-            if(!connected){
-                throw new Error(
-                    this.localPlayerError||
-                    "Spotify's local player could not connect."
-                );
-            }
-
-            return true;
-        }catch(error){
-            this.localPlayer=null;
-            this.localPlayerReady=false;
-            this.localPlayerError=error.message;
-            console.warn("Spotify local player unavailable:",error.message);
-            return false;
-        }
-    },
-
-    async ensureLocalPlayer(){
-        if(!this.localPlayer){
-            await this.initializeLocalPlayer();
-        }
-
-        /*
-            player.connect() resolves before the SDK's ready event
-            necessarily arrives. Wait briefly for the actual device
-            ID instead of racing the first user interaction.
-        */
-        for(let attempt=0;attempt<150;attempt++){
-            if(this.localPlayer&&this.localPlayerReady){
-                return this.localPlayer;
-            }
-
-            await new Promise(resolve=>setTimeout(resolve,100));
-        }
-
-        throw new Error(
-            this.localPlayerError||
-            "Spotify's XMB player is not ready."
-        );
-    },
-
-    async transferPlaybackToLocal(play){
-        const player=await this.ensureLocalPlayer();
-
-        try{
-            await player.activateElement();
-        }catch(error){
-            console.warn("Spotify player activation warning:",error.message);
-        }
-
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player",
-            body:{
-                device_ids:[this.localDeviceId],
-                play:!!play
-            }
-        });
-
-        this.playbackDeviceId=this.localDeviceId;
-        return player;
-    },
-
-    applyLocalPlayerState(state){
-        const track=state?.track_window?.current_track;
-
-        if(!track){
-            return;
-        }
-
-        this.currentTrack={
-            id:track.id,
-            uri:track.uri||"",
-            name:track.name||"Unknown",
-            artist:track.artists?.map(a=>a.name).join(", ")||"Unknown Artist",
-            album:track.album?.name||"Unknown Album",
-            artwork:track.album?.images?.[0]?.url||"",
-            duration:state.duration||track.duration_ms||0,
-            progress:Number(state.position||0),
-            isPlaying:!state.paused,
-            spotifyUrl:track.external_urls?.spotify||""
-        };
-
-        this.shuffle=!!state.shuffle;
-        this.repeat=
-            state.repeat_mode===2
-                ?"track"
-                :state.repeat_mode===1
-                    ?"context"
-                    :"off";
-
-        this.lastPlayerRefresh=Date.now();
-        this.renderPlayer();
-        this.updateModes();
-    },
-
-    startPolling(){
-        if(this.polling)return;
-        this.polling=true;
-        // Spotify rate-limits the Web API. Five-second polling is
-        // unnecessarily aggressive for a desktop launcher.
-        this.pollTimer=setInterval(()=>this.refreshNowPlaying(),15000);
-    },
-
-    startProgressTicker(){
-        if(this.progressTimer)return;
-        this.progressTimer=setInterval(()=>{
-            if(!this.currentTrack)return;
-            if(this.currentTrack.isPlaying&&this.currentTrack.duration>0){
-                this.currentTrack.progress=Math.min(
-                    this.currentTrack.duration,
-                    this.currentTrack.progress+250
-                );
-            }
-            this.renderPlayer();
-        },250);
-    },
-
-    stopPolling(){
-        if(this.pollTimer)clearInterval(this.pollTimer);
-        if(this.progressTimer)clearInterval(this.progressTimer);
-        this.pollTimer=null;
-        this.progressTimer=null;
-        this.polling=false;
     },
 
     async api(request){
@@ -372,100 +122,92 @@ const spotifyService={
     },
 
     async getAvailableDevices(){
-        const data=await this.api({method:"GET",endpoint:"/me/player/devices"});
+        const data=await this.api({
+            method:"GET",
+            endpoint:"/me/player/devices"
+        });
+
         return Array.isArray(data?.devices)?data.devices:[];
     },
 
     /*
-        Kept for device discovery/status UI. Playback itself no
-        longer falls back to a random Spotify Connect device.
+        Playback is intentionally handed to the installed Spotify app
+        through Spotify URIs. We do not select or transfer playback to
+        an arbitrary Spotify Connect device, which prevents XMB from
+        accidentally starting music on an Echo, TV, or other remote device.
     */
-    async ensurePlaybackDevice(){
-        const player=await this.ensureLocalPlayer();
+    async openUri(uri,fallbackUrl=""){
+        if(!uri&&!fallbackUrl)return false;
 
-        return {
-            id:this.localDeviceId,
-            name:"Personal XMB",
-            type:"computer",
-            is_active:true,
-            is_restricted:false,
-            player
-        };
+        try{
+            if(uri){
+                const opened=await window.electron?.openExternal?.(uri);
+                if(opened)return true;
+            }
+        }catch(error){
+            console.warn("Spotify URI open failed:",error.message);
+        }
+
+        if(fallbackUrl){
+            try{
+                return !!(await window.electron?.openExternal?.(fallbackUrl));
+            }catch(error){
+                console.warn("Spotify web fallback failed:",error.message);
+            }
+        }
+
+        return false;
     },
 
     async togglePlayback(){
-        if(!this.currentTrack)return;
+        const track=this.currentTrack;
 
-        const wasPlaying=!!this.currentTrack.isPlaying;
+        if(!track){
+            await this.openUri("spotify:", "https://open.spotify.com/");
+            return;
+        }
 
-        try{
-            const player=await this.transferPlaybackToLocal(wasPlaying);
+        const opened=await this.openUri(
+            track.uri,
+            track.spotifyUrl||"https://open.spotify.com/"
+        );
 
-            if(wasPlaying){
-                await player.pause();
-            }else{
-                await player.resume();
-            }
-
-            this.lastPlayerRefresh=0;
-        }catch(error){
-            console.warn("Spotify local playback failed:",error.message);
+        if(!opened){
+            console.warn("Unable to open Spotify for the current item.");
         }
     },
 
     async next(){
-        try{
-            const player=await this.transferPlaybackToLocal(true);
-            await player.nextTrack();
-            this.lastPlayerRefresh=0;
-        }catch(error){
-            console.warn("Spotify next failed:",error.message);
-        }
+        await this.openSpotifyDesktop();
     },
 
     async previous(){
+        await this.openSpotifyDesktop();
+    },
+
+    async openSpotifyDesktop(){
         try{
-            const player=await this.transferPlaybackToLocal(true);
-            await player.previousTrack();
-            this.lastPlayerRefresh=0;
+            const result=await window.electron?.spotifyLaunchDesktop?.();
+            if(result?.success===false){
+                throw new Error(result.error||"Unable to launch Spotify.");
+            }
+            return result?.success!==false;
         }catch(error){
-            console.warn("Spotify previous failed:",error.message);
+            console.warn("Spotify desktop launch failed:",error.message);
+            return false;
         }
     },
 
     async toggleShuffle(){
-        const next=!this.shuffle;
-        try{
-            await this.api({
-                method:"PUT",
-                endpoint:"/me/player/shuffle?state="+next+
-    (this.localDeviceId
-        ?"\u0026device_id="+encodeURIComponent(this.localDeviceId)
-        :"")
-            });
-            this.shuffle=next;
-            this.updateModes();
-        }catch(error){
-            console.warn("Shuffle failed:",error.message);
-        }
+        showTemporaryMessage(
+            "Playback controls are handled by Spotify."
+        );
     },
 
     async cycleRepeat(){
-        const modes=["off","context","track"];
-        const next=modes[(modes.indexOf(this.repeat)+1)%modes.length];
-        try{
-            await this.api({
-                method:"PUT",
-                endpoint:"/me/player/repeat?state="+next+
-    (this.localDeviceId
-        ?"\u0026device_id="+encodeURIComponent(this.localDeviceId)
-        :"")
-            });
-            this.repeat=next;
-            this.updateModes();
-        }catch(error){
-            console.warn("Repeat failed:",error.message);
-        }
+        showTemporaryMessage(
+            "Playback controls are handled by Spotify."
+        );
     },
 
     updateModes(){
@@ -498,80 +240,81 @@ const spotifyService={
     async playTrack(uri){
         if(!uri)return;
 
-        const player=await this.transferPlaybackToLocal(false);
+        const opened=await this.openUri(
+            uri,
+            "https://open.spotify.com/"
+        );
 
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.localDeviceId),
-            body:{uris:[uri]}
-        });
-
-        await new Promise(resolve=>setTimeout(resolve,300));
-
-        try{
-            await player.resume();
-        }catch(error){
-            console.warn("Spotify resume after track selection failed:",error.message);
+        if(!opened){
+            throw new Error("Unable to open Spotify.");
         }
 
         this.lastPlayerRefresh=0;
-        await this.refreshNowPlaying();
     },
 
     async playPlaylist(uri){
         if(!uri)return;
 
-        await this.transferPlaybackToLocal(false);
+        const opened=await this.openUri(
+            uri,
+            "https://open.spotify.com/"
+        );
 
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.localDeviceId),
-            body:{context_uri:uri}
-        });
-
-        await new Promise(resolve=>setTimeout(resolve,300));
+        if(!opened){
+            throw new Error("Unable to open Spotify.");
+        }
 
         this.lastPlayerRefresh=0;
-        await this.refreshNowPlaying();
     },
 
     async playContext(uri){
         if(!uri)return;
 
-        await this.transferPlaybackToLocal(false);
+        const opened=await this.openUri(
+            uri,
+            "https://open.spotify.com/"
+        );
 
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.localDeviceId),
-            body:{context_uri:uri}
-        });
-
-        await new Promise(resolve=>setTimeout(resolve,300));
+        if(!opened){
+            throw new Error("Unable to open Spotify.");
+        }
 
         this.lastPlayerRefresh=0;
-        await this.refreshNowPlaying();
     },
 
     async playPodcastShow(uri){
         if(!uri)return;
 
-        const showId=String(uri).split(":").pop();
+        const opened=await this.openUri(
+            uri,
+            "https://open.spotify.com/"
+        );
 
-        if(!showId)throw new Error("Podcast show ID is missing.");
-
-        const data=await this.api({
-            method:"GET",
-            endpoint:"/shows/"+encodeURIComponent(showId)+"?market=US"
-        });
-
-        const episode=data?.episodes?.items?.find(item=>item?.uri);
-
-        if(!episode?.uri){
-            throw new Error("No playable podcast episode was found.");
+        if(!opened){
+            throw new Error("Unable to open Spotify.");
         }
 
-        await this.playTrack(episode.uri);
+        this.lastPlayerRefresh=0;
+    },
+
+    async search(query,type="all"){
+        const clean=String(query||"").trim();
+
+        if(!clean)return null;
+
+        const types=type==="all"
+            ?["album","artist","playlist","track","show","episode"]
+            :[type];
+
+        return this.api({
+            method:"GET",
+            endpoint:
+                "/search?q="+encodeURIComponent(clean)+
+                "&type="+encodeURIComponent(types.join(","))+
+                "&limit=10"
+        });
     }
+
 };
 
 function formatTime(ms){
@@ -614,7 +357,10 @@ window.updateSpotifyPlayer=(track)=>{
         if(current)current.textContent="0:00";
         if(duration)duration.textContent="0:00";
         if(fill)fill.className="progress-0";
-        if(play)play.textContent="▶";
+        if(play){
+            play.textContent="↗";
+            play.setAttribute("aria-label","Open Spotify");
+        }
         spotifyService.updateModes();
         return;
     }
@@ -637,8 +383,8 @@ window.updateSpotifyPlayer=(track)=>{
         fill.className="progress-"+Math.max(0,Math.min(100,percent));
     }
     if(play){
-        play.textContent=track.isPlaying?"❚❚":"▶";
-        play.setAttribute("aria-label",track.isPlaying?"Pause":"Play");
+        play.textContent="↗";
+        play.setAttribute("aria-label","Open in Spotify");
     }
     spotifyService.updateModes();
 };
@@ -1015,6 +761,167 @@ const spotifyUi={
         }
     },
 
+    async showSearch(){
+        const overlay=this.ensure();
+        const content=overlay.querySelector("#spotify-library-content");
+
+        overlay.querySelector("#spotify-library-title").textContent="Search Spotify";
+        overlay.classList.add("visible");
+        overlay.querySelector(".spotify-library-filters").style.display="none";
+
+        content.innerHTML=
+            '<form id="spotify-search-form" class="spotify-search-form">'+
+                '<input id="spotify-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search Spotify..." aria-label="Search Spotify">'+
+                '<button type="submit">Search</button>'+
+            '</form>'+
+            '<div class="spotify-search-typebar" role="tablist" aria-label="Spotify search type">'+
+                '<button type="button" class="spotify-search-type selected" data-type="all">All</button>'+
+                '<button type="button" class="spotify-search-type" data-type="track">Songs</button>'+
+                '<button type="button" class="spotify-search-type" data-type="artist">Artists</button>'+
+                '<button type="button" class="spotify-search-type" data-type="album">Albums</button>'+
+                '<button type="button" class="spotify-search-type" data-type="playlist">Playlists</button>'+
+                '<button type="button" class="spotify-search-type" data-type="show">Podcasts</button>'+
+                '<button type="button" class="spotify-search-type" data-type="episode">Episodes</button>'+
+            '</div>'+
+            '<div id="spotify-search-results"><div class="spotify-library-status">Search Spotify by song, artist, album, playlist, podcast, or episode.</div></div>';
+
+        const form=content.querySelector("#spotify-search-form");
+        const input=content.querySelector("#spotify-search-input");
+        const results=content.querySelector("#spotify-search-results");
+        let selectedType="all";
+
+        content.querySelectorAll(".spotify-search-type").forEach(button=>{
+            button.onclick=()=>{
+                selectedType=button.dataset.type||"all";
+                content.querySelectorAll(".spotify-search-type").forEach(item=>{
+                    item.classList.toggle("selected",item===button);
+                });
+            };
+        });
+
+        form.onsubmit=async event=>{
+            event.preventDefault();
+
+            const query=input.value.trim();
+            if(!query){
+                results.innerHTML='<div class="spotify-library-status">Enter something to search for.</div>';
+                input.focus();
+                return;
+            }
+
+            results.innerHTML='<div class="spotify-library-status">Searching Spotify...</div>';
+
+            try{
+                const data=await spotifyService.search(query,selectedType);
+                const groups=[
+                    ["Tracks",data?.tracks?.items||[],"track"],
+                    ["Artists",data?.artists?.items||[],"artist"],
+                    ["Albums",data?.albums?.items||[],"album"],
+                    ["Playlists",data?.playlists?.items||[],"playlist"],
+                    ["Podcasts",data?.shows?.items||[],"show"],
+                    ["Episodes",data?.episodes?.items||[],"episode"]
+                ];
+
+                const rows=groups.flatMap(([label,items,type])=>
+                    items.filter(item=>item?.uri).map(item=>({
+                        type,
+                        name:item.name||"Unknown",
+                        subtitle:
+                            type==="track"
+                                ?item.artists?.map(a=>a.name).join(", ")||"Track"
+                                :type==="artist"
+                                    ?"Artist"
+                                    :type==="album"
+                                        ?item.artists?.map(a=>a.name).join(", ")||"Album"
+                                        :type==="playlist"
+                                            ?item.owner?.display_name
+                                                ?"Playlist • "+item.owner.display_name
+                                                :"Playlist"
+                                            :type==="show"
+                                                ?"Podcast"
+                                                :"Episode",
+                        image:
+                            item.images?.[2]?.url||
+                            item.images?.[0]?.url||
+                            item.album?.images?.[2]?.url||
+                            item.album?.images?.[0]?.url||
+                            "",
+                        uri:item.uri,
+                        spotifyUrl:item.external_urls?.spotify||""
+                    }))
+                );
+
+                if(!rows.length){
+                    results.innerHTML='<div class="spotify-library-status">No Spotify results found.</div>';
+                    this.rows=[];
+                    return;
+                }
+
+                results.innerHTML=rows.map(item=>
+                    '<button class="spotify-library-row" type="button" data-uri="'+
+                        this.escapeAttribute(item.uri)+
+                        '" data-url="'+this.escapeAttribute(item.spotifyUrl)+
+                        '" data-type="'+this.escapeAttribute(item.type)+'">'+
+                        (item.image
+                            ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
+                            :'<span class="spotify-library-row-icon '+item.type+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
+                        '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+
+                    '</button>'
+                ).join("");
+
+                const rowElements=[...results.querySelectorAll(".spotify-library-row")];
+
+                rows.forEach((item,index)=>{
+                    const row=rowElements[index];
+                    if(!row)return;
+
+                    row.querySelector("strong").textContent=item.name;
+                    row.querySelector(".spotify-library-row-text > span").textContent=item.subtitle;
+
+                    const image=row.querySelector("img");
+                    if(image){
+                        image.referrerPolicy="no-referrer";
+                        image.addEventListener("error",()=>{
+                            const icon=document.createElement("span");
+                            icon.className="spotify-library-row-icon "+item.type;
+                            icon.setAttribute("aria-hidden","true");
+                            icon.textContent=this.getRowIcon(item.type);
+                            image.replaceWith(icon);
+                        },{once:true});
+                    }
+
+                    row.onclick=async()=>{
+                        this.selectedIndex=index;
+                        this.setRows(rowElements);
+
+                        try{
+                            await spotifyService.playContext(row.dataset.uri);
+                            this.close();
+                        }catch(error){
+                            this.showStatus(error.message);
+                        }
+                    };
+                });
+
+                this.setRows(rowElements);
+            }catch(error){
+                results.innerHTML='<div class="spotify-library-status"></div>';
+                results.querySelector(".spotify-library-status").textContent=error.message;
+                this.rows=[];
+            }
+        };
+
+        input.focus();
+    },
+
+    escapeAttribute(value){
+        return String(value||"")
+            .replace(/&/g,"&amp;")
+            .replace(/"/g,"&quot;")
+            .replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;");
+    },
+
     async showRecentlyPlayed(){
         this.selectedFilter=0;
         this.ensure();
@@ -1081,6 +988,13 @@ const spotifyUi={
 
 document.addEventListener("keydown",event=>{
     if(!spotifyUi.isOpen())return;
+
+    if(
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+    ){
+        if(event.key!=="Escape")return;
+    }
 
     if(event.key==="Escape"){
         event.preventDefault();
