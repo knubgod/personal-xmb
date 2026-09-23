@@ -4,331 +4,134 @@
     CONTROLLER SUPPORT
     ========================================================
 
-    Detects Xbox / PlayStation controllers using the
-    browser Gamepad API.
+    Controller input feeds the same XMB navigation functions
+    used by keyboard and mouse.
 
-    The controller does NOT contain its own navigation
-    logic.
-
-    It calls the same functions used by the keyboard.
+    Spotify library overlays are treated as a temporary
+    controller surface:
+        D-pad Up/Down = move
+        A / Cross = select
+        B / Circle = close
 */
 
-
-let activeInputMode =
-    "keyboard";
-
-
+let activeInputMode = "keyboard";
 let previousGamepadButtons = [];
 
-
-/*
-    ========================================================
-    BUTTON HELPER
-    ========================================================
-*/
-
-function buttonPressed(
-    gamepad,
-    index
-) {
-
-    if (!gamepad.buttons[index]) {
-        return false;
-    }
-
-    return gamepad.buttons[index].pressed;
-
+function buttonPressed(gamepad,index){
+    return !!gamepad.buttons[index]?.pressed;
 }
 
+function buttonJustPressed(gamepad,index){
+    const previous=previousGamepadButtons[index] || false;
+    return buttonPressed(gamepad,index) && !previous;
+}
 
-/*
-    ========================================================
-    CHANGE INPUT MODE
-    ========================================================
-*/
-
-function setInputMode(
-    mode
-) {
-
-    if (
-        activeInputMode === mode
-    ) {
-
-        return;
-
-    }
-
-
-    activeInputMode =
-        mode;
-
-
+function setInputMode(mode){
+    if(activeInputMode===mode)return;
+    activeInputMode=mode;
     updateNavigationHints();
-
 }
 
+function handleSpotifyOverlay(gamepad){
+    if(!window.spotifyUi?.isOpen?.())return false;
 
-/*
-    ========================================================
-    GAMEPAD INPUT
-    ========================================================
-*/
+    if(buttonJustPressed(gamepad,13)){
+        window.spotifyUi.move?.(1);
+        return true;
+    }
 
-function pollGamepads() {
+    if(buttonJustPressed(gamepad,12)){
+        window.spotifyUi.move?.(-1);
+        return true;
+    }
 
-    const gamepads =
-        navigator.getGamepads();
+    if(buttonJustPressed(gamepad,0)){
+        window.spotifyUi.select?.();
+        return true;
+    }
 
+    if(buttonJustPressed(gamepad,1)){
+        window.spotifyUi.close?.();
+        return true;
+    }
 
-    for (
-        const gamepad of gamepads
-    ) {
+    return true;
+}
 
-        if (!gamepad) {
-            continue;
-        }
+function pollGamepads(){
+    const gamepads=navigator.getGamepads();
 
+    for(const gamepad of gamepads){
+        if(!gamepad)continue;
 
-        /*
-            Detect controller family.
-
-            Xbox controllers usually expose:
-                Xbox / XInput
-
-            PlayStation controllers may expose:
-                DualShock
-                DualSense
-        */
-
-        const id =
-            gamepad.id.toLowerCase();
-
-
-        let controllerType =
-            "xbox";
-
-
-        if (
+        const id=(gamepad.id||"").toLowerCase();
+        const controllerType=
             id.includes("playstation") ||
             id.includes("dualshock") ||
             id.includes("dualsense") ||
             id.includes("sony")
-        ) {
+                ? "playstation"
+                : "xbox";
 
-            controllerType =
-                "playstation";
+        setInputMode(controllerType);
 
+        if(handleSpotifyOverlay(gamepad)){
+            previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
+            continue;
         }
 
-
-        setInputMode(
-            controllerType
-        );
-
-
-        /*
-            ------------------------------------------------
-            D-PAD
-            ------------------------------------------------
-        */
-
-        if (
-            buttonPressed(
-                gamepad,
-                12
-            )
-        ) {
-
+        if(buttonJustPressed(gamepad,12)){
             moveItem(-1);
-
         }
 
-
-        if (
-            buttonPressed(
-                gamepad,
-                13
-            )
-        ) {
-
+        if(buttonJustPressed(gamepad,13)){
             moveItem(1);
-
         }
 
-
-        if (
-            buttonPressed(
-                gamepad,
-                14
-            )
-        ) {
-
-            if (
-                navigationLevel ===
-                "categories"
-            ) {
-
+        if(buttonJustPressed(gamepad,14)){
+            if(navigationLevel==="categories"){
                 moveCategory(-1);
-
-            }
-            else {
-
+            }else{
                 goBack();
-
             }
-
         }
 
-
-        if (
-            buttonPressed(
-                gamepad,
-                15
-            )
-        ) {
-
-            if (
-                navigationLevel ===
-                "categories"
-            ) {
-
+        if(buttonJustPressed(gamepad,15)){
+            if(navigationLevel==="categories"){
                 moveCategory(1);
-
             }
-
         }
 
-
-        /*
-            ------------------------------------------------
-            A / X
-            ------------------------------------------------
-
-            Xbox:
-                A = button 0
-
-            PlayStation:
-                X = button 0
-        */
-
-        if (
-            buttonPressed(
-                gamepad,
-                0
-            )
-        ) {
-
-            if (
-                navigationLevel ===
-                "categories"
-            ) {
-
+        if(buttonJustPressed(gamepad,0)){
+            if(navigationLevel==="categories"){
                 enterItemLevel();
-
-            }
-            else if (
-                navigationLevel ===
-                "items"
-            ) {
-
+            }else if(navigationLevel==="items"){
                 selectCurrentItem();
-
-            }
-            else {
-
+            }else{
                 selectCurrentAction();
-
             }
-
         }
 
-
-        /*
-            ------------------------------------------------
-            B / CIRCLE
-            ------------------------------------------------
-        */
-
-        if (
-            buttonPressed(
-                gamepad,
-                1
-            )
-        ) {
-
+        if(buttonJustPressed(gamepad,1)){
             goBack();
-
         }
 
-
-        /*
-            ------------------------------------------------
-            Y / TRIANGLE
-            ------------------------------------------------
-
-            Xbox:
-                Y = button 3
-
-            PlayStation:
-                Triangle = button 3
-        */
-
-        if (
-            buttonPressed(
-                gamepad,
-                3
-            )
-        ) {
-
-            if (
-                navigationLevel ===
-                "items"
-            ) {
-
+        if(buttonJustPressed(gamepad,3)){
+            if(navigationLevel==="items"){
                 openOptions();
-
             }
-
         }
 
+        previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
     }
 
-
-    requestAnimationFrame(
-        pollGamepads
-    );
-
+    requestAnimationFrame(pollGamepads);
 }
 
+window.addEventListener("gamepadconnected",()=>{
+    previousGamepadButtons=[];
+});
 
-/*
-    ========================================================
-    GAMEPAD CONNECTED
-    ========================================================
-*/
+window.getInputMode=()=>activeInputMode;
 
-window.addEventListener(
-    "gamepadconnected",
-    () => {
-
-        /*
-            Start polling immediately when a controller
-            connects.
-        */
-
-        pollGamepads();
-
-    }
-);
-
-
-/*
-    ========================================================
-    EXPOSE INPUT MODE
-    ========================================================
-*/
-
-window.getInputMode =
-    () =>
-        activeInputMode;
+requestAnimationFrame(pollGamepads);
