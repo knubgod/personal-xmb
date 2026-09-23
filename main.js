@@ -3044,7 +3044,8 @@ async function getConfiguredArtworkSource(
 
 function findUniversalCachedArtworkFile(
     itemId,
-    artworkType
+    artworkType,
+    preferSteam = false
 ) {
 
     const names =
@@ -3052,10 +3053,15 @@ function findUniversalCachedArtworkFile(
             ? ["cover", "grid", "capsule"]
             : [artworkType];
 
-    const roots = [
-        getArtworkDirectory(itemId),
-        getSteamArtworkDirectory(itemId)
-    ];
+    const roots = preferSteam
+        ? [
+            getSteamArtworkDirectory(itemId),
+            getArtworkDirectory(itemId)
+        ]
+        : [
+            getArtworkDirectory(itemId),
+            getSteamArtworkDirectory(itemId)
+        ];
 
     for (const root of roots) {
 
@@ -3211,10 +3217,18 @@ function buildRendererArtworkManifest() {
 
         for (const artworkType of UNIVERSAL_ARTWORK_TYPES) {
 
+            const isSteam =
+                Boolean(
+                    metadataConfig.items?.[
+                        itemId
+                    ]?.sources?.steam?.appId
+                );
+
             const filePath =
                 findUniversalCachedArtworkFile(
                     itemId,
-                    artworkType
+                    artworkType,
+                    isSteam
                 );
 
             manifest[itemId][artworkType] =
