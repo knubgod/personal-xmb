@@ -457,7 +457,11 @@ async function saveSpotifyTokens(
                 refreshToken:
                     tokens.refreshToken || "",
                 expiresAt:
-                    Number(tokens.expiresAt || 0)
+                    Number(tokens.expiresAt || 0),
+                scope:
+                    typeof tokens.scope === "string"
+                        ? tokens.scope
+                        : ""
             })
         );
 
@@ -6415,6 +6419,13 @@ async function launchSpotifyDesktop() {
                 };
 
                 try{
+                    /*
+                        Spotify accepts --minimized, but some Windows
+                        builds still create a visible window. Starting
+                        through the fixed executable with the Windows
+                        minimize flag gives those builds a second,
+                        non-shell path to honor the request.
+                    */
                     const child=spawn(
                         executable,
                         ["--minimized"],
@@ -6436,7 +6447,8 @@ async function launchSpotifyDesktop() {
                 return {
                     success:true,
                     alreadyRunning:false,
-                    launchedByExecutable:true
+                    launchedByExecutable:true,
+                    minimizedRequested:true
                 };
             }
         }
@@ -6926,8 +6938,12 @@ async function refreshSpotifyToken() {
                     data.expires_in || 3600
                 ) *
                 1000
-            )
+            ),
 
+        scope:
+            typeof data.scope === "string"
+                ? data.scope
+                : (tokens.scope || "")
     };
 
     await saveSpotifyTokens(
@@ -7190,7 +7206,9 @@ ipcMain.handle(
                                     token.access_token,
                                 refreshToken:
                                     token.refresh_token,
-                                expiresAt
+                                expiresAt,
+                                scope:
+                                    token.scope || ""
                             });
 
                             const profile =
@@ -7304,6 +7322,101 @@ ipcMain.handle(
             return {
                 success:
                     false,
+                error:
+                    error.message
+            };
+
+        }
+
+    }
+);
+
+/*
+    ========================================================
+    SPOTIFY WEB PLAYBACK TOKEN
+    ========================================================
+
+    The Web Playback SDK must receive a short-lived access
+    token in the renderer. The refresh token never leaves
+    the main process.
+
+    Playback tokens are only returned to the trusted
+    renderer and are refreshed through the existing secure
+    token store when necessary.
+*/
+
+ipcMain.handle(
+    "spotify-playback-token",
+    async event => {
+
+        requireTrustedRenderer(event);
+
+        try {
+
+            let tokens =
+                loadSpotifyTokens();
+
+            if (
+                !tokens?.accessToken
+            ) {
+
+                throw new Error(
+                    "Spotify is not connected."
+                );
+
+            }
+
+            if (
+                typeof tokens.scope !== "string" ||
+                !tokens.scope.split(/\s+/).includes("streaming")
+            ) {
+
+                return {
+                    success: false,
+                    requiresReauth: true,
+                    error:
+                        "Spotify playback permission is missing. Reconnect Spotify in Settings > Accounts."
+                };
+
+            }
+
+            if (
+                tokens.expiresAt &&
+                Date.now() >=
+                    tokens.expiresAt - 30000
+            ) {
+
+                tokens.accessToken =
+                    await refreshSpotifyToken();
+
+                if (
+                    !tokens.accessToken
+                ) {
+
+                    throw new Error(
+                        "Spotify token refresh failed."
+                    );
+
+                }
+
+            }
+
+            return {
+                success: true,
+                accessToken:
+                    tokens.accessToken
+            };
+
+        }
+        catch (error) {
+
+            console.error(
+                "Spotify playback token request failed:",
+                error
+            );
+
+            return {
+                success: false,
                 error:
                     error.message
             };
