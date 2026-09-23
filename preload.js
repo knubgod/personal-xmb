@@ -12,7 +12,7 @@ getArtwork:(itemId,type="logo",source={})=>ipcRenderer.invoke("get-artwork",item
 getArtworkManifest:()=>ipcRenderer.invoke("get-artwork-manifest"),
 spotifyLogin:()=>ipcRenderer.invoke("spotify-login"),
 spotifyLaunchDesktop:()=>ipcRenderer.invoke("spotify-launch-desktop"),
-spotifyApi:(request)=>ipcRenderer.invoke("spotify-api",request),
+spotifyApi:(request)=>ipcRenderer.invoke("spotify-api",request),\nspotifyPlaybackToken:()=>ipcRenderer.invoke("spotify-playback-token"),
 onSpotifyAuthComplete:(callback)=>ipcRenderer.on("spotify-auth-complete",()=>callback()),
 getAccounts:()=>ipcRenderer.invoke("accounts-get"),
 loginAccount:(provider)=>ipcRenderer.invoke("account-login",provider),
