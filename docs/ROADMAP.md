@@ -169,3 +169,19 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 5. **Configuration should control behavior instead of hard-coded item-specific logic wherever practical.**
 6. **A service being unavailable should degrade gracefully rather than breaking the XMB.**
 7. **Visual polish comes after reliable interaction, but the final product should still feel like a cohesive console-style interface.**
+
+
+## Current build status — September 23, 2026
+
+The launcher now has the first real **Accounts / Social integration layer** in place:
+
+- Discord OAuth2 desktop login with PKCE and persistent local token storage.
+- Microsoft account OAuth2 desktop login with PKCE.
+- Xbox Live user-token/XSTS exchange attempted after Microsoft login.
+- Riot Sign On (RSO) OAuth flow wired for approved production credentials.
+- Unified account summaries exposed to the renderer through the Electron preload bridge.
+- Friends & Accounts XMB surface with sign-in, reconnect, disconnect and refresh controls.
+- Spotify Connect action corrected to use the existing Spotify OAuth flow.
+- Provider limitations are explicitly surfaced instead of pretending Discord/Xbox/Riot expose identical friend APIs.
+
+The next implementation step for the Friends phase is **provider-specific social adapters**: Discord's supported Social SDK path, Xbox services social access where the application is eligible, and Riot-supported account/game data. The XMB UI should continue consuming one normalized friend/presence model.
