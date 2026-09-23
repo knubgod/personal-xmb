@@ -48,7 +48,8 @@ const {
     shell,
     protocol,
     net,
-    safeStorage
+    safeStorage,
+    components
 } = require(
     "electron"
 );
