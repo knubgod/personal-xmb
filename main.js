@@ -5475,6 +5475,32 @@ function findRiotClient() {
 
 /*
     ========================================================
+    APPLICATION CONTROL
+    ========================================================
+*/
+
+ipcMain.handle(
+    "quit-app",
+    async () => {
+
+        /*
+            Keep quitting in the main process so the renderer
+            never needs direct access to Electron's app module.
+        */
+
+        app.quit();
+
+        return {
+            success:
+                true
+        };
+
+    }
+);
+
+
+/*
+    ========================================================
     EXTERNAL LINKS
     ========================================================
 */
