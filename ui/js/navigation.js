@@ -1347,6 +1347,28 @@ document.addEventListener(
             Enter, or other form input.
         */
 
+        /*
+            Text fields and other editable controls own their
+            keyboard input. Do not let XMB shortcuts such as O,
+            arrows, or Enter fire while typing in Spotify search
+            or future settings/forms.
+        */
+        const activeElement = document.activeElement;
+        const isEditable =
+            activeElement &&
+            (
+                activeElement.matches("input, textarea, select, button") ||
+                activeElement.isContentEditable
+            );
+
+        if (isEditable) {
+            if (event.key.toLowerCase() === "escape") {
+                event.preventDefault();
+                activeElement.blur();
+            }
+            return;
+        }
+
         const settingsOverlay =
             document.getElementById(
                 "settings-overlay"
