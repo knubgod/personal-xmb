@@ -856,19 +856,7 @@
         artwork has not loaded yet.
     */
 
-    background:
-
-        rgba(
-
-            0,
-
-            0,
-
-            0,
-
-            0.08
-
-        );
+    background: transparent;
 
 }
 
