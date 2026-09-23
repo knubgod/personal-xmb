@@ -257,20 +257,70 @@ function writeSettingsFile(settings) {
 }
 
 
+function redactSensitiveSettings(
+    value
+) {
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value.map(
+            item =>
+                redactSensitiveSettings(item)
+        );
+
+    }
+
+    if (
+        !value ||
+        typeof value !== "object"
+    ) {
+
+        return value;
+
+    }
+
+    const result = {};
+
+    for (
+        const [
+            key,
+            child
+        ]
+        of Object.entries(value)
+    ) {
+
+        if (
+            /apiKey|accessToken|refreshToken|clientSecret|password|token/i.test(
+                key
+            )
+        ) {
+
+            result[key] = "";
+
+            continue;
+
+        }
+
+        result[key] =
+            redactSensitiveSettings(
+                child
+            );
+
+    }
+
+    return result;
+
+}
+
+
 function getRendererSafeSettings() {
 
-    const settings =
-        readSettingsFile();
+    return redactSensitiveSettings(
+        readSettingsFile()
+    );
 
-    return {
-        ...settings,
-        spotify: {
-            ...(settings.spotify || {}),
-            accessToken: "",
-            refreshToken: "",
-            expiresAt: 0
-        }
-    };
 }
 
 
