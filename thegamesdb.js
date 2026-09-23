@@ -1383,3 +1383,6 @@ async function getTheGamesDBArtwork(
 module.exports = {
     getTheGamesDBArtwork
 };
+
+/* Register account authentication IPC in the Electron main process. */
+require("./auth-main");
