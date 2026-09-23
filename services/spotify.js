@@ -439,7 +439,7 @@ const spotifyUi={
                 if(!row)return;
                 row.querySelector("strong").textContent=item.track?.name||"Unknown";
                 row.querySelector(".spotify-library-row-text > span").textContent=item.track?.artists?.map(a=>a.name).join(", ")||"";
-                row.onclick=()=>this.select();
+                row.onclick=()=>{this.selectedIndex=index;this.setRows(this.rows);this.select();};
             });
 
             this.setRows([...content.querySelectorAll(".spotify-library-row")]);
@@ -477,7 +477,7 @@ const spotifyUi={
                 const row=content.querySelectorAll(".spotify-playlist-row")[index];
                 if(!row)return;
                 row.querySelector("span").textContent=item.name||"Untitled Playlist";
-                row.onclick=async()=>{
+                row.onclick=async()=>{this.selectedIndex=index;this.setRows(this.rows);
                     try{
                         await spotifyService.playPlaylist(row.dataset.uri);
                         this.close();
