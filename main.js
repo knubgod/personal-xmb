@@ -5740,15 +5740,28 @@ async function preloadArtworkOnStartup() {
 
 function findRiotClient() {
 
-    const possiblePaths = [
-
-        "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
-
-        "C:\\Program Files\\Riot Games\\Riot Client\\RiotClientServices.exe",
-
-        "C:\\Program Files (x86)\\Riot Games\\Riot Client\\RiotClientServices.exe"
-
-    ];
+    const possiblePaths = process.platform === "win32"
+        ? [
+            path.join(
+                process.env.ProgramFiles || "",
+                "Riot Games",
+                "Riot Client",
+                "RiotClientServices.exe"
+            ),
+            path.join(
+                process.env["ProgramFiles(x86)"] || "",
+                "Riot Games",
+                "Riot Client",
+                "RiotClientServices.exe"
+            ),
+            path.join(
+                process.env.LOCALAPPDATA || "",
+                "Riot Games",
+                "Riot Client",
+                "RiotClientServices.exe"
+            )
+        ]
+        : [];
 
 
     for (
