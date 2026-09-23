@@ -44,6 +44,87 @@ let applicationStarted = false;
 
 /*
     ========================================================
+    STARTUP UI REVEAL
+    ========================================================
+
+    The startup overlay animates independently from the
+    application initialization.
+
+    The normal XMB chrome is intentionally hidden while
+    the boot logo is on screen. Once the overlay finishes,
+    reveal the category bar and bottom controls.
+
+    A small fallback timer is included so the UI cannot
+    remain hidden if Chromium skips the animationend event.
+*/
+
+function initializeStartupReveal() {
+
+    const startupOverlay =
+        document.getElementById(
+            "xmb-startup"
+        );
+
+
+    const reveal =
+        () => {
+
+            document.body.classList.add(
+                "xmb-startup-complete"
+            );
+
+        };
+
+
+    if (
+        !startupOverlay
+    ) {
+
+        reveal();
+
+        return;
+
+    }
+
+
+    startupOverlay.addEventListener(
+        "animationend",
+        event => {
+
+            if (
+                event.animationName ===
+                "xmbStartupFade"
+            ) {
+
+                reveal();
+
+            }
+
+        },
+        {
+            once: true
+        }
+    );
+
+
+    /*
+        Safety fallback.
+
+        xmbStartupFade is currently 4.6 seconds long.
+        Waiting 5 seconds ensures the logo has already
+        completed before forcing the controls visible.
+    */
+
+    window.setTimeout(
+        reveal,
+        5000
+    );
+
+}
+
+
+/*
+    ========================================================
     APPLY SETTINGS
     ========================================================
 */
@@ -831,6 +912,8 @@ function initializeSpotifyAuthListener() {
 document.addEventListener(
     "DOMContentLoaded",
     () => {
+
+        initializeStartupReveal();
 
         initializeSpotifyAuthListener();
 
