@@ -9,7 +9,7 @@
         http-equiv="Content-Security-Policy"
         content="
             default-src 'self';
-            script-src 'self';
+            script-src 'self' https://sdk.scdn.co;
             style-src 'self';
             img-src 'self' data: xmb-artwork: https://i.scdn.co;
             media-src 'self' blob:;
@@ -690,7 +690,7 @@
 
     <script src="../services/riot.js"></script>
 
-    <script src="../services/spotify.js"></script>
+    <script src="../services/spotify.js"></script>\n\n    <script src="js/spotify-sdk.js"></script>
 
     <script src="../services/server.js"></script>
 
