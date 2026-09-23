@@ -1913,6 +1913,24 @@ function renderRendererItemList(
 
                     }
 
+                    const fallback =
+                        item?.icon &&
+                        resolveLocalAssetPath(
+                            item.icon
+                        );
+
+                    if (
+                        fallback &&
+                        fallback !== iconSource &&
+                        !failedIconSources.has(fallback)
+                    ) {
+
+                        icon.src =
+                            fallback;
+
+                        return;
+
+                    }
 
                     icon.removeAttribute(
                         "src"
