@@ -738,30 +738,10 @@ async function startApplication() {
             artwork cache is populated in the background.
         */
 
-        initializeGeneralArtworkPreload()
-            .catch(
-                error => {
-
-                    console.error(
-                        "General artwork preload failed:",
-                        error
-                    );
-
-                }
-            );
-
-
-        initializeSteamArtwork()
-            .catch(
-                error => {
-
-                    console.error(
-                        "Steam artwork preload failed:",
-                        error
-                    );
-
-                }
-            );
+        /*
+            Artwork is handled by the single main-process startup
+            pipeline and the unified renderer manifest.
+        */
 
 
         console.log(
