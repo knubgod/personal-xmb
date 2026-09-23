@@ -144,14 +144,23 @@ function playXmbTone(
 
 }
 
+function playXmbForwardSound() {
+
+    playXmbTone(640, 0.055, "sine", 0.34);
+    playXmbTone(880, 0.085, "triangle", 0.18, 0.025);
+
+}
+
+function playXmbBackwardSound() {
+
+    playXmbTone(470, 0.055, "sine", 0.34);
+    playXmbTone(330, 0.085, "triangle", 0.18, 0.025);
+
+}
+
 function playXmbNavigationSound() {
 
-    playXmbTone(
-        620,
-        0.065,
-        "sine",
-        0.42
-    );
+    playXmbForwardSound();
 
 }
 
@@ -171,6 +180,13 @@ function playXmbCategorySound() {
         0.25,
         0.035
     );
+
+}
+
+function playXmbOptionsSound() {
+
+    playXmbTone(430, 0.06, "triangle", 0.28);
+    playXmbTone(620, 0.09, "sine", 0.18, 0.035);
 
 }
 
@@ -265,6 +281,15 @@ window.xmbAudio = {
 
     navigation:
         playXmbNavigationSound,
+
+    forward:
+        playXmbForwardSound,
+
+    backward:
+        playXmbBackwardSound,
+
+    options:
+        playXmbOptionsSound,
 
     category:
         playXmbCategorySound,
