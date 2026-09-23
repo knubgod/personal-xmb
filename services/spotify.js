@@ -138,6 +138,42 @@ const spotifyService={
         }
     },
 
+    async openDj(){
+        /*
+            Spotify does not expose a public Web API endpoint for
+            starting the consumer DJ feature. We therefore use
+            Spotify's desktop deep-link search route and fall back
+            to the official web search page if the desktop client
+            cannot handle it.
+        */
+        try{
+            const desktopResult=await window.electron?.openExternal?.("spotify:search:DJ");
+
+            if(desktopResult){
+                return {success:true};
+            }
+
+            const webResult=await window.electron?.openExternal?.("https://open.spotify.com/search/DJ");
+            return {
+                success:!!webResult,
+                error:webResult?"":"Unable to open Spotify DJ."
+            };
+        }catch(error){
+            try{
+                const webResult=await window.electron?.openExternal?.("https://open.spotify.com/search/DJ");
+                return {
+                    success:!!webResult,
+                    error:webResult?"":error.message
+                };
+            }catch(fallbackError){
+                return {
+                    success:false,
+                    error:fallbackError.message||error.message
+                };
+            }
+        }
+    },
+
     async login(){
         const result=await window.electron?.spotifyLogin?.();
         if(result?.success===false){
