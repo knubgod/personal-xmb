@@ -6013,9 +6013,25 @@ async function launchSpotifyDesktop() {
 
         if (!executable) {
 
-            throw new Error(
-                "Spotify desktop application could not be found."
+            /*
+                Spotify can also be installed through the
+                Microsoft Store or another managed installer,
+                where the executable is not in the normal
+                filesystem locations.
+
+                Spotify's own URI scheme lets the OS locate
+                the installed desktop client without exposing
+                that installation path to the renderer.
+            */
+            await shell.openExternal(
+                "spotify:"
             );
+
+            return {
+                success: true,
+                alreadyRunning: false,
+                launchedByProtocol: true
+            };
 
         }
 
