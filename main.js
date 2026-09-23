@@ -1288,7 +1288,7 @@ ipcMain.handle(
 
                 return toArtworkUrl(
                     localPath
-                ).href;
+                );
 
             }
 
@@ -1344,7 +1344,7 @@ ipcMain.handle(
 
             return toArtworkUrl(
                 localPath
-            ).href;
+            );
 
         }
 
@@ -2713,7 +2713,7 @@ async function downloadAndCacheArtwork(
 
         return toArtworkUrl(
             existingPath
-        ).href;
+        );
 
     }
 
@@ -2823,7 +2823,7 @@ async function downloadAndCacheArtwork(
 
         return toArtworkUrl(
             finalPath
-        ).href;
+        );
 
     }
     catch (
@@ -2856,7 +2856,7 @@ async function downloadAndCacheArtwork(
 
             return toArtworkUrl(
                 existingPath
-            ).href;
+            );
 
         }
 
@@ -3393,7 +3393,7 @@ function buildRendererArtworkManifest() {
 
         manifest.__categories[categoryName] =
             fs.existsSync(categoryIconPath)
-                ? toArtworkUrl(categoryIconPath).href
+                ? toArtworkUrl(categoryIconPath)
                 : null;
 
     }
@@ -3449,7 +3449,7 @@ function buildRendererArtworkManifest() {
                 localItemIcons[value.id] =
                     toArtworkUrl(
                         localIconPath
-                    ).href;
+                    );
 
             }
 
@@ -3490,7 +3490,7 @@ function buildRendererArtworkManifest() {
 
             manifest[itemId][artworkType] =
                 filePath
-                    ? toArtworkUrl(filePath).href
+                    ? toArtworkUrl(filePath)
                     : null;
         }
 
@@ -4296,7 +4296,7 @@ async function cacheSteamArtwork(
                 ] =
                     toArtworkUrl(
                         existingPath
-                    ).href;
+                    );
 
 
                 continue;
@@ -4423,7 +4423,7 @@ async function cacheSteamArtwork(
                 ] =
                     toArtworkUrl(
                         destination
-                    ).href;
+                    );
 
 
                 cacheMetadata[
@@ -4501,7 +4501,7 @@ async function cacheSteamArtwork(
             ] =
                 toArtworkUrl(
                     existingPath
-                ).href;
+                );
 
 
             console.warn(
@@ -4654,7 +4654,7 @@ async function getExistingSteamArtwork(
             ] =
                 toArtworkUrl(
                     filePath
-                ).href;
+                );
 
 
             foundArtwork =
