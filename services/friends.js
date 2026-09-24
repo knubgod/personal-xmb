@@ -453,6 +453,8 @@ const friendsSurface = (() => {
         const selected = cards[selectedFriendIndex];
         if (!selected) return;
 
+        renderFriendPreview(getSelectedFriend());
+
         /*
             The friend list itself is the scrolling viewport.
             The platform bar stays fixed while the selected
@@ -591,7 +593,6 @@ const friendsSurface = (() => {
         const cards = getFriendCards();
         if (!cards.length) return null;
         setFriendSelection(index);
-        renderFriendPreview(getSelectedFriend());
         const card = cards[selectedFriendIndex];
         card?.classList.add("selected-pulse");
         window.setTimeout(() => card?.classList.remove("selected-pulse"), 220);
