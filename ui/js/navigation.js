@@ -1395,7 +1395,7 @@ document.addEventListener(
             window.friendsSurface?.isInlineActive?.() &&
             navigationLevel === "items"
         ) {
-            if (key === "escape" || key === "arrowleft") {
+            if (key === "escape") {
                 event.preventDefault();
                 goBack();
                 return;
