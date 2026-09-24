@@ -122,7 +122,8 @@ const friendsSurface = (() => {
 
     function createFriendCard(friend) {
         const card = document.createElement("article");
-        card.className = `friend-card is-${friend.status}`;\n        card.dataset.friendId = friend.id;
+        card.className = `friend-card is-${friend.status}`;
+        card.dataset.friendId = friend.id;
 
         const identity = document.createElement("div");
         identity.className = "friend-identity";
