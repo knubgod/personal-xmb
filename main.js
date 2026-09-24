@@ -7862,7 +7862,7 @@ async function getSteamFriends() {
         loadSteamApiKey();
 
     if (
-        !/^\\d{10,20}$/.test(
+        !/^\d{10,20}$/.test(
             steamId
         )
     ) {
