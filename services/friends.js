@@ -4,6 +4,7 @@ const friendsSurface = (() => {
     let activePlatform = "all";
     let lastData = null;
     let selectedFriendIndex = 0;
+    let inputFocus = "platforms";
 
     const platforms = {
         discord: { label: "Discord", short: "DISCORD", icon: "D" },
@@ -275,7 +276,6 @@ const friendsSurface = (() => {
 
     function render(data) {
         lastData = data || {};
-        selectedFriendIndex = 0;
         const root = inlineRoot || ensure();
         const content = root.querySelector('#friends-content, [data-friends-role="content"]');
         const nav = root.querySelector('#friends-platforms, [data-friends-role="platforms"]');
@@ -289,7 +289,9 @@ const friendsSurface = (() => {
         all.type = "button";
         all.textContent = "All";
         all.className = activePlatform === "all" ? "active" : "";
-        all.addEventListener("click", () => { activePlatform = "all"; render(lastData); });
+        all.addEventListener("mouseenter", () => { inputFocus = "platforms"; });
+        all.addEventListener("focus", () => { inputFocus = "platforms"; });
+        all.addEventListener("click", () => { inputFocus = "platforms"; activePlatform = "all"; render(lastData); });
         nav.appendChild(all);
 
         Object.keys(platforms).forEach(platform => {
@@ -298,7 +300,9 @@ const friendsSurface = (() => {
             button.textContent = platforms[platform].short;
             button.disabled = !available.has(platform);
             button.className = activePlatform === platform ? "active" : "";
-            button.addEventListener("click", () => { activePlatform = platform; render(lastData); });
+            button.addEventListener("mouseenter", () => { inputFocus = "platforms"; });
+            button.addEventListener("focus", () => { inputFocus = "platforms"; });
+            button.addEventListener("click", () => { inputFocus = "platforms"; activePlatform = platform; render(lastData); });
             nav.appendChild(button);
         });
 
@@ -323,8 +327,14 @@ const friendsSurface = (() => {
             card.dataset.friendIndex = String(index);
             card.tabIndex = 0;
             card.classList.toggle("selected", index === selectedFriendIndex);
-            card.addEventListener("mouseenter", () => setFriendSelection(index));
-            card.addEventListener("focus", () => setFriendSelection(index));
+            card.addEventListener("mouseenter", () => {
+                inputFocus = "friends";
+                setFriendSelection(index);
+            });
+            card.addEventListener("focus", () => {
+                inputFocus = "friends";
+                setFriendSelection(index);
+            });
             card.addEventListener("click", () => selectFriend(index));
         });
 
@@ -374,10 +384,102 @@ const friendsSurface = (() => {
         selected?.scrollIntoView({block:"nearest", inline:"nearest", behavior:"smooth"});
     }
 
+    function getPlatformButtons() {
+        return Array.from(
+            inlineRoot?.querySelectorAll(".friends-platforms button:not(:disabled)") || []
+        );
+    }
+
+    function focusPlatforms() {
+        inputFocus = "platforms";
+        const buttons = getPlatformButtons();
+        if (!buttons.length) return false;
+        buttons.forEach(button => button.classList.toggle("input-selected", button.classList.contains("active")));
+        buttons.find(button => button.classList.contains("active"))?.focus({ preventScroll: true });
+        getFriendCards().forEach(card => card.classList.remove("selected"));
+        return true;
+    }
+
+    function focusFriends() {
+        const cards = getFriendCards();
+        if (!cards.length) return false;
+        inputFocus = "friends";
+        setFriendSelection(selectedFriendIndex);
+        cards[selectedFriendIndex]?.focus({ preventScroll: true });
+        return true;
+    }
+
     function moveSelection(direction) {
         const cards = getFriendCards();
         if (!cards.length) return false;
-        setFriendSelection(selectedFriendIndex + direction);
+
+        const current = cards[selectedFriendIndex];
+        if (!current) {
+            setFriendSelection(0);
+            return true;
+        }
+
+        const rect = current.getBoundingClientRect();
+        const currentCenterX = rect.left + rect.width / 2;
+        const currentCenterY = rect.top + rect.height / 2;
+
+        const candidates = cards
+            .map((card, index) => ({ card, index, rect: card.getBoundingClientRect() }))
+            .filter(entry => entry.index !== selectedFriendIndex);
+
+        const vertical = candidates.filter(entry =>
+            direction > 0
+                ? entry.rect.top > rect.bottom - 2
+                : entry.rect.bottom < rect.top + 2
+        );
+
+        const pool = vertical.length ? vertical : candidates;
+        if (!pool.length) return true;
+
+        pool.sort((a, b) => {
+            const aCenterX = a.rect.left + a.rect.width / 2;
+            const aCenterY = a.rect.top + a.rect.height / 2;
+            const bCenterX = b.rect.left + b.rect.width / 2;
+            const bCenterY = b.rect.top + b.rect.height / 2;
+            const aScore = Math.abs(aCenterY - currentCenterY) * 4 + Math.abs(aCenterX - currentCenterX);
+            const bScore = Math.abs(bCenterY - currentCenterY) * 4 + Math.abs(bCenterX - currentCenterX);
+            return aScore - bScore;
+        });
+
+        setFriendSelection(pool[0].index);
+        return true;
+    }
+
+    function moveFriendHorizontal(direction) {
+        const cards = getFriendCards();
+        if (!cards.length) return false;
+
+        const current = cards[selectedFriendIndex];
+        if (!current) return true;
+
+        const rect = current.getBoundingClientRect();
+        const currentCenterY = rect.top + rect.height / 2;
+        const currentCenterX = rect.left + rect.width / 2;
+
+        const candidates = cards
+            .map((card, index) => ({ card, index, rect: card.getBoundingClientRect() }))
+            .filter(entry => {
+                if (entry.index === selectedFriendIndex) return false;
+                const centerY = entry.rect.top + entry.rect.height / 2;
+                const centerX = entry.rect.left + entry.rect.width / 2;
+                return Math.abs(centerY - currentCenterY) < Math.max(rect.height, entry.rect.height) * 0.65 &&
+                    (direction > 0 ? centerX > currentCenterX : centerX < currentCenterX);
+            });
+
+        if (!candidates.length) return true;
+
+        candidates.sort((a, b) => {
+            const aCenterX = a.rect.left + a.rect.width / 2;
+            const bCenterX = b.rect.left + b.rect.width / 2;
+            return Math.abs(aCenterX - currentCenterX) - Math.abs(bCenterX - currentCenterX);
+        });
+
+        setFriendSelection(candidates[0].index);
         return true;
     }
 
@@ -393,13 +495,17 @@ const friendsSurface = (() => {
     }
 
     function movePlatform(direction) {
-        const root = getInlineRoot();
-        const buttons = Array.from(root?.querySelectorAll(".friends-platforms button:not(:disabled)") || []);
+        const buttons = getPlatformButtons();
         if (!buttons.length) return false;
+        inputFocus = "platforms";
         const current = Math.max(0, buttons.findIndex(button => button.classList.contains("active")));
         const next = (current + direction + buttons.length) % buttons.length;
         buttons[next].click();
         return true;
+    }
+
+    function getInputFocus() {
+        return inputFocus;
     }
 
     function isInlineActive() {
@@ -435,7 +541,7 @@ const friendsSurface = (() => {
         }
     }, true);
 
-    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, movePlatform, selectFriend, setFriendSelection, isInlineActive };
+    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms, focusFriends, getInputFocus, selectFriend, setFriendSelection, isInlineActive };
 })();
 
 window.friendsSurface = friendsSurface;
