@@ -4558,6 +4558,8 @@ function updateInterface(
         "categories"
     ) {
 
+        window.friendsSurface?.closeInline?.();
+
         artworkSelectionRequestId++;
 
         backgroundRequestId++;
@@ -4661,6 +4663,58 @@ function updateInterface(
         ITEM LEVEL
         ====================================================
     */
+
+    /*
+        Friends is an XMB-native surface rather than a
+        traditional vertical submenu. Entering the category
+        reveals the live Friends dashboard directly beneath
+        the category bar.
+    */
+    if (
+        category.inlineSurface === "friends"
+    ) {
+
+        if (categoryHeading) {
+            categoryHeading.classList.add("navigation-visible");
+        }
+
+        if (itemArea) {
+            itemArea.classList.add("navigation-visible");
+        }
+
+        if (selectionPreview) {
+            selectionPreview.classList.remove("navigation-visible");
+        }
+
+        if (actionArea) {
+            actionArea.classList.remove("navigation-visible");
+        }
+
+        if (selectedCategoryElement) {
+            selectedCategoryElement.textContent = categoryName || "";
+        }
+
+        if (categoryDescription) {
+            categoryDescription.textContent =
+                category.description || "";
+        }
+
+        renderRendererItemList([], 0);
+        renderActions([], 0);
+
+        updateDynamicTheme(category, null);
+
+        window.friendsSurface?.openInline?.(itemArea);
+
+        return;
+    }
+
+    if (
+        window.friendsSurface &&
+        typeof window.friendsSurface.closeInline === "function"
+    ) {
+        window.friendsSurface.closeInline();
+    }
 
     if (
         categoryHeading
