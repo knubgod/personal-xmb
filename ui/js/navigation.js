@@ -1542,6 +1542,23 @@ document.addEventListener(
             "categories"
         ) {
 
+            /*
+                Friends is an inline XMB surface with no normal
+                item array. Handle its Down/Enter transition
+                explicitly before the generic category navigation.
+            */
+            if (
+                getCurrentCategoryData()?.inlineSurface === "friends" &&
+                (
+                    key === "arrowdown" ||
+                    key === "enter"
+                )
+            ) {
+                event.preventDefault();
+                enterItemLevel();
+                return;
+            }
+
             if (
                 key ===
                 "arrowleft"
@@ -1797,7 +1814,8 @@ document.addEventListener(
 
         }
 
-    }
+    },
+    true
 );
 
 
