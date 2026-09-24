@@ -2161,6 +2161,11 @@ function updateNavigationHints() {
             "options-label"
         );
 
+    const friendsPlatformHint =
+        document.getElementById(
+            "friends-platform-hint"
+        );
+
 
     if (mode) {
 
@@ -2220,6 +2225,23 @@ function updateNavigationHints() {
             "options"
                 ? "Close"
                 : "Options";
+
+    }
+
+    if (friendsPlatformHint) {
+
+        const friendsOpen =
+            navigationLevel === "items" &&
+            getCurrentCategoryData()?.inlineSurface === "friends";
+
+        const gamepadConnected =
+            typeof window.isGamepadConnected === "function" &&
+            window.isGamepadConnected();
+
+        friendsPlatformHint.classList.toggle(
+            "visible",
+            friendsOpen && gamepadConnected
+        );
 
     }
 

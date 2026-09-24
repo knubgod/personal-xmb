@@ -15,6 +15,8 @@
 */
 
 let activeInputMode = "keyboard";
+let gamepadConnected = false;
+
 const previousGamepadButtons = new Map();
 const previousGamepadAxes = new Map();
 const gamepadAxisRepeatAt = new Map();
@@ -66,6 +68,13 @@ function setInputMode(mode){
     updateNavigationHints();
 }
 
+function setGamepadConnected(connected) {
+    const next = Boolean(connected);
+    if (gamepadConnected === next) return;
+    gamepadConnected = next;
+    updateNavigationHints();
+}
+
 function handleSpotifyOverlay(gamepad){
     if(!window.spotifyUi?.isOpen?.())return false;
 
@@ -114,6 +123,9 @@ function handleSpotifyOverlay(gamepad){
 
 function pollGamepads(){
     const gamepads=navigator.getGamepads();
+    const connected = Array.from(gamepads).some(Boolean);
+
+    setGamepadConnected(connected);
 
     for(const gamepad of gamepads){
         if(!gamepad)continue;
@@ -143,11 +155,18 @@ function pollGamepads(){
             }
 
             if(focus === "platforms"){
-                if(buttonJustPressed(gamepad,14)) window.friendsSurface.movePlatform?.(-1);
-                if(buttonJustPressed(gamepad,15)) window.friendsSurface.movePlatform?.(1);
+                /*
+                    LB/L1 and RB/R1 are reserved for platform switching
+                    while Friends is active. They have no XMB function
+                    anywhere else yet.
+                */
+                if(buttonJustPressed(gamepad,4)) {
+                    window.friendsSurface.movePlatform?.(-1);
+                }
 
-                const horizontal = axisDirection(gamepad, 0);
-                if(horizontal) window.friendsSurface.movePlatform?.(horizontal);
+                if(buttonJustPressed(gamepad,5)) {
+                    window.friendsSurface.movePlatform?.(1);
+                }
 
                 if(buttonJustPressed(gamepad,12)){
                     goBack();
@@ -248,8 +267,16 @@ window.addEventListener("gamepadconnected",()=>{
     previousGamepadButtons.clear();
     previousGamepadAxes.clear();
     gamepadAxisRepeatAt.clear();
+    setGamepadConnected(true);
+});
+
+window.addEventListener("gamepaddisconnected",()=>{
+    setGamepadConnected(
+        Array.from(navigator.getGamepads()).some(Boolean)
+    );
 });
 
 window.getInputMode=()=>activeInputMode;
+window.isGamepadConnected=()=>gamepadConnected;
 
 requestAnimationFrame(pollGamepads);

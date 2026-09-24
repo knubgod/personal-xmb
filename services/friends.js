@@ -303,6 +303,7 @@ const friendsSurface = (() => {
         all.type = "button";
         all.textContent = "All";
         all.className = activePlatform === "all" ? "active" : "";
+        all.tabIndex = -1;
         all.addEventListener("mouseenter", () => { inputFocus = "platforms"; });
         all.addEventListener("focus", () => { inputFocus = "platforms"; });
         all.addEventListener("click", () => { inputFocus = "platforms"; activePlatform = "all"; render(lastData); });
@@ -314,6 +315,7 @@ const friendsSurface = (() => {
             button.textContent = platforms[platform].short;
             button.disabled = !available.has(platform);
             button.className = activePlatform === platform ? "active" : "";
+            button.tabIndex = -1;
             button.addEventListener("mouseenter", () => { inputFocus = "platforms"; });
             button.addEventListener("focus", () => { inputFocus = "platforms"; });
             button.addEventListener("click", () => { inputFocus = "platforms"; activePlatform = platform; render(lastData); });
@@ -440,7 +442,14 @@ const friendsSurface = (() => {
         const buttons = getPlatformButtons();
         if (!buttons.length) return false;
         buttons.forEach(button => button.classList.toggle("input-selected", button.classList.contains("active")));
-        buttons.find(button => button.classList.contains("active"))?.focus({ preventScroll: true });
+        /*
+            Friends uses logical focus rather than native button focus.
+            This prevents Chromium's button behavior from interfering
+            with the XMB ArrowDown/ArrowRight navigation.
+        */
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
         getFriendCards().forEach(card => card.classList.remove("selected"));
         return true;
     }
