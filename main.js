@@ -874,9 +874,15 @@ function createWindow() {
     ========================================================
 */
 
+const configFileCache = new Map();
+
 function readConfigFile(
     fileName
 ) {
+
+    if (configFileCache.has(fileName)) {
+        return configFileCache.get(fileName);
+    }
 
     const filePath =
         path.join(
@@ -893,9 +899,17 @@ function readConfigFile(
         );
 
 
-    return JSON.parse(
-        file
+    const parsed =
+        JSON.parse(
+            file
+        );
+
+    configFileCache.set(
+        fileName,
+        parsed
     );
+
+    return parsed;
 }
 
 
