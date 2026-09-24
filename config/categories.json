@@ -111,14 +111,14 @@
         "items": [
             {
                 "id": "friends-overview",
-                "name": "Friends & Accounts",
+                "name": "Friends",
                 "type": "social",
-                "description": "Connect Discord, Xbox/Microsoft and Riot accounts and manage the unified social surface.",
+                "description": "See online friends and their current game activity, grouped by platform and game.",
                 "status": "Available",
                 "icon": "",
                 "actions": [
                     {
-                        "name": "Open Friends & Accounts",
+                        "name": "Open Friends",
                         "action": "friends"
                     }
                 ]
