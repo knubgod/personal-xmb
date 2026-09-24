@@ -91,6 +91,13 @@ const {
     "url"
 );
 
+
+/*
+    Account OAuth IPC handlers are kept in their own main-process
+    module. They share the same trusted-renderer security helper.
+*/
+require("./auth-main");
+
 protocol.registerSchemesAsPrivileged([
     {
         scheme: "xmb-artwork",
@@ -758,25 +765,9 @@ function registerArtworkProtocol() {
 }
 
 
-function isTrustedRenderer(event) {
-
-    return Boolean(
-        mainWindow &&
-        !mainWindow.isDestroyed() &&
-        event?.sender === mainWindow.webContents &&
-        event?.senderFrame === mainWindow.webContents.mainFrame
-    );
-}
-
-
-function requireTrustedRenderer(event) {
-
-    if (!isTrustedRenderer(event)) {
-        throw new Error(
-            "Untrusted renderer IPC request rejected."
-        );
-    }
-}
+const {
+    requireTrustedRenderer
+} = require("./ipc-security");
 
 
 function createWindow() {
@@ -883,9 +874,15 @@ function createWindow() {
     ========================================================
 */
 
+const configFileCache = new Map();
+
 function readConfigFile(
     fileName
 ) {
+
+    if (configFileCache.has(fileName)) {
+        return configFileCache.get(fileName);
+    }
 
     const filePath =
         path.join(
@@ -902,9 +899,17 @@ function readConfigFile(
         );
 
 
-    return JSON.parse(
-        file
+    const parsed =
+        JSON.parse(
+            file
+        );
+
+    configFileCache.set(
+        fileName,
+        parsed
     );
+
+    return parsed;
 }
 
 
@@ -1796,11 +1801,37 @@ ipcMain.handle(
     ========================================================
 */
 
+const STEAM_METADATA_CACHE_TTL_MS =
+    6 * 60 * 60 * 1000;
+
+const steamMetadataCache = new Map();
+const steamMetadataRequests = new Map();
+
 function fetchSteamStoreMetadata(
     appId
 ) {
 
-    return new Promise(
+    const cacheKey = String(appId);
+
+    const cached =
+        steamMetadataCache.get(cacheKey);
+
+    if (
+        cached &&
+        Date.now() - cached.cachedAt <
+            STEAM_METADATA_CACHE_TTL_MS
+    ) {
+        return Promise.resolve(cached.data);
+    }
+
+    const existingRequest =
+        steamMetadataRequests.get(cacheKey);
+
+    if (existingRequest) {
+        return existingRequest;
+    }
+
+    const requestPromise = new Promise(
         (
             resolve,
             reject
@@ -1937,6 +1968,35 @@ function fetchSteamStoreMetadata(
             );
         }
     );
+
+    const trackedRequest =
+        requestPromise
+            .then(data => {
+                steamMetadataCache.set(
+                    cacheKey,
+                    {
+                        data,
+                        cachedAt: Date.now()
+                    }
+                );
+
+                return data;
+            })
+            .finally(() => {
+                if (
+                    steamMetadataRequests.get(cacheKey) ===
+                    trackedRequest
+                ) {
+                    steamMetadataRequests.delete(cacheKey);
+                }
+            });
+
+    steamMetadataRequests.set(
+        cacheKey,
+        trackedRequest
+    );
+
+    return trackedRequest;
 }
 
 
@@ -3069,6 +3129,8 @@ function findExistingArtworkFile(
 }
 
 
+const inFlightArtworkDownloads = new Map();
+
 async function downloadAndCacheArtwork(
     itemId,
     artworkType,
@@ -3085,6 +3147,21 @@ async function downloadAndCacheArtwork(
         return null;
     }
 
+    /*
+        Collapse duplicate requests for the same artwork while
+        keeping the existing cache/download behavior unchanged.
+    */
+    const requestKey =
+        `${String(itemId)}::${String(artworkType)}::${String(artworkUrl)}::${forceRefresh ? "force" : "normal"}`;
+
+    const existingRequest =
+        inFlightArtworkDownloads.get(requestKey);
+
+    if (existingRequest) {
+        return existingRequest;
+    }
+
+    const requestPromise = (async () => {
 
     const artworkDirectory =
         getArtworkDirectory(
@@ -3293,6 +3370,25 @@ async function downloadAndCacheArtwork(
 
 
         return null;
+    }
+
+    })();
+
+    inFlightArtworkDownloads.set(
+        requestKey,
+        requestPromise
+    );
+
+    try {
+        return await requestPromise;
+    }
+    finally {
+        if (
+            inFlightArtworkDownloads.get(requestKey) ===
+            requestPromise
+        ) {
+            inFlightArtworkDownloads.delete(requestKey);
+        }
     }
 }
 
@@ -6221,6 +6317,74 @@ ipcMain.handle(
     ========================================================
 */
 
+function parseAllowedExternalUrl(value) {
+    let parsedUrl;
+
+    try {
+        parsedUrl = new URL(String(value));
+    } catch {
+        throw new Error("External URL is invalid.");
+    }
+
+    const allowedProtocols = [
+        "https:",
+        "spotify:",
+        "steam:",
+        "msxbox:"
+    ];
+
+    if (!allowedProtocols.includes(parsedUrl.protocol)) {
+        throw new Error("External URL protocol is not allowed.");
+    }
+
+    if (
+        parsedUrl.username ||
+        parsedUrl.password
+    ) {
+        throw new Error("External URL credentials are not allowed.");
+    }
+
+    if (
+        parsedUrl.protocol === "https:" &&
+        !parsedUrl.hostname
+    ) {
+        throw new Error("External HTTPS URL must include a hostname.");
+    }
+
+    return parsedUrl;
+}
+
+function validateSteamAppId(value) {
+    const appId = String(value || "").trim();
+
+    if (!/^\d{1,10}$/.test(appId)) {
+        throw new Error("Steam App ID is invalid.");
+    }
+
+    return appId;
+}
+
+function validateLaunchIdentifier(value, label) {
+    const identifier = String(value || "").trim();
+
+    if (!/^[A-Za-z0-9._-]{1,64}$/.test(identifier)) {
+        throw new Error(`${label} is invalid.`);
+    }
+
+    return identifier;
+}
+
+function validateXboxUri(value) {
+    const parsedUrl =
+        parseAllowedExternalUrl(value || "msxbox:");
+
+    if (parsedUrl.protocol !== "msxbox:") {
+        throw new Error("Xbox launch URI is invalid.");
+    }
+
+    return parsedUrl.toString();
+}
+
 ipcMain.handle(
     "open-external",
     async (
@@ -6237,24 +6401,7 @@ ipcMain.handle(
 
 
         const parsedUrl =
-            new URL(
-                String(url)
-            );
-
-        if (
-            ![
-                "https:",
-                "spotify:",
-                "steam:",
-                "msxbox:"
-            ].includes(
-                parsedUrl.protocol
-            )
-        ) {
-            throw new Error(
-                "External URL protocol is not allowed."
-            );
-        }
+            parseAllowedExternalUrl(url);
 
         await shell.openExternal(
             parsedUrl.toString()
@@ -6682,7 +6829,7 @@ ipcMain.handle(
 
 
                 await shell.openExternal(
-                    `steam://rungameid/${item.steamAppId}`
+                    `steam://rungameid/${validateSteamAppId(item.steamAppId)}`
                 );
 
 
@@ -6720,10 +6867,16 @@ ipcMain.handle(
                     [
 
                         "--launch-product=" +
-                            item.riotProduct,
+                            validateLaunchIdentifier(
+                                item.riotProduct,
+                                "Riot product"
+                            ),
 
                         "--launch-patchline=" +
-                            item.riotPatchline
+                            validateLaunchIdentifier(
+                                item.riotPatchline,
+                                "Riot patchline"
+                            )
 
                     ],
 
@@ -6754,8 +6907,10 @@ ipcMain.handle(
 
                 await shell.openExternal(
 
-                    item.xboxUri ||
-                    "msxbox:"
+                    validateXboxUri(
+                        item.xboxUri ||
+                        "msxbox:"
+                    )
 
                 );
 
@@ -6786,7 +6941,9 @@ ipcMain.handle(
 
 
                 await shell.openExternal(
-                    item.url
+                    parseAllowedExternalUrl(
+                        item.url
+                    ).toString()
                 );
 
 
