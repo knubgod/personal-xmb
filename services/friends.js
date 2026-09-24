@@ -1,5 +1,6 @@
 const friendsSurface = (() => {
     let overlay = null;
+    let inlineRoot = null;
     let activePlatform = "all";
     let lastData = null;
 
@@ -24,6 +25,52 @@ const friendsSurface = (() => {
         overlay.querySelector("#friends-close").addEventListener("click", close);
         overlay.querySelector("#friends-refresh").addEventListener("click", refresh);
         return overlay;
+    }
+
+    function ensureInline(host) {
+        if (
+            inlineRoot &&
+            inlineRoot.parentElement === host
+        ) {
+            return inlineRoot;
+        }
+
+        closeInline();
+
+        inlineRoot = document.createElement("section");
+        inlineRoot.className = "friends-inline";
+        inlineRoot.innerHTML = `<section class="friends-panel" aria-labelledby="friends-inline-title">
+            <header class="friends-header">
+                <div>
+                    <div class="friends-kicker">SOCIAL</div>
+                    <h2 id="friends-inline-title">Friends</h2>
+                    <p data-friends-role="summary">Your friends and their current activity.</p>
+                </div>
+            </header>
+            <nav data-friends-role="platforms" class="friends-platforms" aria-label="Friend platforms"></nav>
+            <main data-friends-role="content" class="friends-content"></main>
+            <footer class="friends-footer">
+                <span data-friends-role="updated">Waiting for friend activity...</span>
+                <button data-friends-role="refresh" type="button">Refresh</button>
+            </footer>
+        </section>`;
+
+        host.appendChild(inlineRoot);
+        inlineRoot.querySelector('[data-friends-role="refresh"]').addEventListener("click", refresh);
+        return inlineRoot;
+    }
+
+    function closeInline() {
+        inlineRoot?.remove();
+        inlineRoot = null;
+    }
+
+    function openInline(host) {
+        if (!host) return;
+        const root = ensureInline(host);
+        if (root.dataset.loaded === "true") return;
+        root.dataset.loaded = "true";
+        refresh();
     }
 
     function normalizeFriend(friend) {
@@ -226,10 +273,10 @@ const friendsSurface = (() => {
 
     function render(data) {
         lastData = data || {};
-        const root = ensure();
-        const content = root.querySelector("#friends-content");
-        const nav = root.querySelector("#friends-platforms");
-        const summary = root.querySelector("#friends-summary");
+        const root = inlineRoot || ensure();
+        const content = root.querySelector("#friends-content, [data-friends-role="content"]");
+        const nav = root.querySelector("#friends-platforms, [data-friends-role="platforms"]");
+        const summary = root.querySelector("#friends-summary, [data-friends-role="summary"]");
         const friends = getFriends(lastData);
         const available = new Set(friends.map(friend => friend.platform));
         content.innerHTML = "";
@@ -267,19 +314,24 @@ const friendsSurface = (() => {
             content.appendChild(renderPlatform(activePlatform, filtered));
         }
 
-        root.querySelector("#friends-updated").textContent =
-            `Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+        const updated = root.querySelector("#friends-updated, [data-friends-role="updated"]");
+        if (updated) {
+            updated.textContent =
+                `Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+        }
     }
 
     async function refresh() {
-        const button = ensure().querySelector("#friends-refresh");
+        const root = inlineRoot || ensure();
+        const button = root.querySelector("#friends-refresh, [data-friends-role="refresh"]");
         button.disabled = true;
         try {
             const data = await window.electron?.getFriends?.() || { friends: [] };
             render(data);
 
             if (data.error) {
-                ensure().querySelector("#friends-updated").textContent = data.error;
+                const updated = root.querySelector("#friends-updated, [data-friends-role="updated"]");
+                if (updated) updated.textContent = data.error;
             }
         } catch (error) {
             console.error("Friends refresh failed:", error);
@@ -289,8 +341,15 @@ const friendsSurface = (() => {
         }
     }
 
-    function open() { ensure().classList.add("visible"); refresh(); }
-    function close() { overlay?.classList.remove("visible"); }
+    function open() {
+        closeInline();
+        ensure().classList.add("visible");
+        refresh();
+    }
+
+    function close() {
+        overlay?.classList.remove("visible");
+    }
     function isOpen() { return !!overlay?.classList.contains("visible"); }
 
     document.addEventListener("keydown", event => {
@@ -311,7 +370,7 @@ const friendsSurface = (() => {
         }
     }, true);
 
-    return { open, close, refresh, isOpen, render };
+    return { open, close, openInline, closeInline, refresh, isOpen, render };
 })();
 
 window.friendsSurface = friendsSurface;

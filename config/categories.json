@@ -108,22 +108,8 @@
         "icon": "",
         "description": "See what your friends are doing across your services.",
         "theme": "friends",
-        "items": [
-            {
-                "id": "friends-overview",
-                "name": "Friends",
-                "type": "social",
-                "description": "See online friends and their current game activity, grouped by platform and game.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "Open Friends",
-                        "action": "friends"
-                    }
-                ]
-            }
-        ]
+        "inlineSurface": "friends",
+        "items": []
     },
     "Spotify": {
         "icon": "",
