@@ -8193,11 +8193,36 @@ ipcMain.handle(
                 steamApiKey
             );
 
+            /*
+                Verify the encrypted credential immediately when a
+                new API key was supplied. The decrypted value never
+                leaves the main process.
+            */
+            if (steamApiKey) {
+
+                const storedApiKey =
+                    loadSteamApiKey();
+
+                if (
+                    storedApiKey !==
+                    steamApiKey
+                ) {
+                    throw new Error(
+                        "Steam Web API key could not be verified after secure storage."
+                    );
+                }
+
+            }
+
             return {
                 success:
                     true,
                 configured:
-                    true
+                    true,
+                keyStored:
+                    Boolean(
+                        getSteamLocalSettings().apiKey
+                    )
             };
 
         }
