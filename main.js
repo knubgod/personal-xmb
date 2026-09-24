@@ -8166,7 +8166,7 @@ ipcMain.handle(
                 ).trim();
 
             if (
-                !/^\\d{10,20}$/.test(
+                !/^\d{10,20}$/.test(
                     steamId
                 )
             ) {
