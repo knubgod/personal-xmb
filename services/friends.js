@@ -500,6 +500,7 @@ const friendsSurface = (() => {
         const current = Math.max(0, buttons.findIndex(button => button.classList.contains("active")));
         const next = (current + direction + buttons.length) % buttons.length;
         buttons[next].click();
+        focusPlatforms();
         return true;
     }
 
