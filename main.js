@@ -799,6 +799,12 @@ function createWindow() {
             autoHideMenuBar:
                 true,
 
+            fullscreen:
+                true,
+
+            fullscreenable:
+                true,
+
             backgroundColor:
                 "#05070A",
 
@@ -836,6 +842,27 @@ function createWindow() {
             "ui",
             "index.html"
         )
+    );
+
+
+    /*
+        Alt+Enter is the console-style fullscreen toggle.
+        Handle it in the main process so it remains reliable
+        even when renderer focus changes.
+    */
+    mainWindow.webContents.on(
+        "before-input-event",
+        (event, input) => {
+            if (
+                input.type === "keyDown" &&
+                !input.isAutoRepeat &&
+                input.alt &&
+                String(input.key || "").toLowerCase() === "enter"
+            ) {
+                event.preventDefault();
+                mainWindow.setFullScreen(!mainWindow.isFullScreen());
+            }
+        }
     );
 
 
@@ -6132,6 +6159,39 @@ function findRiotClient() {
     APPLICATION CONTROL
     ========================================================
 */
+
+ipcMain.handle(
+    "set-window-state",
+    async (event, state) => {
+        requireTrustedRenderer(event);
+
+        if (!mainWindow || mainWindow.isDestroyed()) {
+            return {success:false, error:"Main window is unavailable."};
+        }
+
+        if (state === "fullscreen") {
+            const fullscreen = !mainWindow.isFullScreen();
+            mainWindow.setFullScreen(fullscreen);
+            return {success:true, fullscreen};
+        }
+
+        if (state === "maximize") {
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+
+            return {
+                success:true,
+                maximized:mainWindow.isMaximized()
+            };
+        }
+
+        return {success:false, error:"Unsupported window state."};
+    }
+);
+
 
 ipcMain.handle(
     "quit-app",

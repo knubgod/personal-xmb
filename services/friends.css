@@ -99,3 +99,11 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Keyboard/controller/mouse selection state for the inline XMB Friends surface. */
+.friends-inline .friend-card { cursor:pointer; transition:background .16s ease,border-color .16s ease,transform .16s ease,box-shadow .16s ease,opacity .16s ease; }
+.friends-inline .friend-card.selected { background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.34); transform:translateX(6px) scale(1.012); box-shadow:0 0 24px rgba(255,255,255,.08),inset 3px 0 0 currentColor; opacity:1; }
+.friends-inline .friend-card:not(.selected) { opacity:.78; }
+.friends-inline .friend-card.selected-pulse { animation:friendsSelectionPulse .22s ease-out; }
+@keyframes friendsSelectionPulse { 50% { transform:translateX(9px) scale(1.02); } }
+.friends-inline .friends-platforms button:focus-visible,.friends-inline .friend-card:focus-visible { outline:1px solid currentColor; outline-offset:3px; }
