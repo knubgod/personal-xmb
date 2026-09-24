@@ -1377,7 +1377,7 @@ document.addEventListener(
         const isEditable =
             activeElement &&
             (
-                activeElement.matches("input, textarea, select, button") ||
+                activeElement.matches("input, textarea, select") ||
                 activeElement.isContentEditable
             );
 

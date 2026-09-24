@@ -381,7 +381,27 @@ const friendsSurface = (() => {
             card.classList.toggle("selected", cardIndex === selectedFriendIndex);
         });
         const selected = cards[selectedFriendIndex];
-        selected?.scrollIntoView({block:"nearest", inline:"nearest", behavior:"smooth"});
+        if (!selected) return;
+
+        const content = inlineRoot?.querySelector(".friends-content");
+        if (!content) return;
+
+        const contentRect = content.getBoundingClientRect();
+        const selectedRect = selected.getBoundingClientRect();
+        const topBuffer = 10;
+        const bottomBuffer = 10;
+
+        if (selectedRect.top < contentRect.top + topBuffer) {
+            content.scrollBy({
+                top: selectedRect.top - contentRect.top - topBuffer,
+                behavior: "smooth"
+            });
+        } else if (selectedRect.bottom > contentRect.bottom - bottomBuffer) {
+            content.scrollBy({
+                top: selectedRect.bottom - contentRect.bottom + bottomBuffer,
+                behavior: "smooth"
+            });
+        }
     }
 
     function getPlatformButtons() {
