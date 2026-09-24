@@ -91,6 +91,13 @@ const {
     "url"
 );
 
+
+/*
+    Account OAuth IPC handlers are kept in their own main-process
+    module. They share the same trusted-renderer security helper.
+*/
+require("./auth-main");
+
 protocol.registerSchemesAsPrivileged([
     {
         scheme: "xmb-artwork",
