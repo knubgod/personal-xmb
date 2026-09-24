@@ -50,7 +50,10 @@ const friendsSurface = (() => {
                 </div>
             </header>
             <nav data-friends-role="platforms" class="friends-platforms" aria-label="Friend platforms"></nav>
-            <main data-friends-role="content" class="friends-content"></main>
+            <div class="friends-main-row">
+                <main data-friends-role="content" class="friends-content"></main>
+                <aside data-friends-role="preview" class="friend-preview" aria-live="polite"></aside>
+            </div>
             <footer class="friends-footer">
                 <span data-friends-role="updated">Waiting for friend activity...</span>
                 <button data-friends-role="refresh" type="button">Refresh</button>
@@ -96,7 +99,11 @@ const friendsSurface = (() => {
             platform: friend?.platform || "discord",
             name: String(friend?.name || "Unknown friend"),
             avatar: typeof friend?.avatar === "string" ? friend.avatar : "",
-            status: ["online", "idle", "dnd", "offline"].includes(friend?.status) ? friend.status : "offline",
+            status: ["online", "idle", "dnd", "offline", "unknown"].includes(friend?.status) ? friend.status : "offline",
+            username: String(friend?.username || ""),
+            discriminator: String(friend?.discriminator || ""),
+            presenceAvailable: friend?.presenceAvailable !== false,
+            relationshipType: Number.isFinite(friend?.relationshipType) ? friend.relationshipType : null,
             activity: activity?.type === "game" ? {
                 name: String(activity.name || "Unknown game"),
                 details: String(activity.details || ""),
@@ -114,7 +121,26 @@ const friendsSurface = (() => {
     }
 
     function statusLabel(status) {
-        return { online: "Online", idle: "Idle", dnd: "Do Not Disturb", offline: "Offline" }[status] || "Offline";
+        return {
+            online: "Online",
+            idle: "Idle",
+            dnd: "Do Not Disturb",
+            offline: "Offline",
+            unknown: "Presence unavailable"
+        }[status] || "Offline";
+    }
+
+    function isPresent(friend) {
+        return ["online", "idle", "dnd"].includes(friend.status);
+    }
+
+    function relationshipLabel(type) {
+        return {
+            1: "Discord friend",
+            2: "Blocked",
+            3: "Incoming friend request",
+            4: "Outgoing friend request"
+        }[type] || "Discord friend";
     }
 
     function formatDuration(startedAt) {
@@ -258,7 +284,8 @@ const friendsSurface = (() => {
         heading.append(wrap, platformBadge(platform));
         section.appendChild(heading);
 
-        const online = friends.filter(friend => friend.status !== "offline");
+        const online = friends.filter(isPresent);
+        const unknown = friends.filter(friend => friend.status === "unknown");
         const offline = friends.filter(friend => friend.status === "offline");
         const games = new Map();
 
@@ -269,6 +296,10 @@ const friendsSurface = (() => {
         });
 
         games.forEach((gameFriends, gameName) => section.appendChild(renderGameGroup(gameName, gameFriends)));
+
+        if (unknown.length) {
+            section.appendChild(renderGameGroup("Presence unavailable", unknown));
+        }
 
         if (offline.length) {
             section.appendChild(renderGameGroup("Offline", offline));
@@ -323,8 +354,10 @@ const friendsSurface = (() => {
         });
 
         const filtered = activePlatform === "all" ? friends : friends.filter(friend => friend.platform === activePlatform);
-        const onlineCount = filtered.filter(friend => friend.status !== "offline").length;
-        summary.textContent = friends.length ? `${onlineCount} online · ${filtered.length} total` : "No friend activity has been received yet.";
+        const onlineCount = filtered.filter(isPresent).length;
+        summary.textContent = friends.length
+            ? String(onlineCount) + " online · " + filtered.length + " total"
+            : "No friend activity has been received yet.";
 
         if (!filtered.length) {
             renderEmpty(content);
@@ -353,6 +386,9 @@ const friendsSurface = (() => {
             });
             card.addEventListener("click", () => selectFriend(index));
         });
+
+        const selectedFriend = getSelectedFriend();
+        renderFriendPreview(selectedFriend);
 
         const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
         if (updated) {
@@ -540,11 +576,180 @@ const friendsSurface = (() => {
         const cards = getFriendCards();
         if (!cards.length) return null;
         setFriendSelection(index);
+        renderFriendPreview(getSelectedFriend());
         const card = cards[selectedFriendIndex];
         card?.classList.add("selected-pulse");
         window.setTimeout(() => card?.classList.remove("selected-pulse"), 220);
         window.xmbAudio?.select?.();
         return lastData?.friends?.find(friend => String(friend?.id || "") === String(card?.dataset?.friendId || "")) || null;
+    }
+
+    function getSelectedFriend() {
+        const cards = getFriendCards();
+        if (!cards.length) return null;
+        const selectedCard = cards[selectedFriendIndex];
+        if (!selectedCard) return null;
+        return getFriends(lastData).find(
+            friend => String(friend.id) === String(selectedCard.dataset.friendId || "")
+        ) || null;
+    }
+
+    function renderFriendPreview(friend) {
+        const root = inlineRoot;
+        if (!root) return;
+        const preview = root.querySelector('[data-friends-role="preview"]');
+        if (!preview) return;
+        preview.innerHTML = "";
+
+        if (!friend) {
+            const empty = document.createElement("div");
+            empty.className = "friend-preview-empty";
+            empty.textContent = "Select a friend to view their profile.";
+            preview.appendChild(empty);
+            return;
+        }
+
+        const avatar = document.createElement("img");
+        avatar.className = "friend-preview-avatar";
+        avatar.alt = "";
+        avatar.src = friend.avatar || "";
+        if (!friend.avatar) avatar.style.display = "none";
+        avatar.addEventListener("error", () => { avatar.style.display = "none"; }, { once: true });
+
+        const platform = document.createElement("div");
+        platform.className = "friend-preview-platform";
+        platform.textContent = platforms[friend.platform]?.label || friend.platform;
+
+        const name = document.createElement("h3");
+        name.className = "friend-preview-name";
+        name.textContent = friend.name;
+
+        const username = document.createElement("div");
+        username.className = "friend-preview-username";
+        username.textContent = friend.username ? "@" + friend.username : "Username unavailable";
+
+        const status = document.createElement("div");
+        status.className = "friend-preview-status";
+        status.textContent = friend.presenceAvailable
+            ? statusLabel(friend.status)
+            : "Presence unavailable through the current Discord connection";
+
+        const meta = document.createElement("div");
+        meta.className = "friend-preview-meta";
+        const relationship = document.createElement("span");
+        relationship.textContent = relationshipLabel(friend.relationshipType);
+        const id = document.createElement("span");
+        id.textContent = "ID " + friend.id;
+        meta.append(relationship, id);
+        preview.append(avatar, platform, name, username, status, meta);
+
+        if (friend.activity) {
+            const activity = document.createElement("div");
+            activity.className = "friend-preview-activity";
+            const activityTitle = document.createElement("span");
+            activityTitle.textContent = "Currently playing";
+            const activityName = document.createElement("strong");
+            activityName.textContent = friend.activity.name;
+            activity.append(activityTitle, activityName);
+            preview.appendChild(activity);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "friend-preview-actions";
+        if (friend.platform === "discord") {
+            const send = document.createElement("button");
+            send.type = "button";
+            send.className = "friend-preview-action";
+            send.textContent = "Send Message";
+            send.addEventListener("click", () => openMessageComposer(friend));
+            actions.appendChild(send);
+        } else {
+            const unavailable = document.createElement("span");
+            unavailable.className = "friend-preview-action-note";
+            unavailable.textContent = "Platform actions will be added in a later phase.";
+            actions.appendChild(unavailable);
+        }
+        preview.appendChild(actions);
+    }
+
+    let messageComposer = null;
+    let messageRecipient = null;
+
+    function ensureMessageComposer() {
+        if (messageComposer) return messageComposer;
+
+        messageComposer = document.createElement("div");
+        messageComposer.id = "friends-message-composer";
+        messageComposer.innerHTML = [
+            '<section class="friends-message-panel" role="dialog" aria-modal="true" aria-labelledby="friends-message-title">',
+            '<div class="friends-message-kicker">DISCORD</div>',
+            '<h2 id="friends-message-title">Send Message</h2>',
+            '<p data-message-role="recipient"></p>',
+            '<textarea data-message-role="input" maxlength="2000" rows="5" placeholder="Write a message..."></textarea>',
+            '<div data-message-role="status" class="friends-message-status"></div>',
+            '<div class="friends-message-actions">',
+            '<button type="button" data-message-role="cancel">Cancel</button>',
+            '<button type="button" data-message-role="send">Send</button>',
+            '</div>',
+            '</section>'
+        ].join("");
+
+        document.body.appendChild(messageComposer);
+        messageComposer.querySelector('[data-message-role="cancel"]').addEventListener("click", closeMessageComposer);
+        messageComposer.querySelector('[data-message-role="send"]').addEventListener("click", sendMessage);
+        messageComposer.addEventListener("click", event => {
+            if (event.target === messageComposer) closeMessageComposer();
+        });
+        return messageComposer;
+    }
+
+    function openMessageComposer(friend) {
+        if (!friend || friend.platform !== "discord") return;
+        messageRecipient = friend;
+        const composer = ensureMessageComposer();
+        composer.querySelector('[data-message-role="recipient"]').textContent = "To " + friend.name;
+        composer.querySelector('[data-message-role="input"]').value = "";
+        composer.querySelector('[data-message-role="status"]').textContent = "";
+        composer.classList.add("visible");
+        window.setTimeout(() => composer.querySelector('[data-message-role="input"]').focus(), 0);
+    }
+
+    function closeMessageComposer() {
+        if (!messageComposer) return;
+        messageComposer.classList.remove("visible");
+        messageRecipient = null;
+    }
+
+    async function sendMessage() {
+        if (!messageRecipient) return;
+        const composer = ensureMessageComposer();
+        const input = composer.querySelector('[data-message-role="input"]');
+        const status = composer.querySelector('[data-message-role="status"]');
+        const send = composer.querySelector('[data-message-role="send"]');
+        const content = input.value.trim();
+
+        if (!content) {
+            status.textContent = "Enter a message first.";
+            input.focus();
+            return;
+        }
+
+        send.disabled = true;
+        status.textContent = "Sending...";
+
+        try {
+            const result = await window.electron?.discordSendMessage?.(messageRecipient.id, content);
+            if (!result?.success) throw new Error(result?.error || "Unable to send Discord message.");
+            status.textContent = "Message sent.";
+            input.value = "";
+            window.xmbAudio?.select?.();
+            window.setTimeout(() => closeMessageComposer(), 550);
+        } catch (error) {
+            console.error("Discord message send failed:", error);
+            status.textContent = error?.message || "Unable to send message.";
+        } finally {
+            send.disabled = false;
+        }
     }
 
     function movePlatform(direction) {
@@ -576,6 +781,27 @@ const friendsSurface = (() => {
         overlay?.classList.remove("visible");
     }
     function isOpen() { return !!overlay?.classList.contains("visible"); }
+
+    document.addEventListener("keydown", event => {
+        if (!isInlineActive()) return;
+
+        if (event.key === "Escape" && messageComposer?.classList.contains("visible")) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeMessageComposer();
+            return;
+        }
+
+        if (event.key === "Enter" && !event.repeat && inputFocus === "friends") {
+            const friend = getSelectedFriend();
+
+            if (friend?.platform === "discord") {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                openMessageComposer(friend);
+            }
+        }
+    }, true);
 
     document.addEventListener("keydown", event => {
         if (!isOpen()) return;
