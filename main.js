@@ -3060,6 +3060,8 @@ function findExistingArtworkFile(
 }
 
 
+const inFlightArtworkDownloads = new Map();
+
 async function downloadAndCacheArtwork(
     itemId,
     artworkType,
@@ -3076,6 +3078,21 @@ async function downloadAndCacheArtwork(
         return null;
     }
 
+    /*
+        Collapse duplicate requests for the same artwork while
+        keeping the existing cache/download behavior unchanged.
+    */
+    const requestKey =
+        `${String(itemId)}::${String(artworkType)}::${String(artworkUrl)}::${forceRefresh ? "force" : "normal"}`;
+
+    const existingRequest =
+        inFlightArtworkDownloads.get(requestKey);
+
+    if (existingRequest) {
+        return existingRequest;
+    }
+
+    const requestPromise = (async () => {
 
     const artworkDirectory =
         getArtworkDirectory(
@@ -3284,6 +3301,25 @@ async function downloadAndCacheArtwork(
 
 
         return null;
+    }
+
+    })();
+
+    inFlightArtworkDownloads.set(
+        requestKey,
+        requestPromise
+    );
+
+    try {
+        return await requestPromise;
+    }
+    finally {
+        if (
+            inFlightArtworkDownloads.get(requestKey) ===
+            requestPromise
+        ) {
+            inFlightArtworkDownloads.delete(requestKey);
+        }
     }
 }
 
