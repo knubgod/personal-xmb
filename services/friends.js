@@ -656,12 +656,11 @@ const friendsSurface = (() => {
         name.className = "friend-preview-name";
         name.textContent = friend.name;
 
-        const username = document.createElement("div");
-        username.className = "friend-preview-username";
+        let username = null;
         if (friend.username) {
+            username = document.createElement("div");
+            username.className = "friend-preview-username";
             username.textContent = "@" + friend.username;
-        } else {
-            username.remove();
         }
 
         const status = document.createElement("div");
@@ -677,7 +676,11 @@ const friendsSurface = (() => {
         const id = document.createElement("span");
         id.textContent = "ID " + friend.id;
         meta.append(relationship, id);
-        preview.append(avatar, platform, name, username, status, meta);
+        preview.append(avatar, platform, name);
+        if (username) {
+            preview.appendChild(username);
+        }
+        preview.append(status, meta);
 
         if (friend.activity) {
             const activity = document.createElement("div");
