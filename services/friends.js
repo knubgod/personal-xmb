@@ -3,6 +3,7 @@ const friendsSurface = (() => {
     let inlineRoot = null;
     let activePlatform = "all";
     let lastData = null;
+    let selectedFriendIndex = 0;
 
     const platforms = {
         discord: { label: "Discord", short: "DISCORD", icon: "D" },
@@ -121,7 +122,7 @@ const friendsSurface = (() => {
 
     function createFriendCard(friend) {
         const card = document.createElement("article");
-        card.className = `friend-card is-${friend.status}`;
+        card.className = `friend-card is-${friend.status}`;\n        card.dataset.friendId = friend.id;
 
         const identity = document.createElement("div");
         identity.className = "friend-identity";
@@ -273,6 +274,7 @@ const friendsSurface = (() => {
 
     function render(data) {
         lastData = data || {};
+        selectedFriendIndex = 0;
         const root = inlineRoot || ensure();
         const content = root.querySelector('#friends-content, [data-friends-role="content"]');
         const nav = root.querySelector('#friends-platforms, [data-friends-role="platforms"]');
@@ -314,6 +316,17 @@ const friendsSurface = (() => {
             content.appendChild(renderPlatform(activePlatform, filtered));
         }
 
+        const cards = Array.from(content.querySelectorAll(".friend-card"));
+        selectedFriendIndex = Math.max(0, Math.min(selectedFriendIndex, cards.length - 1));
+        cards.forEach((card, index) => {
+            card.dataset.friendIndex = String(index);
+            card.tabIndex = 0;
+            card.classList.toggle("selected", index === selectedFriendIndex);
+            card.addEventListener("mouseenter", () => setFriendSelection(index));
+            card.addEventListener("focus", () => setFriendSelection(index));
+            card.addEventListener("click", () => selectFriend(index));
+        });
+
         const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
         if (updated) {
             updated.textContent =
@@ -339,6 +352,57 @@ const friendsSurface = (() => {
         } finally {
             button.disabled = false;
         }
+    }
+
+    function getInlineRoot() {
+        return inlineRoot;
+    }
+
+    function getFriendCards() {
+        return Array.from(inlineRoot?.querySelectorAll(".friend-card") || []);
+    }
+
+    function setFriendSelection(index) {
+        const cards = getFriendCards();
+        if (!cards.length) return;
+        selectedFriendIndex = Math.max(0, Math.min(index, cards.length - 1));
+        cards.forEach((card, cardIndex) => {
+            card.classList.toggle("selected", cardIndex === selectedFriendIndex);
+        });
+        const selected = cards[selectedFriendIndex];
+        selected?.scrollIntoView({block:"nearest", inline:"nearest", behavior:"smooth"});
+    }
+
+    function moveSelection(direction) {
+        const cards = getFriendCards();
+        if (!cards.length) return false;
+        setFriendSelection(selectedFriendIndex + direction);
+        return true;
+    }
+
+    function selectFriend(index = selectedFriendIndex) {
+        const cards = getFriendCards();
+        if (!cards.length) return null;
+        setFriendSelection(index);
+        const card = cards[selectedFriendIndex];
+        card?.classList.add("selected-pulse");
+        window.setTimeout(() => card?.classList.remove("selected-pulse"), 220);
+        window.xmbAudio?.select?.();
+        return lastData?.friends?.find(friend => String(friend?.id || "") === String(card?.dataset?.friendId || "")) || null;
+    }
+
+    function movePlatform(direction) {
+        const root = getInlineRoot();
+        const buttons = Array.from(root?.querySelectorAll(".friends-platforms button:not(:disabled)") || []);
+        if (!buttons.length) return false;
+        const current = Math.max(0, buttons.findIndex(button => button.classList.contains("active")));
+        const next = (current + direction + buttons.length) % buttons.length;
+        buttons[next].click();
+        return true;
+    }
+
+    function isInlineActive() {
+        return Boolean(inlineRoot);
     }
 
     function open() {
@@ -370,7 +434,7 @@ const friendsSurface = (() => {
         }
     }, true);
 
-    return { open, close, openInline, closeInline, refresh, isOpen, render };
+    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, movePlatform, selectFriend, setFriendSelection, isInlineActive };
 })();
 
 window.friendsSurface = friendsSurface;
