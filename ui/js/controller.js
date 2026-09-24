@@ -15,15 +15,49 @@
 */
 
 let activeInputMode = "keyboard";
-let previousGamepadButtons = [];
+const previousGamepadButtons = new Map();
+const previousGamepadAxes = new Map();
+const gamepadAxisRepeatAt = new Map();
 
 function buttonPressed(gamepad,index){
     return !!gamepad.buttons[index]?.pressed;
 }
 
-function buttonJustPressed(gamepad,index){
-    const previous=previousGamepadButtons[index] || false;
-    return buttonPressed(gamepad,index) && !previous;
+function getGamepadKey(gamepad, index) {
+    return String(gamepad.index ?? index);
+}
+
+function buttonJustPressed(gamepad,index) {
+    const key = getGamepadKey(gamepad, gamepad.index);
+    const previous = previousGamepadButtons.get(key) || [];
+    return buttonPressed(gamepad,index) && !previous[index];
+}
+
+function rememberGamepad(gamepad) {
+    const key = getGamepadKey(gamepad, gamepad.index);
+    previousGamepadButtons.set(
+        key,
+        gamepad.buttons.map(button => button.pressed)
+    );
+}
+
+function axisDirection(gamepad, axis, negativeIndex, positiveIndex) {
+    const value = gamepad.axes[axis] || 0;
+    const direction = value < -0.55 ? -1 : value > 0.55 ? 1 : 0;
+    if (!direction) return 0;
+
+    const key = getGamepadKey(gamepad, gamepad.index) + ":" + axis;
+    const now = performance.now();
+    const previous = previousGamepadAxes.get(key) || 0;
+    const lastRepeat = gamepadAxisRepeatAt.get(key) || 0;
+
+    if (direction !== previous || now - lastRepeat >= 220) {
+        previousGamepadAxes.set(key, direction);
+        gamepadAxisRepeatAt.set(key, now);
+        return direction;
+    }
+
+    return 0;
 }
 
 function setInputMode(mode){
@@ -100,9 +134,14 @@ function pollGamepads(){
             if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
             if(buttonJustPressed(gamepad,14)) window.friendsSurface.movePlatform?.(-1);
             if(buttonJustPressed(gamepad,15)) window.friendsSurface.movePlatform?.(1);
+
+            const vertical = axisDirection(gamepad, 1);
+            const horizontal = axisDirection(gamepad, 0);
+            if (vertical) window.friendsSurface.moveSelection?.(vertical);
+            if (horizontal) window.friendsSurface.movePlatform?.(horizontal);
             if(buttonJustPressed(gamepad,0)) window.friendsSurface.selectFriend?.();
             if(buttonJustPressed(gamepad,1)) goBack();
-            previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
+            rememberGamepad(gamepad);
             continue;
         }
 
@@ -160,7 +199,9 @@ function pollGamepads(){
 }
 
 window.addEventListener("gamepadconnected",()=>{
-    previousGamepadButtons=[];
+    previousGamepadButtons.clear();
+    previousGamepadAxes.clear();
+    gamepadAxisRepeatAt.clear();
 });
 
 window.getInputMode=()=>activeInputMode;

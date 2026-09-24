@@ -1389,6 +1389,39 @@ document.addEventListener(
             return;
         }
 
+        if (
+            window.friendsSurface?.isInlineActive?.() &&
+            navigationLevel === "items"
+        ) {
+            if (key === "escape" || key === "arrowleft") {
+                event.preventDefault();
+                goBack();
+                return;
+            }
+
+            if (key === "arrowup" || key === "arrowdown") {
+                event.preventDefault();
+                window.friendsSurface?.moveSelection?.(
+                    key === "arrowdown" ? 1 : -1
+                );
+                return;
+            }
+
+            if (key === "arrowleft" || key === "arrowright") {
+                event.preventDefault();
+                window.friendsSurface?.movePlatform?.(
+                    key === "arrowright" ? 1 : -1
+                );
+                return;
+            }
+
+            if (key === "enter") {
+                event.preventDefault();
+                window.friendsSurface?.selectFriend?.();
+                return;
+            }
+        }
+
         const settingsOverlay =
             document.getElementById(
                 "settings-overlay"
