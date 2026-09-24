@@ -468,32 +468,31 @@ async function getDiscordFriends(all = accounts()) {
             friends: [],
             provider: "discord",
             configured: false,
+            socialSdkRequired: true,
             error: "Discord is not connected."
         };
     }
 
-    const relationships = await requestJson(
-        "https://discord.com/api/v10/users/@me/relationships",
-        {
-            headers: {
-                Authorization:
-                    `Bearer ${credentials.accessToken}`
-            }
-        }
-    );
+    /*
+        Discord's current Social SDK is the supported path for the
+        deep social features we want here (relationships, presence,
+        and DMs). The standard OAuth connection above intentionally
+        requests only "identify", so the legacy REST relationships
+        endpoint cannot be treated as a working friends source.
 
-    if (!Array.isArray(relationships)) {
-        throw new Error("Discord returned an invalid friends response.");
-    }
-
+        Keep this fallback explicit instead of silently returning an
+        empty list. That makes the renderer tell us exactly which
+        integration is still pending while the Social SDK bridge is
+        added in a later commit.
+    */
     return {
-        friends: relationships
-            .filter(relationship => Number(relationship?.type) === 1)
-            .map(normalizeDiscordFriend)
-            .filter(friend => friend.id),
+        friends: [],
         provider: "discord",
         configured: true,
-        presenceAvailable: false
+        socialSdkRequired: true,
+        presenceAvailable: false,
+        error:
+            "Discord friends require the Discord Social SDK integration."
     };
 }
 
