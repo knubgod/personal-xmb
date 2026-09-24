@@ -255,6 +255,26 @@ function enterItemLevel() {
 
     window.xmbAudio?.select?.();
 
+    const category = getCurrentCategoryData();
+
+    /*
+        Inline XMB surfaces skip the normal item submenu.
+        Arrow Down still enters the item level so Left can
+        return to the category bar, but the renderer owns
+        the visible surface.
+    */
+    if (
+        category?.inlineSurface === "friends"
+    ) {
+
+        navigationLevel = "items";
+        currentItem = 0;
+        currentAction = 0;
+        setOptionsPanel(false);
+        refreshNavigation(true);
+        return;
+    }
+
     const items =
         getCurrentItems();
 
