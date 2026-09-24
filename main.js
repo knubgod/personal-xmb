@@ -758,25 +758,9 @@ function registerArtworkProtocol() {
 }
 
 
-function isTrustedRenderer(event) {
-
-    return Boolean(
-        mainWindow &&
-        !mainWindow.isDestroyed() &&
-        event?.sender === mainWindow.webContents &&
-        event?.senderFrame === mainWindow.webContents.mainFrame
-    );
-}
-
-
-function requireTrustedRenderer(event) {
-
-    if (!isTrustedRenderer(event)) {
-        throw new Error(
-            "Untrusted renderer IPC request rejected."
-        );
-    }
-}
+const {
+    requireTrustedRenderer
+} = require("./ipc-security");
 
 
 function createWindow() {
