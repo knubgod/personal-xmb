@@ -1429,6 +1429,12 @@ document.addEventListener(
                     return;
                 }
 
+                if (key === "arrowup") {
+                    event.preventDefault();
+                    goBack();
+                    return;
+                }
+
                 if (key === "arrowdown") {
                     event.preventDefault();
                     window.friendsSurface?.focusFriends?.();
