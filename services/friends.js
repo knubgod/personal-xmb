@@ -274,9 +274,9 @@ const friendsSurface = (() => {
     function render(data) {
         lastData = data || {};
         const root = inlineRoot || ensure();
-        const content = root.querySelector("#friends-content, [data-friends-role="content"]");
-        const nav = root.querySelector("#friends-platforms, [data-friends-role="platforms"]");
-        const summary = root.querySelector("#friends-summary, [data-friends-role="summary"]");
+        const content = root.querySelector('#friends-content, [data-friends-role="content"]');
+        const nav = root.querySelector('#friends-platforms, [data-friends-role="platforms"]');
+        const summary = root.querySelector('#friends-summary, [data-friends-role="summary"]');
         const friends = getFriends(lastData);
         const available = new Set(friends.map(friend => friend.platform));
         content.innerHTML = "";
@@ -314,7 +314,7 @@ const friendsSurface = (() => {
             content.appendChild(renderPlatform(activePlatform, filtered));
         }
 
-        const updated = root.querySelector("#friends-updated, [data-friends-role="updated"]");
+        const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
         if (updated) {
             updated.textContent =
                 `Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
@@ -323,14 +323,14 @@ const friendsSurface = (() => {
 
     async function refresh() {
         const root = inlineRoot || ensure();
-        const button = root.querySelector("#friends-refresh, [data-friends-role="refresh"]");
+        const button = root.querySelector('#friends-refresh, [data-friends-role="refresh"]');
         button.disabled = true;
         try {
             const data = await window.electron?.getFriends?.() || { friends: [] };
             render(data);
 
             if (data.error) {
-                const updated = root.querySelector("#friends-updated, [data-friends-role="updated"]");
+                const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
                 if (updated) updated.textContent = data.error;
             }
         } catch (error) {
