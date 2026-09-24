@@ -160,11 +160,13 @@ function pollGamepads(){
                     while Friends is active. They have no XMB function
                     anywhere else yet.
                 */
-                if(buttonJustPressed(gamepad,4)) window.friendsSurface.movePlatform?.(-1);
-                if(buttonJustPressed(gamepad,5)) window.friendsSurface.movePlatform?.(1);
+                if(buttonJustPressed(gamepad,4)) {
+                    window.friendsSurface.movePlatform?.(-1);
+                }
 
-                const horizontal = axisDirection(gamepad, 0);
-                if(horizontal) window.friendsSurface.movePlatform?.(horizontal);
+                if(buttonJustPressed(gamepad,5)) {
+                    window.friendsSurface.movePlatform?.(1);
+                }
 
                 if(buttonJustPressed(gamepad,12)){
                     goBack();
