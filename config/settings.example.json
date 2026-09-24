@@ -32,6 +32,9 @@
         },
         "riot": {
             "clientId": ""
+        },
+        "steam": {
+            "steamId": ""
         }
     }
 }

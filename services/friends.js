@@ -275,8 +275,12 @@ const friendsSurface = (() => {
         const button = ensure().querySelector("#friends-refresh");
         button.disabled = true;
         try {
-            const accounts = await window.electron?.getAccounts?.() || {};
-            render(accounts);
+            const data = await window.electron?.getFriends?.() || { friends: [] };
+            render(data);
+
+            if (data.error) {
+                ensure().querySelector("#friends-updated").textContent = data.error;
+            }
         } catch (error) {
             console.error("Friends refresh failed:", error);
             render({ friends: [] });
