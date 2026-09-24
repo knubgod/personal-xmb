@@ -402,7 +402,22 @@ const friendsSurface = (() => {
         const button = root.querySelector('#friends-refresh, [data-friends-role="refresh"]');
         button.disabled = true;
         try {
-            const data = await window.electron?.getFriends?.() || { friends: [] };
+            const [steamData, discordData] = await Promise.all([
+                window.electron?.getFriends?.() || { friends: [] },
+                window.electron?.discordGetFriends?.() || { friends: [], configured: false }
+            ]);
+
+            const data = {
+                friends: [
+                    ...(Array.isArray(steamData?.friends) ? steamData.friends : []),
+                    ...(Array.isArray(discordData?.friends) ? discordData.friends : [])
+                ],
+                error: [
+                    steamData?.error,
+                    discordData?.configured ? discordData?.error : ""
+                ].filter(Boolean).join(" · ")
+            };
+
             render(data);
 
             if (data.error) {
