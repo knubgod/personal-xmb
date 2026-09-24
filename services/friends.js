@@ -433,10 +433,9 @@ const friendsSurface = (() => {
                 : entry.rect.bottom < rect.top + 2
         );
 
-        const pool = vertical.length ? vertical : candidates;
-        if (!pool.length) return true;
+        if (!vertical.length) return false;
 
-        pool.sort((a, b) => {
+        vertical.sort((a, b) => {
             const aCenterX = a.rect.left + a.rect.width / 2;
             const aCenterY = a.rect.top + a.rect.height / 2;
             const bCenterX = b.rect.left + b.rect.width / 2;
@@ -446,7 +445,7 @@ const friendsSurface = (() => {
             return aScore - bScore;
         });
 
-        setFriendSelection(pool[0].index);
+        setFriendSelection(vertical[0].index);
         return true;
     }
 
