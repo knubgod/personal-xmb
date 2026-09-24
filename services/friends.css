@@ -11,3 +11,91 @@
 .friend-identity-text{min-width:0;flex:1}.friend-name-row{display:flex;align-items:center;gap:8px;min-width:0}.friend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.friend-name-row .friends-platform-badge{width:19px;height:19px;font-size:7px;opacity:.65}.friend-status-label{margin-top:3px;font-size:10px;opacity:.45}
 .friend-activity{display:flex;gap:10px;align-items:center;margin:11px 0 0 54px;padding-top:10px;border-top:1px solid rgba(255,255,255,.055)}.friend-game-art{width:38px;height:38px;flex:0 0 38px;border-radius:4px;object-fit:cover;background:rgba(255,255,255,.06)}.friend-activity-text{min-width:0}.friend-game{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.friend-game-details,.friend-game-time{margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;opacity:.48}.friend-game-time{opacity:.34}.friend-no-activity{margin:11px 0 0 54px;padding-top:10px;border-top:1px solid rgba(255,255,255,.055);font-size:10px;opacity:.35}.friends-offline-group{opacity:.55}.friends-empty{padding:70px 20px;border:1px dashed rgba(255,255,255,.1);text-align:center}.friends-empty h3{margin:0 0 8px;font-size:17px;font-weight:400}.friends-empty p{max-width:540px;margin:0 auto 18px;font-size:12px;line-height:1.6;opacity:.5}.friends-footer{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-top:8px;padding-top:17px;border-top:1px solid rgba(255,255,255,.07);font-size:10px;opacity:.55}.friends-footer button:disabled{opacity:.35;cursor:wait}
 @media(max-width:850px){.friends-panel{padding:26px 24px}.friends-list{grid-template-columns:1fr}}@media(max-width:560px){#friends-overlay{padding:0}.friends-panel{width:100vw;max-height:100vh;height:100vh;border:0}}
+
+/* ============================================================
+   INLINE XMB FRIENDS SURFACE
+   ============================================================ */
+
+.friends-inline {
+    width: min(780px, calc(100vw - 180px));
+    max-height: 54vh;
+    overflow: auto;
+    scrollbar-width: thin;
+}
+
+.friends-inline .friends-panel {
+    width: 100%;
+    max-height: none;
+    padding: 0 10px 10px 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.friends-inline .friends-header {
+    margin-bottom: 14px;
+}
+
+.friends-inline .friends-header h2 {
+    font-size: 25px;
+}
+
+.friends-inline .friends-header p {
+    max-width: 620px;
+}
+
+.friends-inline .friends-platforms {
+    padding-bottom: 12px;
+}
+
+.friends-inline .friends-content {
+    padding-top: 14px;
+}
+
+.friends-inline .friends-platform-section {
+    margin-bottom: 20px;
+}
+
+.friends-inline .friends-section-heading {
+    margin-bottom: 8px;
+}
+
+.friends-inline .friends-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.friends-inline .friend-card {
+    padding: 10px 12px;
+}
+
+.friends-inline .friends-avatar,
+.friends-inline .friends-avatar-image,
+.friends-inline .friends-avatar-fallback {
+    width: 36px;
+    height: 36px;
+}
+
+.friends-inline .friends-avatar {
+    flex-basis: 36px;
+}
+
+.friends-inline .friend-activity,
+.friends-inline .friend-no-activity {
+    margin-left: 48px;
+}
+
+.friends-inline .friends-footer {
+    margin-top: 2px;
+    padding-top: 12px;
+}
+
+@media(max-width:850px) {
+    .friends-inline {
+        width: calc(100vw - 120px);
+    }
+
+    .friends-inline .friends-list {
+        grid-template-columns: 1fr;
+    }
+}
