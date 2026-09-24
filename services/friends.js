@@ -658,7 +658,11 @@ const friendsSurface = (() => {
 
         const username = document.createElement("div");
         username.className = "friend-preview-username";
-        username.textContent = friend.username ? "@" + friend.username : "Username unavailable";
+        if (friend.username) {
+            username.textContent = "@" + friend.username;
+        } else {
+            username.remove();
+        }
 
         const status = document.createElement("div");
         status.className = "friend-preview-status";
