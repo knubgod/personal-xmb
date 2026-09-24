@@ -21,6 +21,7 @@ loginAccount:(provider)=>ipcRenderer.invoke("account-login",provider),
 logoutAccount:(provider)=>ipcRenderer.invoke("account-logout",provider),
 refreshAccounts:()=>ipcRenderer.invoke("accounts-refresh"),
 saveAccountConfig:(value)=>ipcRenderer.invoke("save-account-config",value),
+saveSteamConfig:(value)=>ipcRenderer.invoke("save-steam-config",value),
 
 quitApp:
             () => ipcRenderer.invoke("quit-app"),
