@@ -1458,16 +1458,14 @@ document.addEventListener(
                     event.preventDefault();
 
                     /*
-                        Up at the first friend closes the Friends
-                        surface and returns to the main XMB.
-
-                        Escape/Back can still be used to move back
-                        through the normal Friends focus state.
+                        Up from the first friend moves back to the
+                        Friends platform strip. A second Up from the
+                        platform strip returns to the main XMB.
                     */
                     const moved = window.friendsSurface?.moveSelection?.(-1);
 
                     if (!moved) {
-                        goBack();
+                        window.friendsSurface?.focusPlatforms?.();
                     }
 
                     return;

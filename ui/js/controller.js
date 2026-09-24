@@ -186,10 +186,11 @@ function pollGamepads(){
                     const moved = window.friendsSurface.moveSelection?.(-1);
 
                     /*
-                        Up at the first friend closes the Friends
-                        surface and returns to the main XMB.
+                        Up at the first friend returns to the
+                        Friends platform strip. Up again from the
+                        platform strip returns to the main XMB.
                     */
-                    if(moved === false) goBack();
+                    if(moved === false) window.friendsSurface.focusPlatforms?.();
                 }
                 if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
 
