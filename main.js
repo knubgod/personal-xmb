@@ -6162,17 +6162,33 @@ function findRiotClient() {
 
 ipcMain.handle(
     "set-window-state",
-    async event => {
+    async (event, state) => {
         requireTrustedRenderer(event);
 
         if (!mainWindow || mainWindow.isDestroyed()) {
             return {success:false, error:"Main window is unavailable."};
         }
 
-        const fullscreen = !mainWindow.isFullScreen();
-        mainWindow.setFullScreen(fullscreen);
+        if (state === "fullscreen") {
+            const fullscreen = !mainWindow.isFullScreen();
+            mainWindow.setFullScreen(fullscreen);
+            return {success:true, fullscreen};
+        }
 
-        return {success:true, fullscreen};
+        if (state === "maximize") {
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+
+            return {
+                success:true,
+                maximized:mainWindow.isMaximized()
+            };
+        }
+
+        return {success:false, error:"Unsupported window state."};
     }
 );
 
