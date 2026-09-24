@@ -161,7 +161,12 @@ function pollGamepads(){
                 if(buttonJustPressed(gamepad,15)) window.friendsSurface.moveFriendHorizontal?.(1);
                 if(buttonJustPressed(gamepad,12)){
                     const moved = window.friendsSurface.moveSelection?.(-1);
-                    if(moved === false) window.friendsSurface.focusPlatforms?.();
+
+                    /*
+                        Up at the first friend closes the Friends
+                        surface and returns to the main XMB.
+                    */
+                    if(moved === false) goBack();
                 }
                 if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
 
@@ -169,7 +174,8 @@ function pollGamepads(){
                 const horizontal = axisDirection(gamepad, 0);
                 if(vertical < 0){
                     const moved = window.friendsSurface.moveSelection?.(-1);
-                    if(moved === false) window.friendsSurface.focusPlatforms?.();
+
+                    if(moved === false) goBack();
                 }
                 if(vertical > 0) window.friendsSurface.moveSelection?.(1);
                 if(horizontal) window.friendsSurface.moveFriendHorizontal?.(horizontal);
