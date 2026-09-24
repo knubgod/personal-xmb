@@ -1787,11 +1787,37 @@ ipcMain.handle(
     ========================================================
 */
 
+const STEAM_METADATA_CACHE_TTL_MS =
+    6 * 60 * 60 * 1000;
+
+const steamMetadataCache = new Map();
+const steamMetadataRequests = new Map();
+
 function fetchSteamStoreMetadata(
     appId
 ) {
 
-    return new Promise(
+    const cacheKey = String(appId);
+
+    const cached =
+        steamMetadataCache.get(cacheKey);
+
+    if (
+        cached &&
+        Date.now() - cached.cachedAt <
+            STEAM_METADATA_CACHE_TTL_MS
+    ) {
+        return Promise.resolve(cached.data);
+    }
+
+    const existingRequest =
+        steamMetadataRequests.get(cacheKey);
+
+    if (existingRequest) {
+        return existingRequest;
+    }
+
+    const requestPromise = new Promise(
         (
             resolve,
             reject
@@ -1928,6 +1954,35 @@ function fetchSteamStoreMetadata(
             );
         }
     );
+
+    const trackedRequest =
+        requestPromise
+            .then(data => {
+                steamMetadataCache.set(
+                    cacheKey,
+                    {
+                        data,
+                        cachedAt: Date.now()
+                    }
+                );
+
+                return data;
+            })
+            .finally(() => {
+                if (
+                    steamMetadataRequests.get(cacheKey) ===
+                    trackedRequest
+                ) {
+                    steamMetadataRequests.delete(cacheKey);
+                }
+            });
+
+    steamMetadataRequests.set(
+        cacheKey,
+        trackedRequest
+    );
+
+    return trackedRequest;
 }
 
 
