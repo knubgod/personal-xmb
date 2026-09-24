@@ -19,7 +19,13 @@
 .friends-inline {
     width: min(920px, calc(100vw - 170px));
     max-height: 58vh;
-    overflow: auto;
+    overflow: hidden;
+}
+
+.friends-inline .friends-content {
+    max-height: calc(58vh - 145px);
+    overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
 }
 

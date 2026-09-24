@@ -69,10 +69,24 @@ const friendsSurface = (() => {
 
     function openInline(host) {
         if (!host) return;
+
         const root = ensureInline(host);
-        if (root.dataset.loaded === "true") return;
+
+        /*
+            Every time Friends becomes the active XMB surface,
+            keyboard/controller focus starts on the platform bar.
+        */
+        inputFocus = "platforms";
+
+        if (root.dataset.loaded === "true") {
+            focusPlatforms();
+            return;
+        }
+
         root.dataset.loaded = "true";
-        refresh();
+        refresh().then(() => {
+            focusPlatforms();
+        });
     }
 
     function normalizeFriend(friend) {
@@ -376,13 +390,24 @@ const friendsSurface = (() => {
     function setFriendSelection(index) {
         const cards = getFriendCards();
         if (!cards.length) return;
+
         selectedFriendIndex = Math.max(0, Math.min(index, cards.length - 1));
+
         cards.forEach((card, cardIndex) => {
             card.classList.toggle("selected", cardIndex === selectedFriendIndex);
         });
+
         const selected = cards[selectedFriendIndex];
         if (!selected) return;
 
+        /*
+            The friend list itself is the scrolling viewport.
+            The platform bar stays fixed while the selected
+            friend moves through the visible list.
+
+            Only scroll when the selected card crosses the
+            visible top/bottom edge.
+        */
         const content = inlineRoot?.querySelector(".friends-content");
         if (!content) return;
 

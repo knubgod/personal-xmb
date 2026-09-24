@@ -149,6 +149,10 @@ function pollGamepads(){
                 const horizontal = axisDirection(gamepad, 0);
                 if(horizontal) window.friendsSurface.movePlatform?.(horizontal);
 
+                if(buttonJustPressed(gamepad,12)){
+                    goBack();
+                }
+
                 if(buttonJustPressed(gamepad,13)){
                     window.friendsSurface.focusFriends?.();
                 }
