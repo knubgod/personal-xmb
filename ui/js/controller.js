@@ -133,7 +133,11 @@ function pollGamepads(){
             const focus = window.friendsSurface.getInputFocus?.() || "platforms";
 
             if(buttonJustPressed(gamepad,1)){
-                goBack();
+                if(focus === "friends"){
+                    window.friendsSurface.focusPlatforms?.();
+                } else {
+                    goBack();
+                }
                 rememberGamepad(gamepad);
                 continue;
             }
@@ -155,23 +159,22 @@ function pollGamepads(){
             } else {
                 if(buttonJustPressed(gamepad,14)) window.friendsSurface.moveFriendHorizontal?.(-1);
                 if(buttonJustPressed(gamepad,15)) window.friendsSurface.moveFriendHorizontal?.(1);
-                if(buttonJustPressed(gamepad,12)) window.friendsSurface.moveSelection?.(-1);
+                if(buttonJustPressed(gamepad,12)){
+                    const moved = window.friendsSurface.moveSelection?.(-1);
+                    if(moved === false) window.friendsSurface.focusPlatforms?.();
+                }
                 if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
 
                 const vertical = axisDirection(gamepad, 1);
                 const horizontal = axisDirection(gamepad, 0);
-                if(vertical) window.friendsSurface.moveSelection?.(vertical);
+                if(vertical < 0){
+                    const moved = window.friendsSurface.moveSelection?.(-1);
+                    if(moved === false) window.friendsSurface.focusPlatforms?.();
+                }
+                if(vertical > 0) window.friendsSurface.moveSelection?.(1);
                 if(horizontal) window.friendsSurface.moveFriendHorizontal?.(horizontal);
 
                 if(buttonJustPressed(gamepad,0)) window.friendsSurface.selectFriend?.();
-
-                if(buttonJustPressed(gamepad,12)){
-                    const cards = window.friendsSurface.getFriendCards?.() || [];
-                    const selected = cards.findIndex(card => card.classList.contains("selected"));
-                    if(selected >= 0 && selected <= 1){
-                        window.friendsSurface.focusPlatforms?.();
-                    }
-                }
             }
 
             rememberGamepad(gamepad);
