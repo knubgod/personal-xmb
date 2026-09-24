@@ -915,6 +915,15 @@ ipcMain.handle(
                 ...getRendererSpotifySettings()
             };
 
+        settings.integrations =
+            settings.integrations || {};
+
+        settings.integrations.steam =
+            {
+                ...(settings.integrations.steam || {}),
+                ...getRendererSteamSettings()
+            };
+
         return settings;
     }
 );
@@ -7657,6 +7666,482 @@ ipcMain.handle(
 );
 
 
+
+
+
+/*
+    ========================================================
+    STEAM FRIENDS CREDENTIALS
+    ========================================================
+
+    The Steam Web API key is treated as a secret and stored
+    with Electron safeStorage. The Steam ID is non-secret
+    configuration and is stored alongside local settings.
+*/
+
+function getSteamLocalSettings() {
+
+    const local =
+        readLocalSettings();
+
+    local.steam =
+        local.steam ||
+        {};
+
+    return local.steam;
+
+}
+
+
+function saveSteamCredentials(
+    steamId,
+    apiKey
+) {
+
+    if (
+        !safeStorage.isEncryptionAvailable()
+    ) {
+
+        throw new Error(
+            "OS secure storage is unavailable. Steam credentials were not saved."
+        );
+
+    }
+
+    const local =
+        readLocalSettings();
+
+    local.steam =
+        local.steam ||
+        {};
+
+    local.steam.steamId =
+        String(
+            steamId || ""
+        ).trim();
+
+    if (
+        typeof apiKey === "string" &&
+        apiKey.trim()
+    ) {
+
+        local.steam.apiKey =
+            safeStorage.encryptString(
+                apiKey.trim()
+            ).toString(
+                "base64"
+            );
+
+    }
+
+    writeLocalSettings(
+        local
+    );
+
+}
+
+
+function loadSteamApiKey() {
+
+    const local =
+        getSteamLocalSettings();
+
+    if (
+        !local.apiKey
+    ) {
+
+        return "";
+
+    }
+
+    if (
+        !safeStorage.isEncryptionAvailable()
+    ) {
+
+        throw new Error(
+            "OS secure storage is unavailable. Steam credentials cannot be read."
+        );
+
+    }
+
+    try {
+
+        return safeStorage.decryptString(
+            Buffer.from(
+                local.apiKey,
+                "base64"
+            )
+        );
+
+    }
+    catch (
+        error
+    ) {
+
+        throw new Error(
+            "Stored Steam API credentials could not be decrypted."
+        );
+
+    }
+
+}
+
+
+function getRendererSteamSettings() {
+
+    const local =
+        getSteamLocalSettings();
+
+    return {
+
+        steamId:
+            local.steamId || "",
+
+        configured:
+            Boolean(
+                local.steamId &&
+                local.apiKey
+            )
+
+    };
+
+}
+
+
+async function fetchSteamJson(
+    url,
+    apiKey
+) {
+
+    const response =
+        await fetch(
+            url,
+            {
+                headers: {
+                    "x-webapi-key":
+                        apiKey,
+                    "accept":
+                        "application/json"
+                }
+            }
+        );
+
+    const data =
+        await response.json().catch(
+            () => ({})
+        );
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+            data?.error?.message ||
+            data?.message ||
+            `Steam Web API request failed: ${response.status}`
+        );
+
+    }
+
+    return data;
+
+}
+
+
+async function getSteamFriends() {
+
+    const local =
+        getSteamLocalSettings();
+
+    const steamId =
+        String(
+            local.steamId || ""
+        ).trim();
+
+    const apiKey =
+        loadSteamApiKey();
+
+    if (
+        !/^\\d{10,20}$/.test(
+            steamId
+        )
+    ) {
+
+        return {
+            friends: [],
+            provider: "steam",
+            configured: false,
+            error: "Steam ID is not configured."
+        };
+
+    }
+
+    if (
+        !apiKey
+    ) {
+
+        return {
+            friends: [],
+            provider: "steam",
+            configured: false,
+            error: "Steam Web API key is not configured."
+        };
+
+    }
+
+    const friendListUrl =
+        new URL(
+            "https://api.steampowered.com/ISteamUser/GetFriendList/v1/"
+        );
+
+    friendListUrl.searchParams.set(
+        "steamid",
+        steamId
+    );
+
+    friendListUrl.searchParams.set(
+        "relationship",
+        "friend"
+    );
+
+    const friendData =
+        await fetchSteamJson(
+            friendListUrl.toString(),
+            apiKey
+        );
+
+    const friendEntries =
+        Array.isArray(
+            friendData?.friendslist?.friends
+        )
+            ? friendData.friendslist.friends
+            : [];
+
+    if (
+        !friendEntries.length
+    ) {
+
+        return {
+            friends: [],
+            provider: "steam",
+            configured: true
+        };
+
+    }
+
+    const summaries = [];
+
+    for (
+        let index = 0;
+        index < friendEntries.length;
+        index += 100
+    ) {
+
+        const batch =
+            friendEntries
+                .slice(
+                    index,
+                    index + 100
+                )
+                .map(
+                    friend =>
+                        String(
+                            friend.steamid
+                        )
+                )
+                .join(",");
+
+        const summaryUrl =
+            new URL(
+                "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+            );
+
+        summaryUrl.searchParams.set(
+            "steamids",
+            batch
+        );
+
+        const summaryData =
+            await fetchSteamJson(
+                summaryUrl.toString(),
+                apiKey
+            );
+
+        if (
+            Array.isArray(
+                summaryData?.response?.players
+            )
+        ) {
+
+            summaries.push(
+                ...summaryData.response.players
+            );
+
+        }
+
+    }
+
+    const summaryMap =
+        new Map(
+            summaries.map(
+                player => [
+                    String(player.steamid),
+                    player
+                ]
+            )
+        );
+
+    const friends =
+        friendEntries.map(
+            friend => {
+
+                const player =
+                    summaryMap.get(
+                        String(
+                            friend.steamid
+                        )
+                    ) || {};
+
+                const personaState =
+                    Number(
+                        player.personastate || 0
+                    );
+
+                let status =
+                    "offline";
+
+                if (
+                    personaState === 1 ||
+                    personaState === 5 ||
+                    personaState === 6
+                ) {
+
+                    status = "online";
+
+                }
+                else if (
+                    personaState === 2
+                ) {
+
+                    status = "dnd";
+
+                }
+                else if (
+                    personaState === 3 ||
+                    personaState === 4
+                ) {
+
+                    status = "idle";
+
+                }
+
+                const gameId =
+                    player.gameid
+                        ? String(player.gameid)
+                        : "";
+
+                const gameName =
+                    typeof player.gameextrainfo === "string" &&
+                    player.gameextrainfo.trim()
+                        ? player.gameextrainfo.trim()
+                        : "";
+
+                return {
+
+                    id:
+                        String(
+                            player.steamid ||
+                            friend.steamid
+                        ),
+
+                    platform:
+                        "steam",
+
+                    name:
+                        String(
+                            player.personaname ||
+                            player.steamid ||
+                            "Steam friend"
+                        ),
+
+                    avatar:
+                        typeof player.avatarfull === "string"
+                            ? player.avatarfull
+                            : "",
+
+                    status,
+
+                    activity:
+                        gameName
+                            ? {
+                                type:
+                                    "game",
+                                name:
+                                    gameName,
+                                details:
+                                    "Playing on Steam",
+                                state:
+                                    "",
+                                startedAt:
+                                    null,
+                                artwork:
+                                    gameId
+                                        ? `https://cdn.akamai.steamstatic.com/steam/apps/${encodeURIComponent(gameId)}/header.jpg`
+                                        : ""
+                            }
+                            : null
+
+                };
+
+            }
+        );
+
+    return {
+        friends,
+        provider: "steam",
+        configured: true
+    };
+
+}
+
+
+ipcMain.handle(
+    "friends-get",
+    async (
+        event
+    ) => {
+
+        requireTrustedRenderer(event);
+
+        try {
+
+            return await getSteamFriends();
+
+        }
+        catch (
+            error
+        ) {
+
+            console.error(
+                "Steam friends request failed:",
+                error
+            );
+
+            return {
+                friends: [],
+                provider: "steam",
+                configured: true,
+                error:
+                    error?.message ||
+                    "Unable to load Steam friends."
+            };
+
+        }
+
+    }
+);
+
+
 ipcMain.handle(
     "save-account-config",
     async (
@@ -7675,6 +8160,17 @@ ipcMain.handle(
                         ""
                     ).trim()
             });
+
+            saveSteamCredentials(
+                String(
+                    value?.steamId ||
+                    ""
+                ).trim(),
+                String(
+                    value?.steamApiKey ||
+                    ""
+                ).trim()
+            );
 
             const settings =
                 readSettingsFile();
