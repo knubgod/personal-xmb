@@ -95,6 +95,17 @@ function pollGamepads(){
 
         setInputMode(controllerType);
 
+        if(window.friendsSurface?.isInlineActive?.() && navigationLevel==="items"){
+            if(buttonJustPressed(gamepad,12)) window.friendsSurface.moveSelection?.(-1);
+            if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
+            if(buttonJustPressed(gamepad,14)) window.friendsSurface.movePlatform?.(-1);
+            if(buttonJustPressed(gamepad,15)) window.friendsSurface.movePlatform?.(1);
+            if(buttonJustPressed(gamepad,0)) window.friendsSurface.selectFriend?.();
+            if(buttonJustPressed(gamepad,1)) goBack();
+            previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
+            continue;
+        }
+
         if(handleSpotifyOverlay(gamepad)){
             previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
             continue;
