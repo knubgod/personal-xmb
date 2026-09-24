@@ -6317,6 +6317,74 @@ ipcMain.handle(
     ========================================================
 */
 
+function parseAllowedExternalUrl(value) {
+    let parsedUrl;
+
+    try {
+        parsedUrl = new URL(String(value));
+    } catch {
+        throw new Error("External URL is invalid.");
+    }
+
+    const allowedProtocols = [
+        "https:",
+        "spotify:",
+        "steam:",
+        "msxbox:"
+    ];
+
+    if (!allowedProtocols.includes(parsedUrl.protocol)) {
+        throw new Error("External URL protocol is not allowed.");
+    }
+
+    if (
+        parsedUrl.username ||
+        parsedUrl.password
+    ) {
+        throw new Error("External URL credentials are not allowed.");
+    }
+
+    if (
+        parsedUrl.protocol === "https:" &&
+        !parsedUrl.hostname
+    ) {
+        throw new Error("External HTTPS URL must include a hostname.");
+    }
+
+    return parsedUrl;
+}
+
+function validateSteamAppId(value) {
+    const appId = String(value || "").trim();
+
+    if (!/^\d{1,10}$/.test(appId)) {
+        throw new Error("Steam App ID is invalid.");
+    }
+
+    return appId;
+}
+
+function validateLaunchIdentifier(value, label) {
+    const identifier = String(value || "").trim();
+
+    if (!/^[A-Za-z0-9._-]{1,64}$/.test(identifier)) {
+        throw new Error(`${label} is invalid.`);
+    }
+
+    return identifier;
+}
+
+function validateXboxUri(value) {
+    const parsedUrl =
+        parseAllowedExternalUrl(value || "msxbox:");
+
+    if (parsedUrl.protocol !== "msxbox:") {
+        throw new Error("Xbox launch URI is invalid.");
+    }
+
+    return parsedUrl.toString();
+}
+
 ipcMain.handle(
     "open-external",
     async (
@@ -6333,24 +6401,7 @@ ipcMain.handle(
 
 
         const parsedUrl =
-            new URL(
-                String(url)
-            );
-
-        if (
-            ![
-                "https:",
-                "spotify:",
-                "steam:",
-                "msxbox:"
-            ].includes(
-                parsedUrl.protocol
-            )
-        ) {
-            throw new Error(
-                "External URL protocol is not allowed."
-            );
-        }
+            parseAllowedExternalUrl(url);
 
         await shell.openExternal(
             parsedUrl.toString()
@@ -6778,7 +6829,7 @@ ipcMain.handle(
 
 
                 await shell.openExternal(
-                    `steam://rungameid/${item.steamAppId}`
+                    `steam://rungameid/${validateSteamAppId(item.steamAppId)}`
                 );
 
 
@@ -6816,10 +6867,16 @@ ipcMain.handle(
                     [
 
                         "--launch-product=" +
-                            item.riotProduct,
+                            validateLaunchIdentifier(
+                                item.riotProduct,
+                                "Riot product"
+                            ),
 
                         "--launch-patchline=" +
-                            item.riotPatchline
+                            validateLaunchIdentifier(
+                                item.riotPatchline,
+                                "Riot patchline"
+                            )
 
                     ],
 
@@ -6850,8 +6907,10 @@ ipcMain.handle(
 
                 await shell.openExternal(
 
-                    item.xboxUri ||
-                    "msxbox:"
+                    validateXboxUri(
+                        item.xboxUri ||
+                        "msxbox:"
+                    )
 
                 );
 
@@ -6882,7 +6941,9 @@ ipcMain.handle(
 
 
                 await shell.openExternal(
-                    item.url
+                    parseAllowedExternalUrl(
+                        item.url
+                    ).toString()
                 );
 
 
