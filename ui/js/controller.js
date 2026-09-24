@@ -130,23 +130,59 @@ function pollGamepads(){
         setInputMode(controllerType);
 
         if(window.friendsSurface?.isInlineActive?.() && navigationLevel==="items"){
-            if(buttonJustPressed(gamepad,12)) window.friendsSurface.moveSelection?.(-1);
-            if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
-            if(buttonJustPressed(gamepad,14)) window.friendsSurface.movePlatform?.(-1);
-            if(buttonJustPressed(gamepad,15)) window.friendsSurface.movePlatform?.(1);
+            const focus = window.friendsSurface.getInputFocus?.() || "platforms";
 
-            const vertical = axisDirection(gamepad, 1);
-            const horizontal = axisDirection(gamepad, 0);
-            if (vertical) window.friendsSurface.moveSelection?.(vertical);
-            if (horizontal) window.friendsSurface.movePlatform?.(horizontal);
-            if(buttonJustPressed(gamepad,0)) window.friendsSurface.selectFriend?.();
-            if(buttonJustPressed(gamepad,1)) goBack();
+            if(buttonJustPressed(gamepad,1)){
+                if(focus === "friends"){
+                    window.friendsSurface.focusPlatforms?.();
+                } else {
+                    goBack();
+                }
+                rememberGamepad(gamepad);
+                continue;
+            }
+
+            if(focus === "platforms"){
+                if(buttonJustPressed(gamepad,14)) window.friendsSurface.movePlatform?.(-1);
+                if(buttonJustPressed(gamepad,15)) window.friendsSurface.movePlatform?.(1);
+
+                const horizontal = axisDirection(gamepad, 0);
+                if(horizontal) window.friendsSurface.movePlatform?.(horizontal);
+
+                if(buttonJustPressed(gamepad,13)){
+                    window.friendsSurface.focusFriends?.();
+                }
+
+                if(buttonJustPressed(gamepad,0)){
+                    window.friendsSurface.focusFriends?.();
+                }
+            } else {
+                if(buttonJustPressed(gamepad,14)) window.friendsSurface.moveFriendHorizontal?.(-1);
+                if(buttonJustPressed(gamepad,15)) window.friendsSurface.moveFriendHorizontal?.(1);
+                if(buttonJustPressed(gamepad,12)){
+                    const moved = window.friendsSurface.moveSelection?.(-1);
+                    if(moved === false) window.friendsSurface.focusPlatforms?.();
+                }
+                if(buttonJustPressed(gamepad,13)) window.friendsSurface.moveSelection?.(1);
+
+                const vertical = axisDirection(gamepad, 1);
+                const horizontal = axisDirection(gamepad, 0);
+                if(vertical < 0){
+                    const moved = window.friendsSurface.moveSelection?.(-1);
+                    if(moved === false) window.friendsSurface.focusPlatforms?.();
+                }
+                if(vertical > 0) window.friendsSurface.moveSelection?.(1);
+                if(horizontal) window.friendsSurface.moveFriendHorizontal?.(horizontal);
+
+                if(buttonJustPressed(gamepad,0)) window.friendsSurface.selectFriend?.();
+            }
+
             rememberGamepad(gamepad);
             continue;
         }
 
         if(handleSpotifyOverlay(gamepad)){
-            previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
+            rememberGamepad(gamepad);
             continue;
         }
 
@@ -192,7 +228,7 @@ function pollGamepads(){
             }
         }
 
-        previousGamepadButtons=gamepad.buttons.map(button=>button.pressed);
+        rememberGamepad(gamepad);
     }
 
     requestAnimationFrame(pollGamepads);

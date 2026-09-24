@@ -1395,32 +1395,62 @@ document.addEventListener(
             window.friendsSurface?.isInlineActive?.() &&
             navigationLevel === "items"
         ) {
+            const focus = window.friendsSurface?.getInputFocus?.() || "platforms";
+
             if (key === "escape") {
                 event.preventDefault();
                 goBack();
                 return;
             }
 
-            if (key === "arrowup" || key === "arrowdown") {
-                event.preventDefault();
-                window.friendsSurface?.moveSelection?.(
-                    key === "arrowdown" ? 1 : -1
-                );
-                return;
-            }
+            if (focus === "platforms") {
+                if (key === "arrowleft" || key === "arrowright") {
+                    event.preventDefault();
+                    window.friendsSurface?.movePlatform?.(
+                        key === "arrowright" ? 1 : -1
+                    );
+                    return;
+                }
 
-            if (key === "arrowleft" || key === "arrowright") {
-                event.preventDefault();
-                window.friendsSurface?.movePlatform?.(
-                    key === "arrowright" ? 1 : -1
-                );
-                return;
-            }
+                if (key === "arrowdown") {
+                    event.preventDefault();
+                    window.friendsSurface?.focusFriends?.();
+                    return;
+                }
 
-            if (key === "enter") {
-                event.preventDefault();
-                window.friendsSurface?.selectFriend?.();
-                return;
+                if (key === "enter") {
+                    event.preventDefault();
+                    return;
+                }
+            } else {
+                if (key === "arrowleft" || key === "arrowright") {
+                    event.preventDefault();
+                    window.friendsSurface?.moveFriendHorizontal?.(
+                        key === "arrowright" ? 1 : -1
+                    );
+                    return;
+                }
+
+                if (key === "arrowup") {
+                    event.preventDefault();
+                    const moved = window.friendsSurface?.moveSelection?.(-1);
+                    if (!moved) {
+                        window.friendsSurface?.focusPlatforms?.();
+                    }
+                    return;
+                }
+
+                if (key === "arrowdown") {
+                    event.preventDefault();
+                    window.friendsSurface?.moveSelection?.(1);
+                    return;
+                }
+
+                if (key === "enter") {
+                    event.preventDefault();
+                    window.friendsSurface?.selectFriend?.();
+                    return;
+                }
             }
         }
 
