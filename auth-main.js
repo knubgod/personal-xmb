@@ -15,7 +15,10 @@ const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
 const activeLogins = new Set();
 
 const configFile = () =>
-    path.join(__dirname, "config", "settings.json");
+    path.join(app.getPath("userData"), "settings.json");
+
+const bundledConfigFile = () =>
+    path.join(__dirname, "config", "settings.example.json");
 
 const tokenFile = () =>
     path.join(app.getPath("userData"), "accounts.json");
@@ -34,7 +37,13 @@ function writeJson(file, value) {
 }
 
 function settings() {
-    return readJson(configFile(), {});
+    const userSettings = readJson(configFile(), null);
+
+    if (userSettings && typeof userSettings === "object") {
+        return userSettings;
+    }
+
+    return readJson(bundledConfigFile(), {});
 }
 
 function accounts() {
@@ -652,6 +661,8 @@ ipcMain.handle(
         requireTrustedRenderer(event);
 
         try {
+            console.log(`[AUTH] Starting ${provider} authorization.`);
+
             if (
                 provider !== "discord" &&
                 provider !== "microsoft" &&
