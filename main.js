@@ -8143,6 +8143,88 @@ ipcMain.handle(
 
 
 ipcMain.handle(
+    "save-steam-config",
+    async (
+        event,
+        value
+    ) => {
+
+        requireTrustedRenderer(event);
+
+        try {
+
+            const steamId =
+                String(
+                    value?.steamId ||
+                    ""
+                ).trim();
+
+            const steamApiKey =
+                String(
+                    value?.steamApiKey ||
+                    ""
+                ).trim();
+
+            if (
+                !/^\\d{10,20}$/.test(
+                    steamId
+                )
+            ) {
+
+                throw new Error(
+                    "Enter a valid SteamID64 before saving."
+                );
+
+            }
+
+            if (
+                !steamApiKey &&
+                !getSteamLocalSettings().apiKey
+            ) {
+
+                throw new Error(
+                    "Enter your Steam Web API key before saving."
+                );
+
+            }
+
+            saveSteamCredentials(
+                steamId,
+                steamApiKey
+            );
+
+            return {
+                success:
+                    true,
+                configured:
+                    true
+            };
+
+        }
+        catch (
+            error
+        ) {
+
+            console.error(
+                "Steam account configuration save failed:",
+                error
+            );
+
+            return {
+                success:
+                    false,
+                error:
+                    error?.message ||
+                    "Unable to save Steam configuration."
+            };
+
+        }
+
+    }
+);
+
+
+ipcMain.handle(
     "save-account-config",
     async (
         event,
@@ -8160,17 +8242,6 @@ ipcMain.handle(
                         ""
                     ).trim()
             });
-
-            saveSteamCredentials(
-                String(
-                    value?.steamId ||
-                    ""
-                ).trim(),
-                String(
-                    value?.steamApiKey ||
-                    ""
-                ).trim()
-            );
 
             const settings =
                 readSettingsFile();
