@@ -202,12 +202,33 @@ function callback(port, expectedState) {
                     return;
                 }
 
-                if (url.searchParams.get("error")) {
-                    res.writeHead(400);
-                    res.end("Authorization cancelled.");
+                const oauthError = url.searchParams.get("error");
+
+                if (oauthError) {
+                    const description =
+                        url.searchParams.get("error_description") ||
+                        "No error description was provided.";
+
+                    console.error(
+                        "[AUTH] OAuth provider rejected authorization:",
+                        {
+                            providerPort: port,
+                            error: oauthError,
+                            description
+                        }
+                    );
+
+                    res.writeHead(400, {
+                        "Content-Type": "text/html; charset=utf-8"
+                    });
+                    res.end(
+                        "<h1>Personal XMB authorization failed.</h1>" +
+                        "<p>You can close this window and return to XMB.</p>"
+                    );
+
                     finish(
                         new Error(
-                            url.searchParams.get("error")
+                            `${oauthError}: ${description}`
                         )
                     );
                     return;
@@ -686,8 +707,13 @@ ipcMain.handle(
                             "https://discord.com/oauth2/authorize",
                         token:
                             "https://discord.com/api/oauth2/token",
+                        // Start with the standard identity scope.
+                        // Discord requires approval for relationships.read
+                        // and dm_channels.read; requesting those scopes here
+                        // causes authorization to be rejected unless the
+                        // application has the corresponding approvals.
                         scope:
-                            "identify connections relationships.read dm_channels.read",
+                            "identify",
                         port:
                             ports.discord
                     }
