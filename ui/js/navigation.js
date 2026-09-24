@@ -595,29 +595,38 @@ function moveItem(
     }
 
 
+    /*
+        Vertical item navigation is intentionally bounded.
+
+        Down stops at the last item instead of wrapping to
+        the first item. Up at the first item acts as a
+        console-style back action and returns to the parent
+        category.
+    */
+    if (
+        direction < 0 &&
+        currentItem === 0
+    ) {
+
+        goBack();
+
+        return;
+
+    }
+
+
+    if (
+        direction > 0 &&
+        currentItem >= items.length - 1
+    ) {
+
+        return;
+
+    }
+
+
     currentItem +=
         direction;
-
-
-    if (
-        currentItem < 0
-    ) {
-
-        currentItem =
-            items.length - 1;
-
-    }
-
-
-    if (
-        currentItem >=
-        items.length
-    ) {
-
-        currentItem =
-            0;
-
-    }
 
 
     refreshNavigation(
@@ -660,29 +669,37 @@ function moveAction(
     }
 
 
+    /*
+        Options use the same bounded vertical navigation as
+        normal item lists.
+
+        Up at the first option closes the Options panel.
+        Down at the last option stays there.
+    */
+    if (
+        direction < 0 &&
+        currentAction === 0
+    ) {
+
+        goBack();
+
+        return;
+
+    }
+
+
+    if (
+        direction > 0 &&
+        currentAction >= actions.length - 1
+    ) {
+
+        return;
+
+    }
+
+
     currentAction +=
         direction;
-
-
-    if (
-        currentAction < 0
-    ) {
-
-        currentAction =
-            actions.length - 1;
-
-    }
-
-
-    if (
-        currentAction >=
-        actions.length
-    ) {
-
-        currentAction =
-            0;
-
-    }
 
 
     refreshNavigation(
@@ -1433,10 +1450,20 @@ document.addEventListener(
 
                 if (key === "arrowup") {
                     event.preventDefault();
+
+                    /*
+                        Up at the first friend closes the Friends
+                        surface and returns to the main XMB.
+
+                        Escape/Back can still be used to move back
+                        through the normal Friends focus state.
+                    */
                     const moved = window.friendsSurface?.moveSelection?.(-1);
+
                     if (!moved) {
-                        window.friendsSurface?.focusPlatforms?.();
+                        goBack();
                     }
+
                     return;
                 }
 
