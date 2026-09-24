@@ -1389,6 +1389,8 @@ document.addEventListener(
             return;
         }
 
+        const key = event.key.toLowerCase();
+
         if (
             window.friendsSurface?.isInlineActive?.() &&
             navigationLevel === "items"
@@ -1464,9 +1466,6 @@ document.addEventListener(
 
         }
 
-
-        const key =
-            event.key.toLowerCase();
 
 
         /*
