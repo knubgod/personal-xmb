@@ -1433,15 +1433,10 @@ document.addEventListener(
 
                 if (key === "arrowup") {
                     event.preventDefault();
-                    const cards = window.friendsSurface?.getFriendCards?.();
-                    if (cards && cards.length) {
-                        const selected = cards.findIndex(card => card.classList.contains("selected"));
-                        if (selected <= 1) {
-                            window.friendsSurface?.focusPlatforms?.();
-                            return;
-                        }
+                    const moved = window.friendsSurface?.moveSelection?.(-1);
+                    if (!moved) {
+                        window.friendsSurface?.focusPlatforms?.();
                     }
-                    window.friendsSurface?.moveSelection?.(-1);
                     return;
                 }
 
