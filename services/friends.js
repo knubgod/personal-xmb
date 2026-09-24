@@ -541,7 +541,7 @@ const friendsSurface = (() => {
         }
     }, true);
 
-    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms, focusFriends, getInputFocus, selectFriend, setFriendSelection, isInlineActive };
+    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms, focusFriends, getInputFocus, getFriendCards, selectFriend, setFriendSelection, isInlineActive };
 })();
 
 window.friendsSurface = friendsSurface;
