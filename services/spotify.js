@@ -196,6 +196,12 @@ const spotifyService={
             throw new Error("Spotify Web Playback SDK is not loaded yet.");
         }
 
+        if(this.playerConnecting){
+            return this.playerReady&&!!this.playerDeviceId;
+        }
+
+        this.playerConnecting=true;
+
         /*
             Ask the main process for a valid streaming token before
             creating a player. This prevents the old startup race where
@@ -205,6 +211,8 @@ const spotifyService={
         const tokenResult=await window.electron?.spotifyPlaybackToken?.();
 
         if(!tokenResult?.success||!tokenResult?.accessToken){
+            this.playerConnecting=false;
+
             const error=new Error(
                 tokenResult?.error||
                 "Spotify playback authorization is required."
@@ -213,7 +221,6 @@ const spotifyService={
             throw error;
         }
 
-        this.playerConnecting=true;
         this.playerReadyPromise=null;
         this.playerError="";
 
