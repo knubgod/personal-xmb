@@ -15,6 +15,13 @@ const spotifyService={
     playerReady:false,
     playerConnecting:false,
     playerReadyPromise:null,
+    playbackIntent:null,
+    playbackIntentStartedAt:0,
+    playbackRecoveryAttempts:0,
+    playbackCommandId:0,
+    continuationMode:null,
+    continuationInFlight:false,
+    continuationSeedUri:"",
 
     async initialize(){
         if(this.initialized)return;
@@ -89,6 +96,23 @@ const spotifyService={
             throw new Error(result?.error||"Spotify API request failed.");
         }
         return result.data;
+    },
+
+    sleep(ms){
+        return new Promise(resolve=>setTimeout(resolve,ms));
+    },
+
+    async waitForSdkState(predicate,attempts=20,delay=250){
+        for(let attempt=0;attempt<attempts;attempt++){
+            try{
+                const state=await this.player?.getCurrentState?.();
+                if(state&&predicate(state))return state;
+            }catch(error){
+                // The SDK can briefly report no state while Connect settles.
+            }
+            if(attempt<attempts-1)await this.sleep(delay);
+        }
+        return null;
     },
 
     async refreshNowPlaying(){
@@ -257,13 +281,18 @@ const spotifyService={
 
             player.addListener("playback_error",({message})=>{
                 console.error("Spotify Web Playback error:",message);
-                this.showTemporaryMessage("Spotify playback error.");
+                this.showTemporaryMessage("Spotify is still preparing playback...");
+                this.recoverPlaybackAfterError();
             });
 
             player.addListener("player_state_changed",state=>{
                 if(!state)return;
                 const track=state.track_window?.current_track;
                 if(track){
+                    if(!state.paused&&(!this.playbackIntent?.uri||track.uri===this.playbackIntent.uri)){
+                        this.playbackRecoveryAttempts=0;
+                    }
+
                     this.currentTrack={
                         id:track.id,
                         uri:track.uri||"",
@@ -276,6 +305,20 @@ const spotifyService={
                         isPlaying:!state.paused,
                         spotifyUrl:""
                     };
+
+                    const naturalEnd=
+                        state.paused&&
+                        state.duration>0&&
+                        state.position>=Math.max(0,state.duration-1500)&&
+                        this.continuationMode==="related"&&
+                        track.uri===this.continuationSeedUri;
+
+                    if(naturalEnd&&!this.continuationInFlight){
+                        this.continuationInFlight=true;
+                        this.buildContinuationQueue(track)
+                            .catch(error=>console.warn("Spotify continuation queue failed:",error.message))
+                            .finally(()=>{this.continuationInFlight=false;});
+                    }
                 }
                 this.renderPlayer();
             });
@@ -437,20 +480,111 @@ const spotifyService={
         });
     },
 
-    async playTrack(uri){
+    async startTrack(uri,{recovery=false}={}){
         if(!uri)throw new Error("Spotify track URI is missing.");
+        const commandId=++this.playbackCommandId;
+        this.playbackIntent={uri};
+        this.playbackIntentStartedAt=Date.now();
+        if(!recovery)this.playbackRecoveryAttempts=0;
+
         await this.activatePlayer();
+        await this.sleep(recovery?350:700);
         await this.transferToLocalPlayer();
+        await this.sleep(350);
+
         await this.api({
             method:"PUT",
             endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
             body:{uris:[uri]}
         });
+
+        if(commandId!==this.playbackCommandId)return;
+
+        const state=await this.waitForSdkState(
+            current=>current.track_window?.current_track?.uri===uri,
+            24,
+            250
+        );
+
+        if(state?.paused&&state.track_window?.current_track?.uri===uri){
+            await this.player.resume();
+        }
         this.lastPlayerRefresh=0;
+    },
+
+    async recoverPlaybackAfterError(){
+        const intent=this.playbackIntent;
+        if(!intent?.uri||Date.now()-this.playbackIntentStartedAt>15000||this.playbackRecoveryAttempts>=2)return;
+        this.playbackRecoveryAttempts++;
+        const attempt=this.playbackRecoveryAttempts;
+        await this.sleep(1800*attempt);
+        if(this.playbackIntent?.uri!==intent.uri)return;
+        try{await this.startTrack(intent.uri,{recovery:true});}
+        catch(error){console.warn("Spotify playback recovery failed:",error.message);}
+    },
+
+    async playTrack(uri){
+        this.continuationMode="related";
+        this.continuationSeedUri=uri||"";
+        await this.startTrack(uri);
+    },
+
+    async addToQueue(uri){
+        if(!uri)throw new Error("Spotify queue item URI is missing.");
+        if(!/^spotify:(track|episode):/.test(uri))throw new Error("Only Spotify tracks and episodes can be queued.");
+        await this.ensureLocalPlayer();
+        await this.api({
+            method:"POST",
+            endpoint:"/me/player/queue?uri="+encodeURIComponent(uri)+"&device_id="+encodeURIComponent(this.playerDeviceId)
+        });
+        this.showTemporaryMessage("Added to Spotify queue.");
+    },
+
+    async getQueue(){
+        return this.api({method:"GET",endpoint:"/me/player/queue"});
+    },
+
+    async buildContinuationQueue(seedTrack){
+        if(!seedTrack?.uri)return;
+        const artist=seedTrack.artists?.[0]?.name||"";
+        const title=seedTrack.name||"";
+        const queries=[];
+        if(artist)queries.push(artist);
+        if(title&&artist)queries.push(artist+" "+title);
+
+        const candidates=new Map();
+        for(const query of queries){
+            try{
+                const data=await this.search(query,"track");
+                for(const item of data?.tracks?.items||[]){
+                    if(item?.uri&&item.uri!==seedTrack.uri&&item.is_playable!==false&&!candidates.has(item.uri))candidates.set(item.uri,item);
+                }
+            }catch(error){
+                console.warn("Spotify continuation search failed:",error.message);
+            }
+        }
+
+        const tracks=[...candidates.values()];
+        for(let i=tracks.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tracks[i],tracks[j]]=[tracks[j],tracks[i]];}
+        const selected=tracks.slice(0,6);
+        if(!selected.length)return;
+
+        let existing=[];
+        try{const queue=await this.getQueue();existing=(queue?.queue||[]).map(item=>item?.uri).filter(Boolean);}
+        catch(error){console.warn("Spotify queue check failed:",error.message);}
+
+        for(const item of selected){
+            if(existing.includes(item.uri))continue;
+            try{await this.addToQueue(item.uri);}
+            catch(error){console.warn("Spotify continuation queue add failed:",error.message);}
+        }
+        this.showTemporaryMessage("Continuation queue ready.");
     },
 
     async playPlaylist(uri){
         if(!uri)throw new Error("Spotify playlist URI is missing.");
+        this.continuationMode=null;
+        this.continuationSeedUri="";
         await this.activatePlayer();
         await this.transferToLocalPlayer();
         await this.api({
@@ -463,6 +597,8 @@ const spotifyService={
 
     async playContext(uri){
         if(!uri)throw new Error("Spotify context URI is missing.");
+        this.continuationMode=null;
+        this.continuationSeedUri="";
         await this.activatePlayer();
         await this.transferToLocalPlayer();
         await this.api({
@@ -475,6 +611,8 @@ const spotifyService={
 
     async playPodcastShow(uri){
         if(!uri)throw new Error("Spotify podcast URI is missing.");
+        this.continuationMode=null;
+        this.continuationSeedUri="";
         await this.activatePlayer();
         await this.transferToLocalPlayer();
         await this.api({
@@ -483,6 +621,12 @@ const spotifyService={
             body:{context_uri:uri}
         });
         this.lastPlayerRefresh=0;
+    },
+
+    async albumTracks(uri,limit=50){
+        const id=String(uri||"").split(":").pop();
+        if(!id)throw new Error("Spotify album ID is missing.");
+        return this.api({method:"GET",endpoint:"/albums/"+encodeURIComponent(id)+"/tracks?limit="+Math.min(50,Math.max(1,limit))});
     },
 
     async search(query,type="all"){
