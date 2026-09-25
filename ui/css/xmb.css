@@ -2315,6 +2315,30 @@ body.navigation-visible #input-mode {
 
 }
 
+#spotify-controller-hint {
+
+    display: none;
+
+    align-items: center;
+
+    gap: 6px;
+
+    white-space: nowrap;
+
+}
+
+#spotify-controller-hint.visible {
+
+    display: inline-flex;
+
+}
+
+#spotify-controller-hint .input-button {
+
+    margin-right: 0;
+
+}
+
 .friends-platform-hint-arrow {
 
     opacity: 0.55;
