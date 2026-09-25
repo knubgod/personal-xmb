@@ -23,15 +23,32 @@ const spotifyService={
         this.initialized=true;
 
         /*
-            XMB uses Spotify's Web API for library, metadata, and
-            playback status. Audio playback itself is handed to the
-            installed Spotify application rather than a remote
-            Spotify Connect device.
+            Spotify is optional during XMB startup. Do not wait for
+            the Web API or Web Playback SDK here; either can take time
+            to authenticate or establish a protected media session.
+            The launcher should become interactive immediately.
         */
-        await this.refreshNowPlaying();
+        this.refreshNowPlaying().catch(error=>{
+            console.debug(
+                "[Spotify] Initial playback state refresh deferred:",
+                error?.message||error
+            );
+        });
 
         this.startPolling();
         this.startProgressTicker();
+
+        /*
+            The SDK may already be loaded, or it may load later.
+            initializeWebPlayback() is deliberately fire-and-forget
+            so Widevine/EME setup never holds up the XMB boot screen.
+        */
+        this.initializeWebPlayback().catch(error=>{
+            console.debug(
+                "[Spotify] Web Playback startup deferred:",
+                error?.message||error
+            );
+        });
     },
 
     startPolling(){
@@ -278,6 +295,9 @@ const spotifyService={
                 player.addListener("not_ready",({device_id})=>{
                     if(!device_id||device_id===this.playerDeviceId){
                         this.playerReady=false;
+                        if(device_id===this.playerDeviceId){
+                            this.playerDeviceId="";
+                        }
                     }
 
                     console.warn(
@@ -673,16 +693,65 @@ function formatTime(ms){
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
-    document.getElementById("media-play")?.addEventListener("click",()=>spotifyService.togglePlayback());
-    document.getElementById("media-next")?.addEventListener("click",()=>spotifyService.next());
-    document.getElementById("media-previous")?.addEventListener("click",()=>spotifyService.previous());
-    document.getElementById("media-shuffle")?.addEventListener("click",()=>spotifyService.toggleShuffle());
-    document.getElementById("media-repeat")?.addEventListener("click",()=>spotifyService.cycleRepeat());
+    const runPlaybackCommand=async(command,successMessage)=>{
+        try{
+            await command();
+            if(successMessage)spotifyService.showTemporaryMessage(successMessage);
+        }catch(error){
+            console.error("[Spotify] Playback command failed:",error);
+            spotifyService.showTemporaryMessage(
+                error?.message||"Spotify playback is unavailable."
+            );
+        }
+    };
+
+    document.getElementById("media-play")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.togglePlayback()
+        )
+    );
+
+    document.getElementById("media-next")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.next()
+        )
+    );
+
+    document.getElementById("media-previous")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.previous()
+        )
+    );
+
+    document.getElementById("media-shuffle")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.toggleShuffle()
+        )
+    );
+
+    document.getElementById("media-repeat")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.cycleRepeat()
+        )
+    );
 
     window.electron?.onSpotifyAuthComplete?.(async()=>{
         spotifyService.initialized=false;
         spotifyService.stopPolling();
-        await spotifyService.initialize();
+
+        try{
+            await spotifyService.initialize();
+        }catch(error){
+            console.warn(
+                "[Spotify] Post-login initialization deferred:",
+                error
+            );
+        }
     });
 });
 
@@ -802,6 +871,8 @@ const spotifyUi={
         this.rows=[];
         this.selectedIndex=0;
         this.selectedFilter=0;
+        const filters=this.overlay.querySelector(".spotify-library-filters");
+        if(filters)filters.style.display="";
         this.updateFilterVisuals();
     },
 
@@ -1047,6 +1118,7 @@ const spotifyUi={
         const content=overlay.querySelector("#spotify-library-content");
         const filter=this.filters[this.selectedFilter];
 
+        overlay.querySelector(".spotify-library-filters").style.display="";
         overlay.querySelector("#spotify-library-title").textContent="Recently Played";
         overlay.classList.add("visible");
         this.updateFilterVisuals();
