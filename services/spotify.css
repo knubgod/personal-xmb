@@ -310,3 +310,69 @@
     opacity:1;
     transform:scale(1.08);
 }
+
+
+/* ========================================================
+   SPOTIFY SEARCH / QUEUE / ALBUM BROWSING
+   ======================================================== */
+
+.spotify-result-group{
+    display:flex;
+    align-items:stretch;
+    gap:8px;
+    border-bottom:1px solid rgba(255,255,255,.07);
+}
+
+.spotify-result-group .spotify-library-row{
+    flex:1;
+    min-width:0;
+    border-bottom:0;
+}
+
+.spotify-queue-button{
+    align-self:center;
+    flex:0 0 auto;
+    margin-right:8px;
+    padding:7px 10px;
+    border:1px solid rgba(255,255,255,.13);
+    background:rgba(255,255,255,.045);
+    color:rgba(255,255,255,.68);
+    font:inherit;
+    font-size:10px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:background .2s ease,color .2s ease,transform .2s ease;
+}
+
+.spotify-queue-button:hover,
+.spotify-queue-button:focus-visible{
+    background:rgba(255,255,255,.12);
+    color:#fff;
+    transform:translateY(-1px);
+    outline:none;
+}
+
+.spotify-album-subheader{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:12px;
+    padding-bottom:10px;
+    border-bottom:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.5);
+    font-size:11px;
+}
+
+.spotify-album-subheader button{
+    border:0;
+    background:transparent;
+    color:#fff;
+    padding:6px 0;
+    cursor:pointer;
+    font:inherit;
+}
+
+.spotify-album-subheader button:hover{
+    color:var(--xmb-accent);
+}
