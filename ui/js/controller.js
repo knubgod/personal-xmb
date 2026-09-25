@@ -16,6 +16,7 @@
 
 let activeInputMode = "keyboard";
 let gamepadConnected = false;
+let spotifyControllerMode = false;
 
 const previousGamepadButtons = new Map();
 const previousGamepadAxes = new Map();
@@ -73,6 +74,69 @@ function setGamepadConnected(connected) {
     if (gamepadConnected === next) return;
     gamepadConnected = next;
     updateNavigationHints();
+}
+
+function setSpotifyControllerMode(enabled){
+    const next=Boolean(enabled);
+    if(spotifyControllerMode===next)return;
+    spotifyControllerMode=next;
+    updateNavigationHints();
+}
+
+function handleSpotifyControllerMode(gamepad){
+    if(!spotifyControllerMode)return false;
+
+    if(buttonJustPressed(gamepad,1)){
+        setSpotifyControllerMode(false);
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,0)){
+        window.spotifyService?.togglePlayback?.().catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify playback is unavailable."
+            );
+        });
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,14)){
+        window.spotifyService?.previous?.().catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify playback is unavailable."
+            );
+        });
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,15)){
+        window.spotifyService?.next?.().catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify playback is unavailable."
+            );
+        });
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,2)){
+        window.spotifyService?.toggleShuffle?.().catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify playback is unavailable."
+            );
+        });
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,3)){
+        window.spotifyService?.cycleRepeat?.().catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify playback is unavailable."
+            );
+        });
+        return true;
+    }
+
+    return true;
 }
 
 function handleSpotifyOverlay(gamepad){
@@ -140,6 +204,27 @@ function pollGamepads(){
                 : "xbox";
 
         setInputMode(controllerType);
+
+        /*
+            LB + RB is the global Spotify media chord. Friends keeps
+            its existing LB/RB platform switching behavior while its
+            surface is active.
+        */
+        if(
+            !window.friendsSurface?.isInlineActive?.() &&
+            buttonPressed(gamepad,4) &&
+            buttonPressed(gamepad,5) &&
+            (buttonJustPressed(gamepad,4)||buttonJustPressed(gamepad,5))
+        ){
+            setSpotifyControllerMode(!spotifyControllerMode);
+            rememberGamepad(gamepad);
+            continue;
+        }
+
+        if(handleSpotifyControllerMode(gamepad)){
+            rememberGamepad(gamepad);
+            continue;
+        }
 
         if(window.friendsSurface?.isInlineActive?.() && navigationLevel==="items"){
             const focus = window.friendsSurface.getInputFocus?.() || "platforms";
@@ -279,5 +364,6 @@ window.addEventListener("gamepaddisconnected",()=>{
 
 window.getInputMode=()=>activeInputMode;
 window.isGamepadConnected=()=>gamepadConnected;
+window.isSpotifyControllerMode=()=>spotifyControllerMode;
 
 requestAnimationFrame(pollGamepads);
