@@ -18,6 +18,8 @@ const spotifyService={
     playbackIntent:null,
     playbackIntentStartedAt:0,
     playbackRecoveryAttempts:0,
+    playbackErrorAt:0,
+    playbackErrorPauseAt:0,
     playbackCommandId:0,
     continuationMode:null,
     continuationInFlight:false,
@@ -292,7 +294,22 @@ const spotifyService={
                 */
                 console.error("Spotify Web Playback error:",message);
                 this.playbackErrorAt=Date.now();
-                this.showTemporaryMessage("Spotify playback encountered an error.");
+
+                /*
+                    If Widevine is failing, the SDK can otherwise keep
+                    advancing through tracks while it retries licenses.
+                    Pause once so the user gets a stable recovery point.
+                    Do not immediately issue another play/track command.
+                */
+                if(
+                    this.player &&
+                    Date.now()-this.playbackErrorPauseAt>5000
+                ){
+                    this.playbackErrorPauseAt=Date.now();
+                    Promise.resolve(this.player.pause?.()).catch(()=>{});
+                }
+
+                this.showTemporaryMessage("Spotify playback encountered an error. Try Play again in a moment.");
             });
 
             player.addListener("player_state_changed",state=>{
@@ -437,6 +454,14 @@ const spotifyService={
     },
 
     async next(){
+        /*
+            Do not hammer Spotify's next-track command while a
+            Widevine/license failure is actively recovering.
+        */
+        if(Date.now()-this.playbackErrorAt<5000){
+            this.showTemporaryMessage("Spotify is recovering playback. Try Next again in a moment.");
+            return;
+        }
         await this.activatePlayer();
         await this.player.nextTrack();
     },
@@ -498,6 +523,7 @@ const spotifyService={
     async startTrack(uri,{recovery=false}={}){
         if(!uri)throw new Error("Spotify track URI is missing.");
         const commandId=++this.playbackCommandId;
+        this.playbackErrorAt=0;
         this.playbackIntent={type:"track",uri};
         this.playbackIntentStartedAt=Date.now();
         if(!recovery)this.playbackRecoveryAttempts=0;
@@ -554,6 +580,7 @@ const spotifyService={
     async startContext(uri,{recovery=false}={}){
         if(!uri)throw new Error("Spotify context URI is missing.");
         const commandId=++this.playbackCommandId;
+        this.playbackErrorAt=0;
         this.playbackIntent={type:"context",uri};
         this.playbackIntentStartedAt=Date.now();
         if(!recovery)this.playbackRecoveryAttempts=0;
