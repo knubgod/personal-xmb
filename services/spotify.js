@@ -473,13 +473,27 @@ const spotifyService={
     },
 
     async activatePlayer(){
+        /*
+            If a player already exists, activate it immediately on the
+            original click/gamepad event before any awaited network work.
+            This preserves the user gesture needed by autoplay policies.
+        */
+        if(this.player?.activateElement){
+            try{
+                await this.player.activateElement();
+            }catch(error){
+                console.debug(
+                    "[Spotify] Player activation before readiness failed:",
+                    error?.message||error
+                );
+            }
+        }
+
         await this.ensureLocalPlayer();
 
         /*
-            Spotify documents activateElement() as the user-gesture
-            activation needed when autoplay rules would otherwise block
-            playback. All XMB Play/Next/Previous commands arrive from a
-            user interaction, so activate before touching playback.
+            Call again after readiness so a newly-created player is also
+            activated before the playback command is issued.
         */
         if(this.player?.activateElement){
             await this.player.activateElement();
