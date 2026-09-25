@@ -117,21 +117,6 @@
         "theme": "spotify",
         "items": [
             {
-                "id": "spotify-launch-desktop",
-                "name": "Launch Spotify",
-                "type": "music",
-                "platform": "Spotify",
-                "description": "Open the installed Spotify desktop application.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "Launch Spotify",
-                        "action": "spotify-launch"
-                    }
-                ]
-            },
-            {
                 "id": "spotify-now-playing",
                 "name": "Now Playing",
                 "type": "music",
