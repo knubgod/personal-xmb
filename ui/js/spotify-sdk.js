@@ -36,13 +36,15 @@ async function diagnoseSpotifyEme() {
             audioCapabilities: [
                 {
                     contentType:
-                        "audio/mp4; codecs=\"mp4a.40.2\""
+                        "audio/mp4; codecs=\"mp4a.40.2\"",
+                    robustness: "SW_SECURE_CRYPTO"
                 }
             ],
             videoCapabilities: [
                 {
                     contentType:
-                        "video/mp4; codecs=\"avc1.42E01E\""
+                        "video/mp4; codecs=\"avc1.42E01E\"",
+                    robustness: "SW_SECURE_DECODE"
                 }
             ]
         }
@@ -80,8 +82,12 @@ async function diagnoseSpotifyEme() {
 }
 
 
-diagnoseSpotifyEme();
-
+/*
+    Do not run the EME probe during XMB boot. It creates an extra
+    asynchronous media-key-system request before the user even enters
+    Spotify. The diagnostic is still available when the SDK reports
+    an actual initialization failure.
+*/
 
 window.onSpotifyWebPlaybackSDKReady=async()=>{
     /*
