@@ -483,7 +483,7 @@ const spotifyService={
     async startTrack(uri,{recovery=false}={}){
         if(!uri)throw new Error("Spotify track URI is missing.");
         const commandId=++this.playbackCommandId;
-        this.playbackIntent={uri};
+        this.playbackIntent={type:"track",uri};
         this.playbackIntentStartedAt=Date.now();
         if(!recovery)this.playbackRecoveryAttempts=0;
 
@@ -519,8 +519,36 @@ const spotifyService={
         const attempt=this.playbackRecoveryAttempts;
         await this.sleep(1800*attempt);
         if(this.playbackIntent?.uri!==intent.uri)return;
-        try{await this.startTrack(intent.uri,{recovery:true});}
-        catch(error){console.warn("Spotify playback recovery failed:",error.message);}
+        try{
+            if(intent.type==="context")await this.startContext(intent.uri,{recovery:true});
+            else await this.startTrack(intent.uri,{recovery:true});
+        }catch(error){console.warn("Spotify playback recovery failed:",error.message);}
+    },
+
+    async startContext(uri,{recovery=false}={}){
+        if(!uri)throw new Error("Spotify context URI is missing.");
+        const commandId=++this.playbackCommandId;
+        this.playbackIntent={type:"context",uri};
+        this.playbackIntentStartedAt=Date.now();
+        if(!recovery)this.playbackRecoveryAttempts=0;
+
+        await this.activatePlayer();
+        await this.sleep(recovery?350:700);
+        await this.transferToLocalPlayer();
+        await this.sleep(350);
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            body:{context_uri:uri}
+        });
+        if(commandId!==this.playbackCommandId)return;
+        const state=await this.waitForSdkState(
+            current=>current.context?.uri===uri,
+            24,
+            250
+        );
+        if(state?.paused)await this.player.resume();
+        this.lastPlayerRefresh=0;
     },
 
     async playTrack(uri){
@@ -585,42 +613,21 @@ const spotifyService={
         if(!uri)throw new Error("Spotify playlist URI is missing.");
         this.continuationMode=null;
         this.continuationSeedUri="";
-        await this.activatePlayer();
-        await this.transferToLocalPlayer();
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
-            body:{context_uri:uri}
-        });
-        this.lastPlayerRefresh=0;
+        await this.startContext(uri);
     },
 
     async playContext(uri){
         if(!uri)throw new Error("Spotify context URI is missing.");
         this.continuationMode=null;
         this.continuationSeedUri="";
-        await this.activatePlayer();
-        await this.transferToLocalPlayer();
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
-            body:{context_uri:uri}
-        });
-        this.lastPlayerRefresh=0;
+        await this.startContext(uri);
     },
 
     async playPodcastShow(uri){
         if(!uri)throw new Error("Spotify podcast URI is missing.");
         this.continuationMode=null;
         this.continuationSeedUri="";
-        await this.activatePlayer();
-        await this.transferToLocalPlayer();
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
-            body:{context_uri:uri}
-        });
-        this.lastPlayerRefresh=0;
+        await this.startContext(uri);
     },
 
     async albumTracks(uri,limit=50){
