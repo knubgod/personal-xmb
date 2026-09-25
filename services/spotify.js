@@ -220,6 +220,14 @@ const spotifyService={
         this.playerReadyPromise=null;
 
         try{
+            /*
+                The SDK script loads asynchronously. Wait only when playback
+                is actually requested; never block XMB startup for it.
+            */
+            for(let attempt=0;attempt<20&&!window.Spotify?.Player;attempt++){
+                await this.sleep(250);
+            }
+
             if(!window.Spotify?.Player){
                 throw new Error("Spotify Web Playback SDK is not loaded.");
             }
