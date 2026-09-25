@@ -1239,12 +1239,6 @@ async function executeAction(
         return;
     }
 
-    if (action.action === "spotify-now-playing") {
-        await window.spotifyService?.refreshNowPlaying?.();
-        showTemporaryMessage("Now Playing refreshed.");
-        return;
-    }
-
     if (action.action === "spotify-recent") {
         window.spotifyUi?.showRecentlyPlayed?.();
         return;
@@ -2164,6 +2158,11 @@ function updateNavigationHints() {
             "friends-platform-hint"
         );
 
+    const spotifyControllerHint =
+        document.getElementById(
+            "spotify-controller-hint"
+        );
+
 
     if (mode) {
 
@@ -2241,6 +2240,25 @@ function updateNavigationHints() {
             friendsOpen && gamepadConnected
         );
 
+    }
+
+    if (spotifyControllerHint) {
+        const controllerConnected =
+            typeof window.isGamepadConnected === "function" &&
+            window.isGamepadConnected();
+
+        const mediaMode =
+            typeof window.isSpotifyControllerMode === "function" &&
+            window.isSpotifyControllerMode();
+
+        spotifyControllerHint.classList.toggle(
+            "visible",
+            controllerConnected && mediaMode
+        );
+
+        spotifyControllerHint.innerHTML=mediaMode
+            ? '<span class="input-button">A</span><span>Play/Pause</span><span class="input-button">◀/▶</span><span>Prev/Next</span><span class="input-button">B</span><span>Close</span>'
+            : '<span class="input-button">LB+RB</span><span>Media</span>';
     }
 
 }
