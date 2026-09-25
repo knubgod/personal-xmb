@@ -65,8 +65,8 @@ const spotifyService={
                 );
             }
 
-            this.renderPlayer();
-        },250);
+            this.updateSpotifyProgress?.();
+        },1000);
     },
 
     stopPolling(){
@@ -739,6 +739,23 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 
 window.spotifyService=spotifyService;
+
+window.updateSpotifyProgress=()=>{
+    const track=spotifyService.currentTrack;
+    if(!track)return;
+
+    const current=document.getElementById("media-current");
+    const fill=document.getElementById("media-progress-fill");
+
+    if(current)current.textContent=formatTime(track.progress);
+
+    if(fill){
+        const percent=track.duration
+            ?Math.round((track.progress/track.duration)*100/5)*5
+            :0;
+        fill.className="progress-"+Math.max(0,Math.min(100,percent));
+    }
+};
 
 window.updateSpotifyPlayer=(track)=>{
     const title=document.getElementById("media-title");
