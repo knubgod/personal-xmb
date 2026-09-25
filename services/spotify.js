@@ -509,6 +509,14 @@ const spotifyService={
         if(state?.paused&&state.track_window?.current_track?.uri===uri){
             await this.player.resume();
         }
+
+        if(state&&!state.paused&&this.continuationMode==="related"&&this.continuationSeedUri===uri&&!this.continuationInFlight){
+            this.continuationInFlight=true;
+            this.buildContinuationQueue(state.track_window.current_track)
+                .catch(error=>console.warn("Spotify continuation queue failed:",error.message))
+                .finally(()=>{this.continuationInFlight=false;});
+        }
+
         this.lastPlayerRefresh=0;
     },
 
