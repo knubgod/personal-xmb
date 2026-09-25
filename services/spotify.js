@@ -1219,15 +1219,20 @@ const spotifyUi={
                 }
 
                 results.innerHTML=rows.map(item=>
-                    '<button class="spotify-library-row" type="button" data-uri="'+
-                        this.escapeAttribute(item.uri)+
-                        '" data-url="'+this.escapeAttribute(item.spotifyUrl)+
-                        '" data-type="'+this.escapeAttribute(item.type)+'">'+
-                        (item.image
-                            ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
-                            :'<span class="spotify-library-row-icon '+item.type+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
-                        '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+
-                    '</button>'
+                    '<div class="spotify-result-group">'+
+                        '<button class="spotify-library-row" type="button" data-uri="'+
+                            this.escapeAttribute(item.uri)+'" data-url="'+this.escapeAttribute(item.spotifyUrl)+'" data-type="'+this.escapeAttribute(item.type)+'">'+
+                            (item.image
+                                ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
+                                :'<span class="spotify-library-row-icon '+item.type+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
+                            '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+ 
+                        '</button>'+ 
+                        (item.type==="track"
+                            ?'<button class="spotify-queue-button" type="button">+ Queue</button>'
+                            :item.type==="album"
+                                ?'<button class="spotify-queue-button" type="button">Open Album</button>'
+                                :'')+
+                    '</div>'
                 ).join("");
 
                 const rowElements=[...results.querySelectorAll(".spotify-library-row")];
@@ -1254,29 +1259,41 @@ const spotifyUi={
                     row.onclick=async event=>{
                         event.preventDefault();
                         event.stopPropagation();
-
                         this.selectedIndex=index;
                         this.setRows(rowElements);
-
                         try{
-                            if(
-                                item.type==="track" ||
-                                item.type==="episode"
-                            ){
+                            if(item.type==="album"){
+                                await this.showAlbumTracks(item);
+                                return;
+                            }
+                            if(item.type==="track"||item.type==="episode"){
                                 await spotifyService.playTrack(row.dataset.uri);
                             }else{
                                 await spotifyService.playContext(row.dataset.uri);
                             }
-
                             this.close();
                         }catch(error){
                             console.error("Spotify search playback failed:",error);
-                            this.showStatus(
-                                error.message||
-                                "Unable to start Spotify playback."
-                            );
+                            this.showStatus(error.message||"Unable to start Spotify playback.");
                         }
                     };
+
+                    const actionButton=row.parentElement?.querySelector(".spotify-queue-button");
+                    if(actionButton&&item.type==="track"){
+                        actionButton.onclick=async event=>{
+                            event.preventDefault();
+                            event.stopPropagation();
+                            try{await spotifyService.addToQueue(item.uri);}
+                            catch(error){this.showStatus(error.message||"Unable to add track to queue.");}
+                        };
+                    }
+                    if(actionButton&&item.type==="album"){
+                        actionButton.onclick=async event=>{
+                            event.preventDefault();
+                            event.stopPropagation();
+                            await this.showAlbumTracks(item);
+                        };
+                    }
                 });
 
                 this.setRows(rowElements);
@@ -1288,6 +1305,46 @@ const spotifyUi={
         };
 
         input.focus();
+    },
+
+    async showAlbumTracks(album){
+        const overlay=this.ensure();
+        const content=overlay.querySelector("#spotify-library-content");
+        overlay.querySelector("#spotify-library-title").textContent=album?.name||"Album";
+        overlay.querySelector(".spotify-library-filters").style.display="none";
+        overlay.classList.add("visible");
+        content.innerHTML='<div id="spotify-library-status">Loading album tracks...</div>';
+        this.rows=[];
+        try{
+            const data=await spotifyService.albumTracks(album?.uri,50);
+            const items=(data?.items||[]).filter(item=>item?.uri);
+            content.innerHTML='<div class="spotify-album-subheader"><button id="spotify-album-back" type="button">← Back to Search</button><span>'+(album?.subtitle||"Album")+'</span></div>'+
+                (items.length?items.map(item=>'<div class="spotify-result-group"><button class="spotify-library-row" type="button" data-uri="'+this.escapeAttribute(item.uri)+'" data-type="track"><span class="spotify-library-row-icon song" aria-hidden="true">'+this.getRowIcon("song")+'</span><span class="spotify-library-row-text"><strong></strong><span></span></span></button><button class="spotify-queue-button" type="button">+ Queue</button></div>').join(""):'<div id="spotify-library-status">No playable tracks were returned for this album.</div>');
+            content.querySelector("#spotify-album-back")?.addEventListener("click",()=>this.showSearch());
+            const rows=[...content.querySelectorAll(".spotify-library-row")];
+            items.forEach((item,index)=>{
+                const row=rows[index];
+                if(!row)return;
+                row.querySelector("strong").textContent=(item.track_number?String(item.track_number).padStart(2,"0")+"  ":"")+item.name;
+                row.querySelector(".spotify-library-row-text > span").textContent=item.artists?.map(a=>a.name).join(", ")||"Track";
+                row.onclick=async()=>{
+                    this.selectedIndex=index;
+                    this.setRows(rows);
+                    try{await spotifyService.playTrack(item.uri);this.close();}
+                    catch(error){this.showStatus(error.message||"Unable to start Spotify playback.");}
+                };
+                row.parentElement?.querySelector(".spotify-queue-button")?.addEventListener("click",async event=>{
+                    event.preventDefault();event.stopPropagation();
+                    try{await spotifyService.addToQueue(item.uri);}
+                    catch(error){this.showStatus(error.message||"Unable to add track to queue.");}
+                });
+            });
+            this.setRows(rows);
+        }catch(error){
+            content.innerHTML='<div id="spotify-library-status"></div>';
+            content.querySelector("#spotify-library-status").textContent=error.message;
+            this.rows=[];
+        }
     },
 
     escapeAttribute(value){
