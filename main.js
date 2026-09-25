@@ -7704,6 +7704,7 @@ ipcMain.handle(
                     endpoint.startsWith("/me/") ||
                     endpoint.startsWith("/playlists/") ||
                     endpoint.startsWith("/artists/") ||
+                    endpoint.startsWith("/albums/") ||
                     endpoint.startsWith("/shows/") ||
                     endpoint.startsWith("/search")
                 )
