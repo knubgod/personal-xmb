@@ -7223,6 +7223,8 @@ ipcMain.handle(
 
             const scopes = [
                 "streaming",
+                "user-read-email",
+                "user-read-private",
                 "user-read-currently-playing",
                 "user-read-playback-state",
                 "user-read-recently-played",
