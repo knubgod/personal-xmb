@@ -117,21 +117,6 @@
         "theme": "spotify",
         "items": [
             {
-                "id": "spotify-now-playing",
-                "name": "Now Playing",
-                "type": "music",
-                "platform": "Spotify",
-                "description": "View and refresh current Spotify playback.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "Refresh Now Playing",
-                        "action": "spotify-now-playing"
-                    }
-                ]
-            },
-            {
                 "id": "spotify-recently-played",
                 "name": "Recently Played",
                 "type": "music",
