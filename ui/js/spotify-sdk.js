@@ -83,6 +83,18 @@ async function diagnoseSpotifyEme() {
 diagnoseSpotifyEme();
 
 
-window.onSpotifyWebPlaybackSDKReady=()=>{
-    window.spotifyService?.initializeWebPlayback?.();
+window.onSpotifyWebPlaybackSDKReady=async()=>{
+    /*
+        The SDK can load before the user has authenticated with Spotify.
+        Do not treat that as a player failure. The service will retry
+        after spotify-auth-complete and again on the first playback action.
+    */
+    try{
+        await window.spotifyService?.initializeWebPlayback?.();
+    }catch(error){
+        console.debug(
+            "[Spotify] Web Playback SDK loaded; waiting for Spotify authentication.",
+            error?.message||error
+        );
+    }
 };
