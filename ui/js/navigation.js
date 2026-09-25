@@ -32,33 +32,39 @@ let currentAction = 0;
 
 function getCategoryNames() {
 
+    const data=window.categoriesData;
+
     if (
-        !window.categoriesData
+        !data ||
+        typeof data !== "object"
     ) {
-
         return [];
-
     }
 
-
-    return Object.keys(
-        window.categoriesData
-    );
+    return Object.keys(data);
 
 }
 
 
 function getCurrentCategoryData() {
 
-    const categoryNames =
-        getCategoryNames();
+    const data=window.categoriesData;
 
+    if (
+        !data ||
+        typeof data !== "object"
+    ) {
+        return null;
+    }
 
-    return (
-        window.categoriesData[
-            categoryNames[currentCategory]
-        ] || null
-    );
+    const categoryNames=getCategoryNames();
+    const categoryName=categoryNames[currentCategory];
+
+    if (!categoryName) {
+        return null;
+    }
+
+    return data[categoryName] || null;
 
 }
 
