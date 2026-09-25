@@ -587,6 +587,7 @@ const spotifyUi={
         {id:"all",name:"All"},
         {id:"songs",name:"Songs"},
         {id:"artists",name:"Artists"},
+        {id:"albums",name:"Albums"},
         {id:"playlists",name:"Playlists"},
         {id:"podcasts",name:"Podcasts"},
         {id:"dj",name:"DJ"}
@@ -760,6 +761,7 @@ const spotifyUi={
             }));
 
             const artistMap=new Map();
+            const albumMap=new Map();
             const playlistMap=new Map();
             const podcastMap=new Map();
 
@@ -767,6 +769,21 @@ const spotifyUi={
                 const playedAt=item.played_at||"";
                 const track=item.track;
                 const context=item.context;
+
+                if(track?.album?.id){
+                    const existing=albumMap.get(track.album.id);
+                    if(!existing||String(playedAt)>String(existing.playedAt)){
+                        albumMap.set(track.album.id,{
+                            type:"album",
+                            name:track.album.name||"Unknown Album",
+                            subtitle:track.artists?.map(a=>a.name).join(", ")||"Album",
+                            image:track.album?.images?.[2]?.url||track.album?.images?.[0]?.url||"",
+                            uri:track.album.uri||"",
+                            playedAt,
+                            source:"derived"
+                        });
+                    }
+                }
 
                 for(const artist of track?.artists||[]){
                     if(!artist?.id)continue;
@@ -828,6 +845,7 @@ const spotifyUi={
             */
 
             const artists=[...artistMap.values()];
+            const albums=[...albumMap.values()];
             const playlists=[...playlistMap.values()];
             const podcasts=[...podcastMap.values()];
             const dj={
@@ -846,9 +864,10 @@ const spotifyUi={
             );
 
             return {
-                all:sorted([...songs,...artists,...playlists,...podcasts,dj]),
+                all:sorted([...songs,...artists,...albums,...playlists,...podcasts,dj]),
                 songs:sorted(songs),
                 artists:sorted(artists),
+                albums:sorted(albums),
                 playlists:sorted(playlists),
                 podcasts:sorted(podcasts),
                 dj:[dj]
@@ -870,6 +889,7 @@ const spotifyUi={
         const icons={
             song:"♫",
             artist:"♪",
+            album:"▰",
             playlist:"▤",
             podcast:"◉",
             dj:"✦"
@@ -883,6 +903,7 @@ const spotifyUi={
         const filter=this.filters[this.selectedFilter];
 
         overlay.querySelector("#spotify-library-title").textContent="Recently Played";
+        overlay.querySelector(".spotify-library-filters").style.display="flex";
         overlay.classList.add("visible");
         this.updateFilterVisuals();
 
