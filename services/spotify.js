@@ -280,9 +280,19 @@ const spotifyService={
             });
 
             player.addListener("playback_error",({message})=>{
+                /*
+                    A Web Playback error is frequently caused by the
+                    Spotify/Widevine license layer. The SDK itself owns
+                    retry/track handling here.
+
+                    Do NOT issue another /me/player/play command from
+                    this event. Doing so while the SDK is already moving
+                    to its next track creates a feedback loop that can
+                    skip indefinitely and can quickly trigger 429s.
+                */
                 console.error("Spotify Web Playback error:",message);
-                this.showTemporaryMessage("Spotify is still preparing playback...");
-                this.recoverPlaybackAfterError();
+                this.playbackErrorAt=Date.now();
+                this.showTemporaryMessage("Spotify playback encountered an error.");
             });
 
             player.addListener("player_state_changed",state=>{
@@ -309,10 +319,15 @@ const spotifyService={
                     const naturalEnd=
                         state.paused&&
                         state.duration>0&&
-                        state.position>=Math.max(0,state.duration-1500)&&
+                        state.position>=Math.max(0,state.duration-1200)&&
                         this.continuationMode==="related"&&
                         track.uri===this.continuationSeedUri;
 
+                    /*
+                        Only build a continuation after the seed track
+                        actually reaches its end. Playback errors must
+                        never be interpreted as a track ending.
+                    */
                     if(naturalEnd&&!this.continuationInFlight){
                         this.continuationInFlight=true;
                         this.buildContinuationQueue(track)
@@ -510,27 +525,30 @@ const spotifyService={
             await this.player.resume();
         }
 
-        if(state&&!state.paused&&this.continuationMode==="related"&&this.continuationSeedUri===uri&&!this.continuationInFlight){
-            this.continuationInFlight=true;
-            this.buildContinuationQueue(state.track_window.current_track)
-                .catch(error=>console.warn("Spotify continuation queue failed:",error.message))
-                .finally(()=>{this.continuationInFlight=false;});
-        }
+        /*
+            Do not pre-build the continuation queue here.
 
+            Search/playback startup is the most fragile part of Web
+            Playback. Queueing six more tracks immediately can cause
+            several additional license requests while the first track
+            is still establishing its Widevine session.
+
+            The continuation queue is built only after the seed track
+            genuinely reaches its end.
+        */
         this.lastPlayerRefresh=0;
     },
 
+    /*
+        Recovery is intentionally disabled for Web Playback errors.
+
+        Spotify's Web Playback SDK already retries its own Widevine/CDN
+        work. Re-issuing start commands from playback_error races that
+        internal state machine and was the source of the infinite-skip
+        behavior seen in Personal XMB.
+    */
     async recoverPlaybackAfterError(){
-        const intent=this.playbackIntent;
-        if(!intent?.uri||Date.now()-this.playbackIntentStartedAt>15000||this.playbackRecoveryAttempts>=2)return;
-        this.playbackRecoveryAttempts++;
-        const attempt=this.playbackRecoveryAttempts;
-        await this.sleep(1800*attempt);
-        if(this.playbackIntent?.uri!==intent.uri)return;
-        try{
-            if(intent.type==="context")await this.startContext(intent.uri,{recovery:true});
-            else await this.startTrack(intent.uri,{recovery:true});
-        }catch(error){console.warn("Spotify playback recovery failed:",error.message);}
+        return false;
     },
 
     async startContext(uri,{recovery=false}={}){
@@ -609,12 +627,20 @@ const spotifyService={
         try{const queue=await this.getQueue();existing=(queue?.queue||[]).map(item=>item?.uri).filter(Boolean);}
         catch(error){console.warn("Spotify queue check failed:",error.message);}
 
+        let added=0;
         for(const item of selected){
             if(existing.includes(item.uri))continue;
-            try{await this.addToQueue(item.uri);}
-            catch(error){console.warn("Spotify continuation queue add failed:",error.message);}
+            try{
+                await this.addToQueue(item.uri);
+                added++;
+            }catch(error){
+                console.warn("Spotify continuation queue add failed:",error.message);
+            }
         }
-        this.showTemporaryMessage("Continuation queue ready.");
+
+        if(added>0){
+            this.showTemporaryMessage("Continuation queue ready.");
+        }
     },
 
     async playPlaylist(uri){
