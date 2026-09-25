@@ -701,8 +701,9 @@ window.updateSpotifyPlayer=(track)=>{
         if(duration)duration.textContent="0:00";
         if(fill)fill.className="progress-0";
         if(play){
-            play.textContent="↗";
-            play.setAttribute("aria-label","Open Spotify");
+            play.textContent="▶";
+            play.setAttribute("aria-label","Play Spotify");
+            play.title="Play";
         }
         spotifyService.updateModes();
         return;
@@ -726,8 +727,12 @@ window.updateSpotifyPlayer=(track)=>{
         fill.className="progress-"+Math.max(0,Math.min(100,percent));
     }
     if(play){
-        play.textContent="↗";
-        play.setAttribute("aria-label","Open in Spotify");
+        play.textContent=track.isPlaying?"❚❚":"▶";
+        play.setAttribute(
+            "aria-label",
+            track.isPlaying?"Pause Spotify":"Play Spotify"
+        );
+        play.title=track.isPlaying?"Pause":"Play";
     }
     spotifyService.updateModes();
 };
