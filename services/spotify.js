@@ -13,6 +13,8 @@ const spotifyService={
     player:null,
     playerDeviceId:"",
     playerReady:false,
+    desktopDeviceId:"",
+    desktopDeviceName:"",
     playerConnecting:false,
     playerReadyPromise:null,
     playbackIntent:null,
@@ -204,188 +206,112 @@ const spotifyService={
         return {success:false,error:"Spotify DJ is not available through the Spotify Web Playback SDK."};
     },
 
-    async initializeWebPlayback(){
-        if(this.playerReady)return true;
+    /*
+        Spotify Web Playback SDK / Widevine is intentionally not used here.
 
-        if(this.playerConnecting && this.playerReadyPromise){
+        Electron is not a supported Spotify Web Playback SDK browser
+        environment, and the SDK can connect successfully while its
+        Widevine license requests fail with HTTP 500. That leaves the
+        XMB renderer connected to a device that cannot actually play audio.
+
+        Personal XMB therefore controls the installed Spotify desktop
+        application through the supported Spotify Connect/Web API path.
+        The XMB remains the controller; Spotify remains responsible for
+        decoding and DRM.
+    */
+    async ensureDesktopPlayer(){
+        const launch=await window.electron?.spotifyLaunchDesktop?.();
+
+        if(launch?.success===false){
+            throw new Error(
+                launch.error||"Spotify desktop application could not be launched."
+            );
+        }
+
+        const deadline=Date.now()+15000;
+        let devices=[];
+
+        while(Date.now()<deadline){
             try{
-                await this.playerReadyPromise;
-                return this.playerReady;
+                devices=await this.getAvailableDevices();
             }catch(error){
-                return false;
+                // Spotify may briefly reject the request while the desktop
+                // application is registering its Connect device.
             }
+
+            const computerDevices=devices.filter(device=>
+                device?.id &&
+                device?.type==="Computer" &&
+                device?.is_restricted!==true
+            );
+
+            const preferred=
+                computerDevices.find(device=>device.is_active)||
+                computerDevices[0];
+
+            if(preferred){
+                this.desktopDeviceId=preferred.id;
+                this.desktopDeviceName=preferred.name||"Spotify";
+                this.playerDeviceId=preferred.id;
+                this.playerReady=true;
+                return preferred;
+            }
+
+            await this.sleep(500);
         }
 
-        this.playerConnecting=true;
-        this.playerReadyPromise=null;
-
-        try{
-            if(!window.Spotify?.Player){
-                throw new Error("Spotify Web Playback SDK is not loaded.");
-            }
-
-            const player=new window.Spotify.Player({
-                name:"Personal XMB",
-                volume:0.75,
-                enableMediaSession:true,
-                getOAuthToken:async callback=>{
-                    try{
-                        const result=await window.electron?.spotifyPlaybackToken?.();
-                        callback(result?.accessToken||"");
-                    }catch(error){
-                        console.warn("Spotify playback token failed:",error.message);
-                        callback("");
-                    }
-                }
-            });
-
-            this.playerReadyPromise=new Promise((resolve,reject)=>{
-                player.addListener("ready",({device_id})=>{
-                    this.playerDeviceId=device_id||"";
-                    this.playerReady=Boolean(this.playerDeviceId);
-                    console.log("Personal XMB Spotify player ready:",this.playerDeviceId);
-                    this.showTemporaryMessage("Spotify player ready.");
-                    if(this.playerReady)resolve(true);
-                    else reject(new Error("Spotify returned an empty playback device ID."));
-                });
-
-                player.addListener("initialization_error",({message})=>{
-                    reject(new Error(message||"Spotify Web Playback initialization failed."));
-                });
-
-                player.addListener("authentication_error",({message})=>{
-                    reject(new Error(message||"Spotify Web Playback authentication failed."));
-                });
-
-                player.addListener("account_error",({message})=>{
-                    reject(new Error(message||"Spotify Web Playback requires Spotify Premium."));
-                });
-            });
-
-            player.addListener("not_ready",({device_id})=>{
-                if(device_id===this.playerDeviceId)this.playerReady=false;
-            });
-
-            player.addListener("initialization_error",({message})=>{
-                console.error("Spotify Web Playback initialization error:",message);
-                this.showTemporaryMessage("Spotify playback could not initialize.");
-            });
-
-            player.addListener("authentication_error",({message})=>{
-                console.error("Spotify Web Playback authentication error:",message);
-                this.showTemporaryMessage("Spotify playback authorization failed.");
-            });
-
-            player.addListener("account_error",({message})=>{
-                console.error("Spotify Web Playback account error:",message);
-                this.showTemporaryMessage("Spotify Web Playback requires Spotify Premium.");
-            });
-
-            player.addListener("playback_error",({message})=>{
-                /*
-                    A Web Playback error is frequently caused by the
-                    Spotify/Widevine license layer. The SDK itself owns
-                    retry/track handling here.
-
-                    Do NOT issue another /me/player/play command from
-                    this event. Doing so while the SDK is already moving
-                    to its next track creates a feedback loop that can
-                    skip indefinitely and can quickly trigger 429s.
-                */
-                console.error("Spotify Web Playback error:",message);
-                this.playbackErrorAt=Date.now();
-
-                /*
-                    If Widevine is failing, the SDK can otherwise keep
-                    advancing through tracks while it retries licenses.
-                    Pause once so the user gets a stable recovery point.
-                    Do not immediately issue another play/track command.
-                */
-                if(
-                    this.player &&
-                    Date.now()-this.playbackErrorPauseAt>5000
-                ){
-                    this.playbackErrorPauseAt=Date.now();
-                    Promise.resolve(this.player.pause?.()).catch(()=>{});
-                }
-
-                this.showTemporaryMessage("Spotify playback encountered an error. Try Play again in a moment.");
-            });
-
-            player.addListener("player_state_changed",state=>{
-                if(!state)return;
-                const track=state.track_window?.current_track;
-                if(track){
-                    if(!state.paused&&(!this.playbackIntent?.uri||track.uri===this.playbackIntent.uri)){
-                        this.playbackRecoveryAttempts=0;
-                    }
-
-                    this.currentTrack={
-                        id:track.id,
-                        uri:track.uri||"",
-                        name:track.name||"Unknown",
-                        artist:track.artists?.map(item=>item.name).join(", ")||"Unknown Artist",
-                        album:track.album?.name||"Unknown Album",
-                        artwork:track.album?.images?.[0]?.url||"",
-                        duration:state.duration||track.duration_ms||0,
-                        progress:state.position||0,
-                        isPlaying:!state.paused,
-                        spotifyUrl:""
-                    };
-
-                    const naturalEnd=
-                        state.paused&&
-                        state.duration>0&&
-                        state.position>=Math.max(0,state.duration-1200)&&
-                        this.continuationMode==="related"&&
-                        track.uri===this.continuationSeedUri;
-
-                    /*
-                        Only build a continuation after the seed track
-                        actually reaches its end. Playback errors must
-                        never be interpreted as a track ending.
-                    */
-                    if(naturalEnd&&!this.continuationInFlight){
-                        this.continuationInFlight=true;
-                        this.buildContinuationQueue(track)
-                            .catch(error=>console.warn("Spotify continuation queue failed:",error.message))
-                            .finally(()=>{this.continuationInFlight=false;});
-                    }
-                }
-                this.renderPlayer();
-            });
-
-            this.player=player;
-            const connected=await player.connect();
-
-            if(!connected){
-                throw new Error("Spotify Web Playback could not connect.");
-            }
-
-            await this.playerReadyPromise;
-
-            this.playerConnecting=false;
-            return this.playerReady;
-        }catch(error){
-            this.playerConnecting=false;
-            this.playerReady=false;
-            this.playerDeviceId="";
-            this.playerReadyPromise=null;
-            console.error("Spotify Web Playback setup failed:",error);
-            this.showTemporaryMessage(error.message||"Spotify playback could not initialize.");
-            return false;
-        }
+        throw new Error(
+            "Spotify desktop was launched, but its Spotify Connect device did not appear. Make sure you are signed into the Spotify desktop app."
+        );
     },
 
     async ensureLocalPlayer(){
-        if(this.playerReady&&this.playerDeviceId)return true;
+        return Boolean(await this.ensureDesktopPlayer());
+    },
 
-        const ready=await this.initializeWebPlayback();
-        if(!ready||!this.playerDeviceId){
-            throw new Error("Spotify playback is not ready.");
+    async activatePlayer(){
+        return this.ensureDesktopPlayer();
+    },
+
+    async waitForLocalPlayerActive(attempts=20,delay=300){
+        for(let attempt=0;attempt<attempts;attempt++){
+            try{
+                const state=await this.api({
+                    method:"GET",
+                    endpoint:"/me/player"
+                });
+
+                if(
+                    state?.device?.id===this.desktopDeviceId &&
+                    state.device.is_active
+                ){
+                    return true;
+                }
+            }catch(error){
+                // Spotify may briefly report no active device during startup.
+            }
+
+            if(attempt<attempts-1)await this.sleep(delay);
         }
 
-        return true;
+        throw new Error(
+            "Spotify desktop did not become the active playback device."
+        );
+    },
+
+    async transferToLocalPlayer(play=false){
+        const device=await this.ensureDesktopPlayer();
+
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player",
+            body:{
+                device_ids:[device.id],
+                play:Boolean(play)
+            }
+        });
+
+        await this.waitForLocalPlayerActive();
     },
 
     async activatePlayer(){
@@ -449,26 +375,45 @@ const spotifyService={
     },
 
     async togglePlayback(){
-        await this.activatePlayer();
-        await this.player.togglePlay();
+        const state=await this.api({
+            method:"GET",
+            endpoint:"/me/player"
+        });
+
+        await this.ensureDesktopPlayer();
+
+        if(state?.is_playing){
+            await this.api({
+                method:"PUT",
+                endpoint:"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
+            });
+        }else{
+            await this.api({
+                method:"PUT",
+                endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId)
+            });
+        }
+
+        this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async next(){
-        /*
-            Do not hammer Spotify's next-track command while a
-            Widevine/license failure is actively recovering.
-        */
-        if(Date.now()-this.playbackErrorAt<5000){
-            this.showTemporaryMessage("Spotify is recovering playback. Try Next again in a moment.");
-            return;
-        }
-        await this.activatePlayer();
-        await this.player.nextTrack();
+        await this.ensureDesktopPlayer();
+        await this.api({
+            method:"POST",
+            endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
+        });
+        this.lastPlayerRefresh=0;
     },
 
     async previous(){
-        await this.activatePlayer();
-        await this.player.previousTrack();
+        await this.ensureDesktopPlayer();
+        await this.api({
+            method:"POST",
+            endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
+        });
+        this.lastPlayerRefresh=0;
     },
 
     async toggleShuffle(){
@@ -520,49 +465,27 @@ const spotifyService={
         });
     },
 
-    async startTrack(uri,{recovery=false}={}){
+    async startTrack(uri){
         if(!uri)throw new Error("Spotify track URI is missing.");
-        const commandId=++this.playbackCommandId;
+
+        ++this.playbackCommandId;
         this.playbackErrorAt=0;
         this.playbackIntent={type:"track",uri};
         this.playbackIntentStartedAt=Date.now();
-        if(!recovery)this.playbackRecoveryAttempts=0;
+        this.playbackRecoveryAttempts=0;
 
-        await this.activatePlayer();
-        await this.sleep(recovery?350:700);
-        await this.transferToLocalPlayer();
-        await this.sleep(350);
+        await this.ensureDesktopPlayer();
 
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{uris:[uri]}
         });
 
-        if(commandId!==this.playbackCommandId)return;
-
-        const state=await this.waitForSdkState(
-            current=>current.track_window?.current_track?.uri===uri,
-            24,
-            250
-        );
-
-        if(state?.paused&&state.track_window?.current_track?.uri===uri){
-            await this.player.resume();
-        }
-
-        /*
-            Do not pre-build the continuation queue here.
-
-            Search/playback startup is the most fragile part of Web
-            Playback. Queueing six more tracks immediately can cause
-            several additional license requests while the first track
-            is still establishing its Widevine session.
-
-            The continuation queue is built only after the seed track
-            genuinely reaches its end.
-        */
         this.lastPlayerRefresh=0;
+
+        await this.sleep(500);
+        await this.refreshNowPlaying();
     },
 
     /*
@@ -577,31 +500,27 @@ const spotifyService={
         return false;
     },
 
-    async startContext(uri,{recovery=false}={}){
+    async startContext(uri){
         if(!uri)throw new Error("Spotify context URI is missing.");
-        const commandId=++this.playbackCommandId;
+
+        ++this.playbackCommandId;
         this.playbackErrorAt=0;
         this.playbackIntent={type:"context",uri};
         this.playbackIntentStartedAt=Date.now();
-        if(!recovery)this.playbackRecoveryAttempts=0;
+        this.playbackRecoveryAttempts=0;
 
-        await this.activatePlayer();
-        await this.sleep(recovery?350:700);
-        await this.transferToLocalPlayer();
-        await this.sleep(350);
+        await this.ensureDesktopPlayer();
+
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
-        if(commandId!==this.playbackCommandId)return;
-        const state=await this.waitForSdkState(
-            current=>current.context?.uri===uri,
-            24,
-            250
-        );
-        if(state?.paused)await this.player.resume();
+
         this.lastPlayerRefresh=0;
+
+        await this.sleep(500);
+        await this.refreshNowPlaying();
     },
 
     async playTrack(uri){
@@ -613,10 +532,10 @@ const spotifyService={
     async addToQueue(uri){
         if(!uri)throw new Error("Spotify queue item URI is missing.");
         if(!/^spotify:(track|episode):/.test(uri))throw new Error("Only Spotify tracks and episodes can be queued.");
-        await this.ensureLocalPlayer();
+        await this.ensureDesktopPlayer();
         await this.api({
             method:"POST",
-            endpoint:"/me/player/queue?uri="+encodeURIComponent(uri)+"&device_id="+encodeURIComponent(this.playerDeviceId)
+            endpoint:"/me/player/queue?uri="+encodeURIComponent(uri)+"&device_id="+encodeURIComponent(this.desktopDeviceId)
         });
         this.showTemporaryMessage("Added to Spotify queue.");
     },
