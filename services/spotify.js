@@ -300,24 +300,36 @@ const spotifyService={
                     to its next track creates a feedback loop that can
                     skip indefinitely and can quickly trigger 429s.
                 */
+                const now=Date.now();
                 console.error("Spotify Web Playback error:",message);
-                this.playbackErrorAt=Date.now();
+                this.playbackErrorAt=now;
 
                 /*
-                    If Widevine is failing, the SDK can otherwise keep
-                    advancing through tracks while it retries licenses.
-                    Pause once so the user gets a stable recovery point.
-                    Do not immediately issue another play/track command.
+                    The SDK can retry failed Widevine license requests
+                    internally. When Spotify is returning HTTP 500 from
+                    the license endpoint, those retries become expensive
+                    and can make the whole XMB renderer stutter.
+
+                    Disconnect the failed SDK transport instead of letting
+                    it continue retrying. A later user-initiated attempt
+                    may create a fresh player after the short cooldown.
                 */
-                if(
-                    this.player &&
-                    Date.now()-this.playbackErrorPauseAt>5000
-                ){
-                    this.playbackErrorPauseAt=Date.now();
-                    Promise.resolve(this.player.pause?.()).catch(()=>{});
+                this.playerReady=false;
+                this.playerDeviceId="";
+
+                const failedPlayer=player;
+
+                if(this.player===failedPlayer){
+                    this.player=null;
                 }
 
-                this.showTemporaryMessage("Spotify playback encountered an error. Try Play again in a moment.");
+                Promise.resolve(
+                    failedPlayer.disconnect?.()
+                ).catch(()=>{});
+
+                this.showTemporaryMessage(
+                    "Spotify playback encountered a DRM error. Try Play again in a few seconds."
+                );
             });
 
             player.addListener("player_state_changed",state=>{
@@ -530,6 +542,17 @@ const spotifyService={
 
     async startTrack(uri,{recovery=false}={}){
         if(!uri)throw new Error("Spotify track URI is missing.");
+
+        if(
+            !recovery &&
+            this.playbackErrorAt &&
+            Date.now()-this.playbackErrorAt<5000
+        ){
+            throw new Error(
+                "Spotify playback is cooling down after a DRM error. Try again in a few seconds."
+            );
+        }
+
         const commandId=++this.playbackCommandId;
         this.playbackErrorAt=0;
         this.playbackIntent={type:"track",uri};
