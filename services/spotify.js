@@ -132,6 +132,19 @@ const spotifyService={
             this.shuffle=!!data?.shuffle_state;
             this.repeat=data?.repeat_state||"off";
 
+            /*
+                Keep the installed Spotify desktop device ID when
+                Spotify reports one. Media controls must never launch
+                and minimize Spotify just to rediscover a device.
+            */
+            if(
+                data?.device?.id &&
+                String(data.device.type||"").toLowerCase()==="computer" &&
+                data.device.is_restricted!==true
+            ){
+                this.desktopDeviceId=data.device.id;
+            }
+
             if(data?.device?.volume_percent!=null){
                 this.volume=Number(data.device.volume_percent);
                 const slider=document.getElementById("media-volume");
@@ -276,13 +289,14 @@ const spotifyService={
         return {success:true};
     },
 
-    async ensureLocalPlayer(){
+    async ensureLocalPlayer(allowLaunch=false){
         /*
             Spotify device IDs are not guaranteed to remain valid.
             Refresh the device list before trusting a cached ID.
         */
         try{
             const devices=await this.getAvailableDevices();
+
             const cached=devices.find(
                 device=>
                     device?.id===this.desktopDeviceId &&
@@ -296,9 +310,34 @@ const spotifyService={
                 return true;
             }
 
+            const computerDevices=devices.filter(
+                device=>
+                    String(device?.type||"").toLowerCase()==="computer" &&
+                    device?.is_restricted!==true
+            );
+
+            const preferred=
+                computerDevices.find(device=>device.is_active)||
+                computerDevices.find(device=>/spotify|desktop/i.test(device.name||""))||
+                computerDevices[0];
+
+            if(preferred?.id){
+                this.desktopDeviceId=preferred.id;
+                this.volume=Math.round(
+                    Number(preferred.volume_percent ?? this.volume)
+                );
+                return true;
+            }
+
             this.desktopDeviceId="";
         }catch(error){
             /* Launch/retry below will surface the useful error. */
+        }
+
+        if(!allowLaunch){
+            throw new Error(
+                "Spotify Desktop playback device is not available."
+            );
         }
 
         const launch=await window.electron?.spotifyLaunchDesktop?.();
@@ -318,16 +357,14 @@ const spotifyService={
             const devices=await this.getAvailableDevices();
 
             const computerDevices=devices.filter(
-                device =>
+                device=>
                     String(device?.type||"").toLowerCase()==="computer" &&
                     device?.is_restricted!==true
             );
 
             const preferred=
                 computerDevices.find(device=>device.is_active)||
-                computerDevices.find(device=>
-                    /spotify|desktop/i.test(device.name||"")
-                )||
+                computerDevices.find(device=>/spotify|desktop/i.test(device.name||""))||
                 computerDevices[0];
 
             if(preferred?.id){
@@ -344,10 +381,6 @@ const spotifyService={
         throw new Error(
             "Spotify Desktop launched, but its playback device did not appear."
         );
-    },
-
-    async activatePlayer(){
-        await this.ensureLocalPlayer();
     },
 
     async waitForLocalPlayerActive(attempts=20,delay=250){
@@ -376,8 +409,8 @@ const spotifyService={
         );
     },
 
-    async transferToLocalPlayer(){
-        await this.ensureLocalPlayer();
+    async transferToLocalPlayer(allowLaunch=false){
+        await this.ensureLocalPlayer(allowLaunch);
 
         try{
             await this.api({
@@ -411,56 +444,107 @@ const spotifyService={
 
     async runOnLocalPlayer(command){
         return this.enqueuePlaybackCommand(async()=>{
-            await this.transferToLocalPlayer();
+            /*
+                A media-button press must not launch/minimize Spotify.
+                If the Web API refuses the command, the caller can fall
+                back to the installed desktop client's media-key path.
+            */
+            await this.ensureLocalPlayer(false);
             return command();
         });
     },
 
+    async sendDesktopMediaKey(action){
+        const result=
+            await window.electron?.spotifyMediaKey?.(action);
+
+        if(!result?.success){
+            throw new Error(
+                result?.error||
+                "Spotify desktop media control failed."
+            );
+        }
+
+        return result;
+    },
+
+    isRestrictionError(error){
+        return /restriction violated|only works for users with spotify premium/i
+            .test(String(error?.message||error||""));
+    },
+
     async togglePlayback(){
-        return this.runOnLocalPlayer(async()=>{
-            const state=await this.api({
-                method:"GET",
-                endpoint:"/me/player"
+        try{
+            return await this.runOnLocalPlayer(async()=>{
+                const state=await this.api({
+                    method:"GET",
+                    endpoint:"/me/player"
+                });
+
+                const endpoint=state?.is_playing
+                    ?"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
+                    :"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId);
+
+                await this.api({
+                    method:"PUT",
+                    endpoint
+                });
+
+                this.lastPlayerRefresh=0;
+                await this.refreshNowPlaying(true);
             });
+        }catch(error){
+            if(!this.isRestrictionError(error))throw error;
 
-            const endpoint=state?.is_playing
-                ?"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
-                :"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId);
-
-            await this.api({
-                method:"PUT",
-                endpoint
-            });
-
+            await this.sendDesktopMediaKey("playpause");
             this.lastPlayerRefresh=0;
+            await new Promise(resolve=>setTimeout(resolve,120));
             await this.refreshNowPlaying(true);
-        });
+        }
     },
 
     async next(){
-        return this.runOnLocalPlayer(async()=>{
-            const previousTrackId=this.currentTrack?.id||"";
+        try{
+            return await this.runOnLocalPlayer(async()=>{
+                const previousTrackId=this.currentTrack?.id||"";
 
-            await this.api({
-                method:"POST",
-                endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
+                await this.api({
+                    method:"POST",
+                    endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
+                });
+
+                await this.waitForTrackChange(previousTrackId);
             });
+        }catch(error){
+            if(!this.isRestrictionError(error))throw error;
 
-            await this.waitForTrackChange(previousTrackId);
-        });
+            await this.sendDesktopMediaKey("next");
+            this.lastPlayerRefresh=0;
+            await new Promise(resolve=>setTimeout(resolve,350));
+            await this.refreshNowPlaying(true);
+        }
     },
 
     async previous(){
-        return this.runOnLocalPlayer(async()=>{
-            const previousTrackId=this.currentTrack?.id||"";
+        try{
+            return await this.runOnLocalPlayer(async()=>{
+                const previousTrackId=this.currentTrack?.id||"";
 
-            await this.api({
-                method:"POST",
-                endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
+                await this.api({
+                    method:"POST",
+                    endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
+                });
+
+                await this.waitForTrackChange(previousTrackId);
             });
+        }catch(error){
+            if(!this.isRestrictionError(error))throw error;
 
-            await this.waitForTrackChange(previousTrackId);
-        });
+            await this.sendDesktopMediaKey("previous");
+            this.lastPlayerRefresh=0;
+            await new Promise(resolve=>setTimeout(resolve,350));
+            await this.refreshNowPlaying(true);
+        }
     },
 
     async setVolume(value){
