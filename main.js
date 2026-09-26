@@ -6833,6 +6833,125 @@ async function launchSpotifyDesktop() {
 }
 
 
+/*
+    ========================================================
+    SPOTIFY DESKTOP MEDIA KEYS
+    ========================================================
+
+    The Spotify Web API playback endpoints require Premium.
+    When the API rejects a playback command with a restriction,
+    the installed Windows client can still receive the normal
+    system media-key command.
+
+    Only three fixed actions are accepted.
+*/
+
+function sendSpotifyMediaKey(action) {
+
+    if (process.platform !== "win32") {
+        throw new Error(
+            "Desktop media-key fallback is only available on Windows."
+        );
+    }
+
+    const virtualKeys = {
+        playpause: "0xB3",
+        next: "0xB0",
+        previous: "0xB1"
+    };
+
+    const virtualKey = virtualKeys[action];
+
+    if (!virtualKey) {
+        throw new Error("Unsupported Spotify media key.");
+    }
+
+    const script = [
+        "Add-Type -TypeDefinition @'",
+        "using System;",
+        "using System.Runtime.InteropServices;",
+        "public static class XmbMediaKey {",
+        "  [DllImport(\"user32.dll\", SetLastError=true)]",
+        "  public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);",
+        "}",
+        "'@",
+        "$vk = [byte]__VK__",
+        "[XmbMediaKey]::keybd_event($vk, 0, 0, [UIntPtr]::Zero)",
+        "Start-Sleep -Milliseconds 18",
+        "[XmbMediaKey]::keybd_event($vk, 0, 2, [UIntPtr]::Zero)"
+    ].join("; ").replace("__VK__", virtualKey);
+
+    return new Promise((resolve, reject) => {
+
+        const child = spawn(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                script
+            ],
+            {
+                windowsHide: true,
+                stdio: "ignore"
+            }
+        );
+
+        child.once("error", reject);
+
+        child.once("exit", code => {
+            if (code === 0) {
+                resolve({
+                    success: true,
+                    action
+                });
+                return;
+            }
+
+            reject(
+                new Error(
+                    "Windows did not accept the Spotify media key."
+                )
+            );
+        });
+
+    });
+
+}
+
+
+ipcMain.handle(
+    "spotify-media-key",
+    async (
+        event,
+        action
+    ) => {
+
+        requireTrustedRenderer(event);
+
+        try {
+
+            return await sendSpotifyMediaKey(
+                String(action || "")
+            );
+
+        } catch (error) {
+
+            return {
+                success: false,
+                error:
+                    error?.message ||
+                    "Unable to send Spotify media key."
+            };
+
+        }
+
+    }
+);
+
+
 ipcMain.handle(
     "spotify-launch-desktop",
     async event => {
