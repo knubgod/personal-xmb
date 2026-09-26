@@ -263,27 +263,49 @@ function playXmbLaunchSound() {
 
 function playXmbStartupSound() {
 
+    /*
+        Short console-style boot chord:
+        a soft low bloom followed by a bright suspended
+        interval. It is intentionally brief so startup
+        feels like a console handoff rather than a jingle.
+    */
     playXmbTone(
-        190,
-        0.40,
+        146.83,
+        0.72,
         "sine",
-        0.24
+        0.20
     );
 
     playXmbTone(
-        380,
-        0.65,
-        "sine",
-        0.20,
-        0.22
+        220.00,
+        0.62,
+        "triangle",
+        0.13,
+        0.06
     );
 
     playXmbTone(
-        760,
-        0.85,
+        293.66,
+        0.78,
         "sine",
         0.12,
-        0.46
+        0.20
+    );
+
+    playXmbTone(
+        440.00,
+        0.95,
+        "sine",
+        0.10,
+        0.34
+    );
+
+    playXmbTone(
+        587.33,
+        0.72,
+        "triangle",
+        0.055,
+        0.52
     );
 
 }

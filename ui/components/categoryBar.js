@@ -474,6 +474,109 @@ function applyCategoryIcon(
     ========================================================
 */
 
+let previousCategoryIndex = 0;
+let categoryScrollAnimation = null;
+
+function updateCategoryVisibility(
+    viewport,
+    categories,
+    selectedIndex
+) {
+
+    if (
+        !viewport ||
+        !categories.length
+    ) {
+        return;
+    }
+
+    const selected =
+        categories[selectedIndex];
+
+    if (!selected) {
+        return;
+    }
+
+    /*
+        The selected category is the visual anchor. Everything
+        around it fades according to its actual screen distance,
+        rather than by a fixed left/right class.
+
+        This gives the XMB the soft depth effect:
+            selected       = 100%
+            nearby         = bright
+            farther away   = dim
+            outside focus  = nearly invisible
+    */
+    const selectedRect =
+        selected.getBoundingClientRect();
+
+    const selectedCenter =
+        selectedRect.left +
+        selectedRect.width / 2;
+
+    const fadeDistance =
+        Math.max(
+            250,
+            Math.min(
+                380,
+                viewport.clientWidth * 0.52
+            )
+        );
+
+    categories.forEach(
+        (category, index) => {
+
+            const rect =
+                category.getBoundingClientRect();
+
+            const center =
+                rect.left +
+                rect.width / 2;
+
+            const distance =
+                Math.abs(
+                    center -
+                    selectedCenter
+                );
+
+            const normalized =
+                Math.min(
+                    1,
+                    distance /
+                    fadeDistance
+                );
+
+            /*
+                Smooth cubic falloff keeps the first adjacent
+                categories readable while quickly fading the
+                distant ones.
+            */
+            const visibility =
+                1 -
+                (
+                    normalized *
+                    normalized *
+                    (3 - 2 * normalized)
+                );
+
+            const isSelected =
+                index === selectedIndex;
+
+            category.style.setProperty(
+                "--category-distance-opacity",
+                isSelected
+                    ? "1"
+                    : (
+                        0.08 +
+                        visibility * 0.92
+                    ).toFixed(3)
+            );
+        }
+    );
+}
+
+
 function updateCategorySelection(
     selectedIndex
 ) {
@@ -483,6 +586,32 @@ function updateCategorySelection(
             ".category"
         );
 
+    const viewport =
+        document.getElementById(
+            "category-viewport"
+        );
+
+    if (
+        !viewport ||
+        !categories.length
+    ) {
+        previousCategoryIndex =
+            selectedIndex;
+
+        return;
+    }
+
+    const selected =
+        categories[selectedIndex];
+
+    const direction =
+        selectedIndex >
+        previousCategoryIndex
+            ? "forward"
+            : selectedIndex <
+              previousCategoryIndex
+                ? "backward"
+                : "";
 
     categories.forEach(
         (
@@ -491,16 +620,230 @@ function updateCategorySelection(
         ) => {
 
             category.classList.toggle(
-
                 "selected",
-
-                index ===
-                    selectedIndex
-
+                index === selectedIndex
             );
 
         }
     );
+
+    if (!selected) {
+        previousCategoryIndex =
+            selectedIndex;
+
+        return;
+    }
+
+    /*
+        Keep the selected category on the left-ish side of the
+        viewport. At the beginning/end of the strip the scroll
+        naturally clamps, allowing the selected category to move
+        farther toward the center when there is no more content
+        to scroll.
+    */
+    const target =
+        Math.max(
+            0,
+            Math.min(
+                viewport.scrollWidth -
+                    viewport.clientWidth,
+                selected.offsetLeft +
+                    selected.offsetWidth / 2 -
+                    viewport.clientWidth * 0.30
+            )
+        );
+
+    const start =
+        viewport.scrollLeft;
+
+    if (categoryScrollAnimation) {
+
+        cancelAnimationFrame(
+            categoryScrollAnimation
+        );
+
+        categoryScrollAnimation =
+            null;
+
+    }
+
+    updateCategoryVisibility(
+        viewport,
+        categories,
+        selectedIndex
+    );
+
+    if (
+        direction &&
+        Math.abs(
+            target -
+            start
+        ) > 1
+    ) {
+
+        viewport.classList.remove(
+            "category-moving-forward",
+            "category-moving-backward"
+        );
+
+        void viewport.offsetWidth;
+
+        viewport.classList.add(
+            direction === "forward"
+                ? "category-moving-forward"
+                : "category-moving-backward"
+        );
+
+        const duration =
+            410;
+
+        const startedAt =
+            performance.now();
+
+        const easeInOut =
+            progress =>
+                progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 -
+                        Math.pow(
+                            -2 * progress + 2,
+                            2
+                        ) /
+                        2;
+
+        const animate =
+            now => {
+
+                const progress =
+                    Math.min(
+                        1,
+                        (
+                            now -
+                            startedAt
+                        ) /
+                        duration
+                    );
+
+                const eased =
+                    easeInOut(
+                        progress
+                    );
+
+                viewport.scrollLeft =
+                    start +
+                    (
+                        target -
+                        start
+                    ) *
+                    eased;
+
+                /*
+                    Recalculate visibility while the strip moves.
+                    This makes the fade travel naturally with the
+                    categories instead of snapping when selection
+                    changes.
+                */
+                updateCategoryVisibility(
+                    viewport,
+                    categories,
+                    selectedIndex
+                );
+
+                const velocity =
+                    Math.sin(
+                        progress *
+                        Math.PI
+                    );
+
+                viewport.style.setProperty(
+                    "--category-motion-blur",
+                    (
+                        0.15 +
+                        velocity * 0.95
+                    ).toFixed(3) +
+                    "px"
+                );
+
+                if (
+                    progress < 1
+                ) {
+
+                    categoryScrollAnimation =
+                        requestAnimationFrame(
+                            animate
+                        );
+
+                    return;
+
+                }
+
+                viewport.scrollLeft =
+                    target;
+
+                updateCategoryVisibility(
+                    viewport,
+                    categories,
+                    selectedIndex
+                );
+
+                viewport.style.setProperty(
+                    "--category-motion-blur",
+                    "0px"
+                );
+
+                categoryScrollAnimation =
+                    null;
+
+                clearTimeout(
+                    viewport._categoryMotionTimer
+                );
+
+                viewport._categoryMotionTimer =
+                    setTimeout(
+                        () => {
+
+                            viewport.classList.remove(
+                                "category-moving-forward",
+                                "category-moving-backward"
+                            );
+
+                        },
+                        35
+                    );
+
+            };
+
+        viewport.style.setProperty(
+            "--category-motion-blur",
+            "0px"
+        );
+
+        categoryScrollAnimation =
+            requestAnimationFrame(
+                animate
+            );
+
+    }
+    else {
+
+        viewport.scrollLeft =
+            target;
+
+        updateCategoryVisibility(
+            viewport,
+            categories,
+            selectedIndex
+        );
+
+        viewport.style.setProperty(
+            "--category-motion-blur",
+            "0px"
+        );
+
+    }
+
+    previousCategoryIndex =
+        selectedIndex;
 
 }
 
