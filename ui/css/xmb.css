@@ -169,7 +169,7 @@
         intentionally shows only a small handful of categories,
         while the full strip remains available to scroll.
     */
-    gap: 58px;
+    gap: 34px;
 
     width: max-content;
 
@@ -212,16 +212,16 @@
         Visibility is calculated from the selected category's
         actual screen distance in categoryBar.js.
     */
-    opacity: var(--category-distance-opacity, 0.42);
+    opacity: var(--category-distance-opacity, 0.52);
 
-    transform: scale(0.88);
+    transform: scale(0.94);
 
     cursor: pointer;
 
     transition:
-        opacity 0.22s ease-out,
-        transform 0.22s ease-out,
-        filter 0.22s ease-out;
+        opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 
     will-change: opacity, transform;
 
@@ -275,7 +275,7 @@
 
     object-fit: contain;
 
-    opacity: 0.65;
+    opacity: 0.86;
 
     /*
         Force brand icons into the same
@@ -290,9 +290,9 @@
 
     transition:
 
-        opacity 0.35s ease,
+        opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
 
-        transform 0.35s ease;
+        transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 
 }
 
@@ -357,7 +357,7 @@
     transform: scale(1.16);
 
     filter:
-        drop-shadow(0 0 3px rgba(255,255,255,.24));
+        drop-shadow(0 0 6px rgba(255,255,255,.34));
 
 }
 
@@ -404,9 +404,9 @@
 
 .category.selected .category-icon-image {
 
-    opacity: 0.95;
+    opacity: 1;
 
-    transform: scale(1.05);
+    transform: scale(1.08);
 
 }
 
