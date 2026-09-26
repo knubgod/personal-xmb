@@ -202,6 +202,8 @@
         transform 0.22s ease-out,
         filter 0.22s ease-out;
 
+    will-change: opacity, transform;
+
 }
 
 
@@ -361,14 +363,15 @@
     scroll-behavior: auto;
 }
 
-#category-viewport.category-moving-forward,
-#category-viewport.category-moving-backward {
-    filter: blur(0.32px);
+#category-viewport {
+    --category-motion-blur: 0px;
+    scroll-behavior: auto;
 }
 
 #category-viewport.category-moving-forward #categories,
 #category-viewport.category-moving-backward #categories {
-    filter: blur(0.18px);
+    filter: blur(var(--category-motion-blur));
+    will-change: scroll-position, filter;
 }
 
 
