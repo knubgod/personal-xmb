@@ -7576,66 +7576,6 @@ ipcMain.handle(
 */
 
 ipcMain.handle(
-    "spotify-playback-token",
-    async event => {
-
-        requireTrustedRenderer(event);
-
-        try {
-
-            let tokens =
-                loadSpotifyTokens();
-
-            if (!tokens?.accessToken) {
-                throw new Error("Spotify is not connected.");
-            }
-
-            if (
-                typeof tokens.scope !== "string" ||
-                !tokens.scope.split(/\s+/).includes("streaming")
-            ) {
-                return {
-                    success: false,
-                    requiresReauth: true,
-                    error:
-                        "Spotify playback permission is missing. Reconnect Spotify in Settings > Accounts."
-                };
-            }
-
-            if (
-                tokens.expiresAt &&
-                Date.now() >= tokens.expiresAt - 30000
-            ) {
-                tokens.accessToken =
-                    await refreshSpotifyToken();
-
-                if (!tokens.accessToken) {
-                    throw new Error("Spotify token refresh failed.");
-                }
-            }
-
-            return {
-                success: true,
-                accessToken: tokens.accessToken
-            };
-
-        } catch (error) {
-
-            console.error(
-                "Spotify playback token request failed:",
-                error
-            );
-
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-);
-
-
-ipcMain.handle(
     "spotify-api",
     async (
         event,
