@@ -1355,8 +1355,7 @@
     animation:
 
         xmbStartupFade
-
-        4.6s
+        3.4s
 
         cubic-bezier(
             0.22,
@@ -1426,8 +1425,7 @@
     animation:
 
         xmbStartupBloom
-
-        4.3s
+        3.2s
 
         cubic-bezier(
             0.22,
@@ -1459,11 +1457,7 @@
 
     transform:
 
-        translate3d(
-            42vw,
-            0,
-            0
-        )
+        translate3d(18vw, 0, 0)
         scale(0.92);
 
     opacity: 0;
@@ -1474,8 +1468,7 @@
     animation:
 
         xmbStartupMark
-
-        4.35s
+        3.25s
 
         cubic-bezier(
             0.16,
@@ -1615,8 +1608,7 @@
     animation:
 
         xmbStartupCaption
-
-        4.6s
+        3.3s
 
         ease
 
@@ -1693,7 +1685,7 @@
     0% {
         opacity: 0;
         transform:
-            translate3d(42vw, 0, 0)
+            translate3d(18vw, 0, 0)
             scale(0.92);
         filter: blur(10px);
     }
@@ -1701,7 +1693,7 @@
     16% {
         opacity: 0.18;
         transform:
-            translate3d(22vw, 0, 0)
+            translate3d(8vw, 0, 0)
             scale(0.96);
         filter: blur(7px);
     }
@@ -1735,7 +1727,7 @@
     86% {
         opacity: 0.12;
         transform:
-            translate3d(-22vw, 0, 0)
+            translate3d(-8vw, 0, 0)
             scale(0.98);
         filter: blur(7px);
     }
@@ -1743,7 +1735,7 @@
     100% {
         opacity: 0;
         transform:
-            translate3d(-42vw, 0, 0)
+            translate3d(-18vw, 0, 0)
             scale(0.94);
         filter: blur(12px);
     }
