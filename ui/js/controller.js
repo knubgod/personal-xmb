@@ -118,6 +118,32 @@ function handleSpotifyControllerMode(gamepad){
         return true;
     }
 
+    if(buttonJustPressed(gamepad,12)){
+        const volume=Math.max(
+            0,
+            Number(window.spotifyService?.volume||100)-5
+        );
+        window.spotifyService?.setVolume?.(volume).catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify volume could not be changed."
+            );
+        });
+        return true;
+    }
+
+    if(buttonJustPressed(gamepad,13)){
+        const volume=Math.min(
+            100,
+            Number(window.spotifyService?.volume||100)+5
+        );
+        window.spotifyService?.setVolume?.(volume).catch?.(error=>{
+            window.spotifyService?.showTemporaryMessage?.(
+                error?.message||"Spotify volume could not be changed."
+            );
+        });
+        return true;
+    }
+
     if(buttonJustPressed(gamepad,2)){
         window.spotifyService?.toggleShuffle?.().catch?.(error=>{
             window.spotifyService?.showTemporaryMessage?.(
