@@ -521,7 +521,7 @@ function updateCategorySelection(
                     "category-moving-forward",
                     "category-moving-backward"
                 );
-            },180);
+            },260);
     }
 
     categories.forEach(
