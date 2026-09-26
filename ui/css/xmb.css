@@ -371,30 +371,6 @@
     filter: blur(0.18px);
 }
 
-#category-viewport.category-moving-forward #categories {
-
-    transform:
-        translateX(-9px)
-        scaleX(1.012);
-
-    transition:
-        transform 260ms cubic-bezier(.08,.74,.16,1),
-        filter 260ms ease;
-}
-
-#category-viewport.category-moving-backward #categories {
-
-    transform:
-        translateX(9px)
-        scaleX(1.012);
-
-    transition:
-        transform 260ms cubic-bezier(.08,.74,.16,1),
-        filter 260ms ease;
-}
-
-
-
 
 /*
     ========================================================
