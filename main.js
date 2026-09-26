@@ -6612,12 +6612,73 @@ function isSpotifyRunning() {
 }
 
 
+function focusXmbWindow(){
+    if(!mainWindow || mainWindow.isDestroyed())return;
+
+    try{
+        if(!mainWindow.isFullScreen()){
+            mainWindow.setFullScreen(true);
+        }
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.moveTop();
+    }catch(error){
+        console.debug("Unable to refocus Personal XMB:",error?.message||error);
+    }
+}
+
+
+async function hideSpotifyWindows(){
+    if(process.platform!=="win32"){
+        focusXmbWindow();
+        return;
+    }
+
+    const script=[
+        "$ErrorActionPreference='SilentlyContinue';",
+        "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class XmbWindow { [DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); }';",
+        "Get-Process Spotify | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [XmbWindow]::ShowWindow($_.MainWindowHandle,0) }"
+    ].join("");
+
+    for(let attempt=0;attempt<10;attempt++){
+        await new Promise(resolve=>{
+            const child=spawn(
+                "powershell.exe",
+                [
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-WindowStyle",
+                    "Hidden",
+                    "-Command",
+                    script
+                ],
+                {
+                    windowsHide:true,
+                    stdio:"ignore"
+                }
+            );
+
+            child.once("close",()=>resolve());
+            child.once("error",()=>resolve());
+        });
+
+        if(attempt>=2)break;
+        await new Promise(resolve=>setTimeout(resolve,200));
+    }
+
+    focusXmbWindow();
+}
+
+
 async function launchSpotifyDesktop() {
 
     if (await isSpotifyRunning()) {
+        await hideSpotifyWindows();
+
         return {
             success:true,
-            alreadyRunning:true
+            alreadyRunning:true,
+            hidden:true
         };
     }
 
@@ -6661,11 +6722,14 @@ async function launchSpotifyDesktop() {
             });
 
             if(launched){
+                await hideSpotifyWindows();
+
                 return {
                     success:true,
                     alreadyRunning:false,
                     launchedByExecutable:true,
-                    minimizedRequested:true
+                    minimizedRequested:true,
+                    hidden:true
                 };
             }
         }
