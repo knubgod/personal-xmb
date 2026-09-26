@@ -15,7 +15,10 @@ const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
 const activeLogins = new Set();
 
 const configFile = () =>
-    path.join(__dirname, "config", "settings.json");
+    path.join(app.getPath("userData"), "settings.json");
+
+const bundledConfigFile = () =>
+    path.join(__dirname, "config", "settings.example.json");
 
 const tokenFile = () =>
     path.join(app.getPath("userData"), "accounts.json");
@@ -34,7 +37,13 @@ function writeJson(file, value) {
 }
 
 function settings() {
-    return readJson(configFile(), {});
+    const userSettings = readJson(configFile(), null);
+
+    if (userSettings && typeof userSettings === "object") {
+        return userSettings;
+    }
+
+    return readJson(bundledConfigFile(), {});
 }
 
 function accounts() {
@@ -193,12 +202,33 @@ function callback(port, expectedState) {
                     return;
                 }
 
-                if (url.searchParams.get("error")) {
-                    res.writeHead(400);
-                    res.end("Authorization cancelled.");
+                const oauthError = url.searchParams.get("error");
+
+                if (oauthError) {
+                    const description =
+                        url.searchParams.get("error_description") ||
+                        "No error description was provided.";
+
+                    console.error(
+                        "[AUTH] OAuth provider rejected authorization:",
+                        {
+                            providerPort: port,
+                            error: oauthError,
+                            description
+                        }
+                    );
+
+                    res.writeHead(400, {
+                        "Content-Type": "text/html; charset=utf-8"
+                    });
+                    res.end(
+                        "<h1>Personal XMB authorization failed.</h1>" +
+                        "<p>You can close this window and return to XMB.</p>"
+                    );
+
                     finish(
                         new Error(
-                            url.searchParams.get("error")
+                            `${oauthError}: ${description}`
                         )
                     );
                     return;
@@ -379,6 +409,149 @@ function summary(all = accounts()) {
     };
 }
 
+/*
+    Discord Friends / DM helpers
+    ----------------------------
+    These requests stay in the main process so the Discord OAuth
+    access token never reaches the renderer.
+*/
+function validateDiscordUserId(value) {
+    const userId = String(value || "").trim();
+
+    if (!/^\\d{15,25}$/.test(userId)) {
+        throw new Error("Discord user ID is invalid.");
+    }
+
+    return userId;
+}
+
+function discordAvatarUrl(user) {
+    const id = String(user?.id || "");
+    const hash = typeof user?.avatar === "string" ? user.avatar : "";
+
+    if (!/^\\d{15,25}$/.test(id) || !/^[A-Za-z0-9_]{2,128}$/.test(hash)) {
+        return "";
+    }
+
+    const extension = hash.startsWith("a_") ? "gif" : "png";
+    return `https://cdn.discordapp.com/avatars/${id}/${hash}.${extension}?size=128`;
+}
+
+function normalizeDiscordFriend(relationship) {
+    const user = relationship?.user || {};
+
+    return {
+        id: String(user.id || relationship?.id || ""),
+        platform: "discord",
+        name: String(
+            user.global_name ||
+            user.username ||
+            "Unknown friend"
+        ),
+        username: String(user.username || ""),
+        discriminator: String(user.discriminator || ""),
+        avatar: discordAvatarUrl(user),
+        status: "offline",
+        presenceAvailable: false,
+        relationshipType: Number.isFinite(relationship?.type)
+            ? relationship.type
+            : 1,
+        activity: null
+    };
+}
+
+async function getDiscordFriends(all = accounts()) {
+    const credentials = loadCredentials("discord", all);
+
+    if (!credentials?.accessToken) {
+        return {
+            friends: [],
+            provider: "discord",
+            configured: false,
+            socialSdkRequired: true,
+            error: "Discord is not connected."
+        };
+    }
+
+    /*
+        Discord's current Social SDK is the supported path for the
+        deep social features we want here (relationships, presence,
+        and DMs). The standard OAuth connection above intentionally
+        requests only "identify", so the legacy REST relationships
+        endpoint cannot be treated as a working friends source.
+
+        Keep this fallback explicit instead of silently returning an
+        empty list. That makes the renderer tell us exactly which
+        integration is still pending while the Social SDK bridge is
+        added in a later commit.
+    */
+    return {
+        friends: [],
+        provider: "discord",
+        configured: true,
+        socialSdkRequired: true,
+        presenceAvailable: false,
+        error:
+            "Discord friends require the Discord Social SDK integration."
+    };
+}
+
+async function discordSendMessage(userId, content, all = accounts()) {
+    const targetUserId = validateDiscordUserId(userId);
+    const message = String(content || "").trim();
+
+    if (!message) {
+        throw new Error("Message cannot be empty.");
+    }
+
+    if (message.length > 2000) {
+        throw new Error("Discord messages are limited to 2000 characters.");
+    }
+
+    const credentials = loadCredentials("discord", all);
+
+    if (!credentials?.accessToken) {
+        throw new Error("Discord is not connected.");
+    }
+
+    const headers = {
+        Authorization:
+            `Bearer ${credentials.accessToken}`,
+        "Content-Type": "application/json"
+    };
+
+    const dmChannel = await requestJson(
+        "https://discord.com/api/v10/users/@me/channels",
+        {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+                recipient_id: targetUserId
+            })
+        }
+    );
+
+    const channelId = String(dmChannel?.id || "");
+
+    if (!/^\\d{15,25}$/.test(channelId)) {
+        throw new Error("Discord did not return a valid DM channel.");
+    }
+
+    return requestJson(
+        `https://discord.com/api/v10/channels/${channelId}/messages`,
+        {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+                content: message,
+                allowed_mentions: {
+                    parse: []
+                }
+            })
+        }
+    );
+}
+
 async function discordProfile(all) {
     const credentials = loadCredentials("discord", all);
 
@@ -508,6 +681,8 @@ ipcMain.handle(
         requireTrustedRenderer(event);
 
         try {
+            console.log(`[AUTH] Starting ${provider} authorization.`);
+
             if (
                 provider !== "discord" &&
                 provider !== "microsoft" &&
@@ -531,8 +706,13 @@ ipcMain.handle(
                             "https://discord.com/oauth2/authorize",
                         token:
                             "https://discord.com/api/oauth2/token",
+                        // Start with the standard identity scope.
+                        // Discord requires approval for relationships.read
+                        // and dm_channels.read; requesting those scopes here
+                        // causes authorization to be rejected unless the
+                        // application has the corresponding approvals.
                         scope:
-                            "identify connections",
+                            "identify",
                         port:
                             ports.discord
                     }
@@ -674,6 +854,59 @@ ipcMain.handle(
             accounts:
                 summary(all)
         };
+    }
+);
+
+ipcMain.handle(
+    "discord-friends-get",
+    async event => {
+        requireTrustedRenderer(event);
+
+        try {
+            return await getDiscordFriends();
+        } catch (error) {
+            console.error(
+                "Discord friends request failed:",
+                error
+            );
+
+            return {
+                friends: [],
+                provider: "discord",
+                configured: true,
+                presenceAvailable: false,
+                error:
+                    error?.message ||
+                    "Unable to load Discord friends."
+            };
+        }
+    }
+);
+
+ipcMain.handle(
+    "discord-send-message",
+    async (event, userId, content) => {
+        requireTrustedRenderer(event);
+
+        try {
+            await discordSendMessage(userId, content);
+
+            return {
+                success: true
+            };
+        } catch (error) {
+            console.error(
+                "Discord message send failed:",
+                error
+            );
+
+            return {
+                success: false,
+                error:
+                    error?.message ||
+                    "Unable to send Discord message."
+            };
+        }
     }
 );
 

@@ -7223,6 +7223,8 @@ ipcMain.handle(
 
             const scopes = [
                 "streaming",
+                "user-read-email",
+                "user-read-private",
                 "user-read-currently-playing",
                 "user-read-playback-state",
                 "user-read-recently-played",
@@ -7702,6 +7704,7 @@ ipcMain.handle(
                     endpoint.startsWith("/me/") ||
                     endpoint.startsWith("/playlists/") ||
                     endpoint.startsWith("/artists/") ||
+                    endpoint.startsWith("/albums/") ||
                     endpoint.startsWith("/shows/") ||
                     endpoint.startsWith("/search")
                 )

@@ -2323,3 +2323,75 @@ body.navigation-visible #input-mode {
 
 }
 
+
+
+/* ========================================================
+   PS3-INSPIRED NAVIGATION MOTION
+   ======================================================== */
+
+.category{
+    will-change:transform,opacity;
+}
+
+.category:not(.selected){
+    filter:blur(.05px);
+}
+
+.category.selected{
+    transform:scale(1.1) translateY(-3px);
+    transition:opacity .55s ease,transform .65s cubic-bezier(.22,1,.36,1);
+}
+
+.category.selected .category-icon-image{
+    transform:scale(1.1) translateY(-1px);
+    transition:opacity .55s ease,transform .65s cubic-bezier(.22,1,.36,1);
+}
+
+.item{
+    will-change:transform,opacity;
+    transition:color .3s ease,transform .42s cubic-bezier(.22,1,.36,1),opacity .42s ease,filter .42s ease;
+}
+
+.item:not(.selected){
+    opacity:.58;
+    transform:translateX(0) scale(.97);
+}
+
+.item.selected{
+    transform:translateX(16px) scale(1.025);
+    text-shadow:0 2px 14px rgba(0,0,0,.35);
+}
+
+.item.selected .item-icon{
+    transform:scale(1.1) translateX(2px);
+    transition:opacity .35s ease,transform .42s cubic-bezier(.22,1,.36,1);
+}
+
+#selection-preview{
+    transition:opacity .6s ease,transform .7s cubic-bezier(.22,1,.36,1),right .7s cubic-bezier(.22,1,.36,1);
+}
+
+#selection-artwork-image{
+    transition:opacity .55s ease,transform 1.2s cubic-bezier(.22,1,.36,1),filter .8s ease;
+}
+
+#media-player{
+    transition:opacity .5s ease,transform .65s cubic-bezier(.22,1,.36,1);
+}
+
+body.navigation-visible #media-player{
+    transform:translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce){
+    .category.selected,
+    .category.selected .category-icon-image,
+    .item,
+    .item.selected .item-icon,
+    #selection-preview,
+    #selection-artwork-image,
+    #media-player{
+        transition:none;
+        transform:none;
+    }
+}

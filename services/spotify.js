@@ -15,6 +15,15 @@ const spotifyService={
     playerReady:false,
     playerConnecting:false,
     playerReadyPromise:null,
+    playbackIntent:null,
+    playbackIntentStartedAt:0,
+    playbackRecoveryAttempts:0,
+    playbackErrorAt:0,
+    playbackErrorPauseAt:0,
+    playbackCommandId:0,
+    continuationMode:null,
+    continuationInFlight:false,
+    continuationSeedUri:"",
 
     async initialize(){
         if(this.initialized)return;
@@ -56,8 +65,8 @@ const spotifyService={
                 );
             }
 
-            this.renderPlayer();
-        },250);
+            this.updateSpotifyProgress?.();
+        },1000);
     },
 
     stopPolling(){
@@ -89,6 +98,23 @@ const spotifyService={
             throw new Error(result?.error||"Spotify API request failed.");
         }
         return result.data;
+    },
+
+    sleep(ms){
+        return new Promise(resolve=>setTimeout(resolve,ms));
+    },
+
+    async waitForSdkState(predicate,attempts=20,delay=250){
+        for(let attempt=0;attempt<attempts;attempt++){
+            try{
+                const state=await this.player?.getCurrentState?.();
+                if(state&&predicate(state))return state;
+            }catch(error){
+                // The SDK can briefly report no state while Connect settles.
+            }
+            if(attempt<attempts-1)await this.sleep(delay);
+        }
+        return null;
     },
 
     async refreshNowPlaying(){
@@ -194,6 +220,14 @@ const spotifyService={
         this.playerReadyPromise=null;
 
         try{
+            /*
+                The SDK script loads asynchronously. Wait only when playback
+                is actually requested; never block XMB startup for it.
+            */
+            for(let attempt=0;attempt<20&&!window.Spotify?.Player;attempt++){
+                await this.sleep(250);
+            }
+
             if(!window.Spotify?.Player){
                 throw new Error("Spotify Web Playback SDK is not loaded.");
             }
@@ -256,14 +290,56 @@ const spotifyService={
             });
 
             player.addListener("playback_error",({message})=>{
+                /*
+                    A Web Playback error is frequently caused by the
+                    Spotify/Widevine license layer. The SDK itself owns
+                    retry/track handling here.
+
+                    Do NOT issue another /me/player/play command from
+                    this event. Doing so while the SDK is already moving
+                    to its next track creates a feedback loop that can
+                    skip indefinitely and can quickly trigger 429s.
+                */
+                const now=Date.now();
                 console.error("Spotify Web Playback error:",message);
-                this.showTemporaryMessage("Spotify playback error.");
+                this.playbackErrorAt=now;
+
+                /*
+                    The SDK can retry failed Widevine license requests
+                    internally. When Spotify is returning HTTP 500 from
+                    the license endpoint, those retries become expensive
+                    and can make the whole XMB renderer stutter.
+
+                    Disconnect the failed SDK transport instead of letting
+                    it continue retrying. A later user-initiated attempt
+                    may create a fresh player after the short cooldown.
+                */
+                this.playerReady=false;
+                this.playerDeviceId="";
+
+                const failedPlayer=player;
+
+                if(this.player===failedPlayer){
+                    this.player=null;
+                }
+
+                Promise.resolve(
+                    failedPlayer.disconnect?.()
+                ).catch(()=>{});
+
+                this.showTemporaryMessage(
+                    "Spotify playback encountered a DRM error. Try Play again in a few seconds."
+                );
             });
 
             player.addListener("player_state_changed",state=>{
                 if(!state)return;
                 const track=state.track_window?.current_track;
                 if(track){
+                    if(!state.paused&&(!this.playbackIntent?.uri||track.uri===this.playbackIntent.uri)){
+                        this.playbackRecoveryAttempts=0;
+                    }
+
                     this.currentTrack={
                         id:track.id,
                         uri:track.uri||"",
@@ -276,6 +352,25 @@ const spotifyService={
                         isPlaying:!state.paused,
                         spotifyUrl:""
                     };
+
+                    const naturalEnd=
+                        state.paused&&
+                        state.duration>0&&
+                        state.position>=Math.max(0,state.duration-1200)&&
+                        this.continuationMode==="related"&&
+                        track.uri===this.continuationSeedUri;
+
+                    /*
+                        Only build a continuation after the seed track
+                        actually reaches its end. Playback errors must
+                        never be interpreted as a track ending.
+                    */
+                    if(naturalEnd&&!this.continuationInFlight){
+                        this.continuationInFlight=true;
+                        this.buildContinuationQueue(track)
+                            .catch(error=>console.warn("Spotify continuation queue failed:",error.message))
+                            .finally(()=>{this.continuationInFlight=false;});
+                    }
                 }
                 this.renderPlayer();
             });
@@ -379,6 +474,14 @@ const spotifyService={
     },
 
     async next(){
+        /*
+            Do not hammer Spotify's next-track command while a
+            Widevine/license failure is actively recovering.
+        */
+        if(Date.now()-this.playbackErrorAt<5000){
+            this.showTemporaryMessage("Spotify is recovering playback. Try Next again in a moment.");
+            return;
+        }
         await this.activatePlayer();
         await this.player.nextTrack();
     },
@@ -437,52 +540,192 @@ const spotifyService={
         });
     },
 
-    async playTrack(uri){
+    async startTrack(uri,{recovery=false}={}){
         if(!uri)throw new Error("Spotify track URI is missing.");
+
+        if(
+            !recovery &&
+            this.playbackErrorAt &&
+            Date.now()-this.playbackErrorAt<5000
+        ){
+            throw new Error(
+                "Spotify playback is cooling down after a DRM error. Try again in a few seconds."
+            );
+        }
+
+        const commandId=++this.playbackCommandId;
+        this.playbackErrorAt=0;
+        this.playbackIntent={type:"track",uri};
+        this.playbackIntentStartedAt=Date.now();
+        if(!recovery)this.playbackRecoveryAttempts=0;
+
         await this.activatePlayer();
+        await this.sleep(recovery?350:700);
         await this.transferToLocalPlayer();
+        await this.sleep(350);
+
         await this.api({
             method:"PUT",
             endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
             body:{uris:[uri]}
         });
+
+        if(commandId!==this.playbackCommandId)return;
+
+        const state=await this.waitForSdkState(
+            current=>current.track_window?.current_track?.uri===uri,
+            24,
+            250
+        );
+
+        if(state?.paused&&state.track_window?.current_track?.uri===uri){
+            await this.player.resume();
+        }
+
+        /*
+            Do not pre-build the continuation queue here.
+
+            Search/playback startup is the most fragile part of Web
+            Playback. Queueing six more tracks immediately can cause
+            several additional license requests while the first track
+            is still establishing its Widevine session.
+
+            The continuation queue is built only after the seed track
+            genuinely reaches its end.
+        */
         this.lastPlayerRefresh=0;
+    },
+
+    /*
+        Recovery is intentionally disabled for Web Playback errors.
+
+        Spotify's Web Playback SDK already retries its own Widevine/CDN
+        work. Re-issuing start commands from playback_error races that
+        internal state machine and was the source of the infinite-skip
+        behavior seen in Personal XMB.
+    */
+    async recoverPlaybackAfterError(){
+        return false;
+    },
+
+    async startContext(uri,{recovery=false}={}){
+        if(!uri)throw new Error("Spotify context URI is missing.");
+        const commandId=++this.playbackCommandId;
+        this.playbackErrorAt=0;
+        this.playbackIntent={type:"context",uri};
+        this.playbackIntentStartedAt=Date.now();
+        if(!recovery)this.playbackRecoveryAttempts=0;
+
+        await this.activatePlayer();
+        await this.sleep(recovery?350:700);
+        await this.transferToLocalPlayer();
+        await this.sleep(350);
+        await this.api({
+            method:"PUT",
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            body:{context_uri:uri}
+        });
+        if(commandId!==this.playbackCommandId)return;
+        const state=await this.waitForSdkState(
+            current=>current.context?.uri===uri,
+            24,
+            250
+        );
+        if(state?.paused)await this.player.resume();
+        this.lastPlayerRefresh=0;
+    },
+
+    async playTrack(uri){
+        this.continuationMode="related";
+        this.continuationSeedUri=uri||"";
+        await this.startTrack(uri);
+    },
+
+    async addToQueue(uri){
+        if(!uri)throw new Error("Spotify queue item URI is missing.");
+        if(!/^spotify:(track|episode):/.test(uri))throw new Error("Only Spotify tracks and episodes can be queued.");
+        await this.ensureLocalPlayer();
+        await this.api({
+            method:"POST",
+            endpoint:"/me/player/queue?uri="+encodeURIComponent(uri)+"&device_id="+encodeURIComponent(this.playerDeviceId)
+        });
+        this.showTemporaryMessage("Added to Spotify queue.");
+    },
+
+    async getQueue(){
+        return this.api({method:"GET",endpoint:"/me/player/queue"});
+    },
+
+    async buildContinuationQueue(seedTrack){
+        if(!seedTrack?.uri)return;
+        const artist=seedTrack.artists?.[0]?.name||"";
+        const title=seedTrack.name||"";
+        const queries=[];
+        if(artist)queries.push(artist);
+        if(title&&artist)queries.push(artist+" "+title);
+
+        const candidates=new Map();
+        for(const query of queries){
+            try{
+                const data=await this.search(query,"track");
+                for(const item of data?.tracks?.items||[]){
+                    if(item?.uri&&item.uri!==seedTrack.uri&&item.is_playable!==false&&!candidates.has(item.uri))candidates.set(item.uri,item);
+                }
+            }catch(error){
+                console.warn("Spotify continuation search failed:",error.message);
+            }
+        }
+
+        const tracks=[...candidates.values()];
+        for(let i=tracks.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tracks[i],tracks[j]]=[tracks[j],tracks[i]];}
+        const selected=tracks.slice(0,6);
+        if(!selected.length)return;
+
+        let existing=[];
+        try{const queue=await this.getQueue();existing=(queue?.queue||[]).map(item=>item?.uri).filter(Boolean);}
+        catch(error){console.warn("Spotify queue check failed:",error.message);}
+
+        let added=0;
+        for(const item of selected){
+            if(existing.includes(item.uri))continue;
+            try{
+                await this.addToQueue(item.uri);
+                added++;
+            }catch(error){
+                console.warn("Spotify continuation queue add failed:",error.message);
+            }
+        }
+
+        if(added>0){
+            this.showTemporaryMessage("Continuation queue ready.");
+        }
     },
 
     async playPlaylist(uri){
         if(!uri)throw new Error("Spotify playlist URI is missing.");
-        await this.activatePlayer();
-        await this.transferToLocalPlayer();
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
-            body:{context_uri:uri}
-        });
-        this.lastPlayerRefresh=0;
+        this.continuationMode=null;
+        this.continuationSeedUri="";
+        await this.startContext(uri);
     },
 
     async playContext(uri){
         if(!uri)throw new Error("Spotify context URI is missing.");
-        await this.activatePlayer();
-        await this.transferToLocalPlayer();
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
-            body:{context_uri:uri}
-        });
-        this.lastPlayerRefresh=0;
+        this.continuationMode=null;
+        this.continuationSeedUri="";
+        await this.startContext(uri);
     },
 
     async playPodcastShow(uri){
         if(!uri)throw new Error("Spotify podcast URI is missing.");
-        await this.activatePlayer();
-        await this.transferToLocalPlayer();
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
-            body:{context_uri:uri}
-        });
-        this.lastPlayerRefresh=0;
+        this.continuationMode=null;
+        this.continuationSeedUri="";
+        await this.startContext(uri);
+    },
+
+    async albumTracks(uri,limit=50){
+        const id=String(uri||"").split(":").pop();
+        if(!id)throw new Error("Spotify album ID is missing.");
+        return this.api({method:"GET",endpoint:"/albums/"+encodeURIComponent(id)+"/tracks?limit="+Math.min(50,Math.max(1,limit))});
     },
 
     async search(query,type="all"){
@@ -527,6 +770,23 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 
 window.spotifyService=spotifyService;
+
+window.updateSpotifyProgress=()=>{
+    const track=spotifyService.currentTrack;
+    if(!track)return;
+
+    const current=document.getElementById("media-current");
+    const fill=document.getElementById("media-progress-fill");
+
+    if(current)current.textContent=formatTime(track.progress);
+
+    if(fill){
+        const percent=track.duration
+            ?Math.round((track.progress/track.duration)*100/5)*5
+            :0;
+        fill.className="progress-"+Math.max(0,Math.min(100,percent));
+    }
+};
 
 window.updateSpotifyPlayer=(track)=>{
     const title=document.getElementById("media-title");
@@ -587,6 +847,7 @@ const spotifyUi={
         {id:"all",name:"All"},
         {id:"songs",name:"Songs"},
         {id:"artists",name:"Artists"},
+        {id:"albums",name:"Albums"},
         {id:"playlists",name:"Playlists"},
         {id:"podcasts",name:"Podcasts"},
         {id:"dj",name:"DJ"}
@@ -760,6 +1021,7 @@ const spotifyUi={
             }));
 
             const artistMap=new Map();
+            const albumMap=new Map();
             const playlistMap=new Map();
             const podcastMap=new Map();
 
@@ -767,6 +1029,21 @@ const spotifyUi={
                 const playedAt=item.played_at||"";
                 const track=item.track;
                 const context=item.context;
+
+                if(track?.album?.id){
+                    const existing=albumMap.get(track.album.id);
+                    if(!existing||String(playedAt)>String(existing.playedAt)){
+                        albumMap.set(track.album.id,{
+                            type:"album",
+                            name:track.album.name||"Unknown Album",
+                            subtitle:track.artists?.map(a=>a.name).join(", ")||"Album",
+                            image:track.album?.images?.[2]?.url||track.album?.images?.[0]?.url||"",
+                            uri:track.album.uri||"",
+                            playedAt,
+                            source:"derived"
+                        });
+                    }
+                }
 
                 for(const artist of track?.artists||[]){
                     if(!artist?.id)continue;
@@ -828,6 +1105,7 @@ const spotifyUi={
             */
 
             const artists=[...artistMap.values()];
+            const albums=[...albumMap.values()];
             const playlists=[...playlistMap.values()];
             const podcasts=[...podcastMap.values()];
             const dj={
@@ -846,9 +1124,10 @@ const spotifyUi={
             );
 
             return {
-                all:sorted([...songs,...artists,...playlists,...podcasts,dj]),
+                all:sorted([...songs,...artists,...albums,...playlists,...podcasts,dj]),
                 songs:sorted(songs),
                 artists:sorted(artists),
+                albums:sorted(albums),
                 playlists:sorted(playlists),
                 podcasts:sorted(podcasts),
                 dj:[dj]
@@ -870,6 +1149,7 @@ const spotifyUi={
         const icons={
             song:"♫",
             artist:"♪",
+            album:"▰",
             playlist:"▤",
             podcast:"◉",
             dj:"✦"
@@ -883,6 +1163,7 @@ const spotifyUi={
         const filter=this.filters[this.selectedFilter];
 
         overlay.querySelector("#spotify-library-title").textContent="Recently Played";
+        overlay.querySelector(".spotify-library-filters").style.display="flex";
         overlay.classList.add("visible");
         this.updateFilterVisuals();
 
@@ -1054,15 +1335,20 @@ const spotifyUi={
                 }
 
                 results.innerHTML=rows.map(item=>
-                    '<button class="spotify-library-row" type="button" data-uri="'+
-                        this.escapeAttribute(item.uri)+
-                        '" data-url="'+this.escapeAttribute(item.spotifyUrl)+
-                        '" data-type="'+this.escapeAttribute(item.type)+'">'+
-                        (item.image
-                            ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
-                            :'<span class="spotify-library-row-icon '+item.type+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
-                        '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+
-                    '</button>'
+                    '<div class="spotify-result-group">'+
+                        '<button class="spotify-library-row" type="button" data-uri="'+
+                            this.escapeAttribute(item.uri)+'" data-url="'+this.escapeAttribute(item.spotifyUrl)+'" data-type="'+this.escapeAttribute(item.type)+'">'+
+                            (item.image
+                                ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
+                                :'<span class="spotify-library-row-icon '+item.type+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
+                            '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+ 
+                        '</button>'+ 
+                        (item.type==="track"
+                            ?'<button class="spotify-queue-button" type="button">+ Queue</button>'
+                            :item.type==="album"
+                                ?'<button class="spotify-queue-button" type="button">Open Album</button>'
+                                :'')+
+                    '</div>'
                 ).join("");
 
                 const rowElements=[...results.querySelectorAll(".spotify-library-row")];
@@ -1089,29 +1375,41 @@ const spotifyUi={
                     row.onclick=async event=>{
                         event.preventDefault();
                         event.stopPropagation();
-
                         this.selectedIndex=index;
                         this.setRows(rowElements);
-
                         try{
-                            if(
-                                item.type==="track" ||
-                                item.type==="episode"
-                            ){
+                            if(item.type==="album"){
+                                await this.showAlbumTracks(item);
+                                return;
+                            }
+                            if(item.type==="track"||item.type==="episode"){
                                 await spotifyService.playTrack(row.dataset.uri);
                             }else{
                                 await spotifyService.playContext(row.dataset.uri);
                             }
-
                             this.close();
                         }catch(error){
                             console.error("Spotify search playback failed:",error);
-                            this.showStatus(
-                                error.message||
-                                "Unable to start Spotify playback."
-                            );
+                            this.showStatus(error.message||"Unable to start Spotify playback.");
                         }
                     };
+
+                    const actionButton=row.parentElement?.querySelector(".spotify-queue-button");
+                    if(actionButton&&item.type==="track"){
+                        actionButton.onclick=async event=>{
+                            event.preventDefault();
+                            event.stopPropagation();
+                            try{await spotifyService.addToQueue(item.uri);}
+                            catch(error){this.showStatus(error.message||"Unable to add track to queue.");}
+                        };
+                    }
+                    if(actionButton&&item.type==="album"){
+                        actionButton.onclick=async event=>{
+                            event.preventDefault();
+                            event.stopPropagation();
+                            await this.showAlbumTracks(item);
+                        };
+                    }
                 });
 
                 this.setRows(rowElements);
@@ -1123,6 +1421,46 @@ const spotifyUi={
         };
 
         input.focus();
+    },
+
+    async showAlbumTracks(album){
+        const overlay=this.ensure();
+        const content=overlay.querySelector("#spotify-library-content");
+        overlay.querySelector("#spotify-library-title").textContent=album?.name||"Album";
+        overlay.querySelector(".spotify-library-filters").style.display="none";
+        overlay.classList.add("visible");
+        content.innerHTML='<div id="spotify-library-status">Loading album tracks...</div>';
+        this.rows=[];
+        try{
+            const data=await spotifyService.albumTracks(album?.uri,50);
+            const items=(data?.items||[]).filter(item=>item?.uri);
+            content.innerHTML='<div class="spotify-album-subheader"><button id="spotify-album-back" type="button">← Back to Search</button><span>'+(album?.subtitle||"Album")+'</span></div>'+
+                (items.length?items.map(item=>'<div class="spotify-result-group"><button class="spotify-library-row" type="button" data-uri="'+this.escapeAttribute(item.uri)+'" data-type="track"><span class="spotify-library-row-icon song" aria-hidden="true">'+this.getRowIcon("song")+'</span><span class="spotify-library-row-text"><strong></strong><span></span></span></button><button class="spotify-queue-button" type="button">+ Queue</button></div>').join(""):'<div id="spotify-library-status">No playable tracks were returned for this album.</div>');
+            content.querySelector("#spotify-album-back")?.addEventListener("click",()=>this.showSearch());
+            const rows=[...content.querySelectorAll(".spotify-library-row")];
+            items.forEach((item,index)=>{
+                const row=rows[index];
+                if(!row)return;
+                row.querySelector("strong").textContent=(item.track_number?String(item.track_number).padStart(2,"0")+"  ":"")+item.name;
+                row.querySelector(".spotify-library-row-text > span").textContent=item.artists?.map(a=>a.name).join(", ")||"Track";
+                row.onclick=async()=>{
+                    this.selectedIndex=index;
+                    this.setRows(rows);
+                    try{await spotifyService.playTrack(item.uri);this.close();}
+                    catch(error){this.showStatus(error.message||"Unable to start Spotify playback.");}
+                };
+                row.parentElement?.querySelector(".spotify-queue-button")?.addEventListener("click",async event=>{
+                    event.preventDefault();event.stopPropagation();
+                    try{await spotifyService.addToQueue(item.uri);}
+                    catch(error){this.showStatus(error.message||"Unable to add track to queue.");}
+                });
+            });
+            this.setRows(rows);
+        }catch(error){
+            content.innerHTML='<div id="spotify-library-status"></div>';
+            content.querySelector("#spotify-library-status").textContent=error.message;
+            this.rows=[];
+        }
     },
 
     escapeAttribute(value){

@@ -1615,64 +1615,32 @@ function getBuiltInItemIcon(
     }
 
     const icons = {
-
         "general-settings":
-            '<path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.2 1.4 1.1-1.8 3.1-1.7-.7a7.5 7.5 0 0 1-1.6.9l-.3 1.8h-3.6l-.3-1.8a7.5 7.5 0 0 1-1.6-.9l-1.7.7-1.8-3.1 1.4-1.1a7.5 7.5 0 0 1 0-1.8L6.4 10.3l1.8-3.1 1.7.7a7.5 7.5 0 0 1 1.6-.9l.3-1.8h3.6l.3 1.8a7.5 7.5 0 0 1 1.6.9l1.7-.7 1.8 3.1-1.4 1.1a7.5 7.5 0 0 1 0 1.8Z"/>',
-
+            '<path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.2 1.4 1.1-1.8 3.1-1.7-.7a7.5 7.5 0 0 1-1.6.9l-.3 1.8h-3.6l-.3-1.8a7.5 7.5 0 0 1-1.6-.9l-1.7.7-1.8-3.1 1.4-1.1a7.5 7.5 0 0 1 0-1.8L6.4 10.3l1.8-3.1 1.7.7a7.5 7.5 0 0 1 1.6-.9l.3-1.8h3.6l.3 1.8a7.5 7.5 0 0 1 1.6.9l1.7-.7 1.7 3.1-1.4 1.1a7.5 7.5 0 0 1 0 1.8Z"/>',
         "themes":
             '<path d="M12 4a8 8 0 1 0 7.8 9.8c.2-1.1-.7-2-1.8-2h-2.2a2 2 0 0 1-2-2V8a4 4 0 0 0-4-4Z"/><circle cx="8" cy="9" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="8" r="1"/>',
-
         "accounts":
             '<path d="M16 20a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="3"/><path d="M20 20a4 4 0 0 0-3-3.9"/><path d="M4 20a4 4 0 0 1 3-3.9"/>',
-
         "artwork-settings":
             '<path d="m4 15 4-4 3 3 4-5 5 6"/><rect x="3" y="4" width="18" height="16" rx="2"/>',
-
         "system-settings":
             '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 21h8"/>',
-
         "audio-settings":
             '<path d="M5 10v4h3l4 3V7l-4 3H5Z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M17.5 6.5a7.5 7.5 0 0 1 0 11"/>',
-
         "exit-xmb":
             '<path d="M10 5H5v14h5"/><path d="M13 8l4 4-4 4"/><path d="M9 12h8"/>',
-
-        "spotify-now-playing":
-            '<path d="M5 4h14v16H5z"/><circle cx="12" cy="10" r="2.5"/><path d="M9 16h6"/>',
-
-        "spotify-recently-played":
-            '<path d="M4 12a8 8 0 1 0 2.34-5.66"/><path d="M4 4v5h5"/><path d="M12 8v4l3 2"/>',
-
-        "spotify-playlists":
-            '<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
-
-        "spotify-search":
-            '<circle cx="11" cy="11" r="6"/><path d="m16 16 5 5"/>',
-
-        "spotify-dj":
-            '<path d="M4 12a8 8 0 1 1 16 0"/><path d="M8 12v5M16 12v5"/><path d="M10 17h4"/><path d="M12 8v2"/>',
-
         "spotify-launch-desktop":
-            '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
-
+            '<path d="M5 3h14v18H5Z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
         "spotify-now-playing":
             '<path d="M8 5v14l11-7L8 5Z"/>',
-
         "spotify-recently-played":
             '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8"/>',
-
         "spotify-playlists":
             '<path d="M5 6h14M5 12h14M5 18h9"/>',
-
         "spotify-search":
             '<circle cx="11" cy="11" r="6"/><path d="m16 16 5 5"/>',
-
         "spotify-dj":
-            '<path d="M7 4h10v16H7Z"/><circle cx="10" cy="12" r="1.5"/><circle cx="14" cy="12" r="1.5"/>',
-
-        "spotify-launch-desktop":
-            '<path d="M8 4h8v16H8Z"/><path d="M5 9h3M5 15h3"/>'
-
+            '<path d="M7 4h10v16H7Z"/><circle cx="10" cy="12" r="1.5"/><circle cx="14" cy="12" r="1.5"/>'
     };
 
     const paths =

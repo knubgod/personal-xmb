@@ -5,7 +5,7 @@
 .friends-close,.friends-footer button,.friends-empty button{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.045);color:inherit;padding:9px 13px;cursor:pointer}.friends-close:hover,.friends-footer button:hover,.friends-empty button:hover{background:rgba(255,255,255,.09)}
 .friends-platforms{display:flex;gap:8px;padding:0 0 20px;border-bottom:1px solid rgba(255,255,255,.08)}.friends-platforms button{border:0;border-bottom:2px solid transparent;background:transparent;color:inherit;padding:9px 14px;font-size:11px;letter-spacing:.14em;opacity:.5;cursor:pointer}.friends-platforms button.active{border-bottom-color:currentColor;opacity:1}.friends-platforms button:disabled{opacity:.2;cursor:default}
 .friends-content{padding-top:22px}.friends-platform-section{margin-bottom:32px}.friends-section-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.friends-section-heading h3{margin:0;font-size:15px;font-weight:500;letter-spacing:.08em;text-transform:uppercase}.friends-section-heading span{display:block;margin-top:4px;font-size:11px;opacity:.42}
-.friends-platform-badge{width:28px;height:28px;display:inline-grid;place-items:center;flex:0 0 auto;border:1px solid rgba(255,255,255,.15);font-size:10px;font-weight:600}.friends-game-group{margin:0 0 18px}.friends-game-heading{display:flex;align-items:center;gap:8px;margin:0 0 8px 4px}.friends-game-heading h3{margin:0;font-size:12px;font-weight:500;opacity:.72}.friends-game-heading span{min-width:18px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,.07);font-size:9px;text-align:center;opacity:.55}
+.friends-platform-badge{width:28px;height:28px;display:inline-grid;place-items:center;flex:0 0 auto;border:1px solid rgba(255,255,255,.15);font-size:10px;font-weight:600}.friends-platform-badge svg{width:15px;height:15px;display:block;fill:currentColor}.friends-game-group{margin:0 0 18px}.friends-game-heading{display:flex;align-items:center;gap:8px;margin:0 0 8px 4px}.friends-game-heading h3{margin:0;font-size:12px;font-weight:500;opacity:.72}.friends-game-heading span{min-width:18px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,.07);font-size:9px;text-align:center;opacity:.55}
 .friends-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.friend-card{min-width:0;padding:13px 15px;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.027);transition:background .16s ease,border-color .16s ease,transform .16s ease}.friend-card:hover{background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.14);transform:translateY(-1px)}
 .friend-identity{display:flex;align-items:center;gap:12px;min-width:0}.friends-avatar{position:relative;width:42px;height:42px;flex:0 0 42px;border-radius:50%;background:rgba(255,255,255,.08)}.friends-avatar-image,.friends-avatar-fallback{width:42px;height:42px;display:grid;place-items:center;border-radius:50%;object-fit:cover}.friends-avatar-fallback{font-size:16px;background:rgba(255,255,255,.08)}.friends-status-dot{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border:3px solid #10151e;border-radius:50%;background:#6c7480}.friend-card.is-online .friends-status-dot{background:#3ba55c}.friend-card.is-idle .friends-status-dot{background:#faa61a}.friend-card.is-dnd .friends-status-dot{background:#ed4245}
 .friend-identity-text{min-width:0;flex:1}.friend-name-row{display:flex;align-items:center;gap:8px;min-width:0}.friend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.friend-name-row .friends-platform-badge{width:19px;height:19px;font-size:7px;opacity:.65}.friend-status-label{margin-top:3px;font-size:10px;opacity:.45}
@@ -158,5 +158,249 @@
 @media (max-width: 700px) {
     .friends-inline .friends-list {
         grid-template-columns: 1fr;
+    }
+}
+
+
+/* ============================================================
+   FRIEND PREVIEW / DISCORD MESSAGE COMPOSER
+   ============================================================ */
+
+.friends-inline .friends-main-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 18px;
+    min-height: 0;
+}
+
+.friends-inline .friend-preview {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    min-height: 260px;
+    padding: 22px 20px;
+    border-left: 1px solid rgba(255,255,255,.08);
+    background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+}
+
+.friend-preview-empty {
+    height: 220px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.6;
+    opacity: .38;
+}
+
+.friend-preview-avatar {
+    width: 76px;
+    height: 76px;
+    display: block;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255,255,255,.08);
+    box-shadow: 0 12px 30px rgba(0,0,0,.22);
+}
+
+.friend-preview-platform {
+    font-size: 9px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    opacity: .42;
+}
+
+.friend-preview-name {
+    margin: 5px 0 2px;
+    font-size: 20px;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.friend-preview-username {
+    font-size: 11px;
+    opacity: .48;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.friend-preview-status {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.07);
+    font-size: 10px;
+    line-height: 1.5;
+    opacity: .58;
+}
+
+.friend-preview-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 13px;
+    font-size: 9px;
+    opacity: .35;
+}
+
+.friend-preview-activity {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 15px;
+    padding: 11px 12px;
+    border: 1px solid rgba(255,255,255,.07);
+    background: rgba(255,255,255,.025);
+}
+
+.friend-preview-activity span {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    opacity: .4;
+}
+
+.friend-preview-activity strong {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.friend-preview-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.friend-preview-action {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: rgba(255,255,255,.05);
+    color: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.friend-preview-action:hover {
+    background: rgba(255,255,255,.1);
+    border-color: rgba(255,255,255,.28);
+    transform: translateY(-1px);
+}
+
+.friend-preview-action-note {
+    font-size: 9px;
+    line-height: 1.5;
+    opacity: .35;
+}
+
+#friends-message-composer {
+    position: fixed;
+    inset: 0;
+    z-index: 6000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(3,6,10,.78);
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease;
+}
+
+#friends-message-composer.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.friends-message-panel {
+    width: min(520px, 92vw);
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: linear-gradient(180deg, rgba(18,23,32,.98), rgba(10,14,21,.98));
+    box-shadow: 0 30px 90px rgba(0,0,0,.55);
+}
+
+.friends-message-kicker {
+    font-size: 9px;
+    letter-spacing: .25em;
+    opacity: .4;
+}
+
+.friends-message-panel h2 {
+    margin: 6px 0 4px;
+    font-size: 26px;
+    font-weight: 400;
+}
+
+.friends-message-panel p {
+    margin: 0 0 18px;
+    font-size: 11px;
+    opacity: .5;
+}
+
+.friends-message-panel textarea {
+    width: 100%;
+    min-height: 130px;
+    resize: vertical;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(0,0,0,.2);
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    outline: none;
+}
+
+.friends-message-panel textarea:focus {
+    border-color: rgba(255,255,255,.28);
+}
+
+.friends-message-status {
+    min-height: 18px;
+    margin-top: 8px;
+    font-size: 10px;
+    opacity: .55;
+}
+
+.friends-message-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.friends-message-actions button {
+    padding: 9px 14px;
+    border: 1px solid rgba(255,255,255,.13);
+    background: rgba(255,255,255,.045);
+    color: inherit;
+    cursor: pointer;
+}
+
+.friends-message-actions button:last-child {
+    background: rgba(255,255,255,.1);
+}
+
+.friends-message-actions button:disabled {
+    opacity: .35;
+    cursor: wait;
+}
+
+@media (max-width: 900px) {
+    .friends-inline .friends-main-row {
+        grid-template-columns: 1fr;
+    }
+
+    .friends-inline .friend-preview {
+        position: relative;
+        border-left: 0;
+        border-top: 1px solid rgba(255,255,255,.08);
     }
 }
