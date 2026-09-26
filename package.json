@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "spotify:evs:sign": "node scripts/sign-electron-vmp.js"
   },
   "author": "",
   "license": "ISC",
