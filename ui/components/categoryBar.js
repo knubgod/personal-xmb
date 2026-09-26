@@ -475,20 +475,21 @@ function applyCategoryIcon(
 */
 
 let previousCategoryIndex = 0;
+let categoryScrollAnimation = null;
 
 function updateCategorySelection(
     selectedIndex
 ) {
 
-    const categories =
-        document.querySelectorAll(
-            ".category"
-        );
+    const categories = document.querySelectorAll(".category");
+    const viewport = document.getElementById("category-viewport");
 
-    const viewport =
-        document.getElementById(
-            "category-viewport"
-        );
+    if (!viewport || !categories.length) {
+        previousCategoryIndex = selectedIndex;
+        return;
+    }
+
+    const selected = categories[selectedIndex];
 
     const direction =
         selectedIndex > previousCategoryIndex
@@ -497,7 +498,42 @@ function updateCategorySelection(
                 ? "backward"
                 : "";
 
-    if(viewport && direction){
+    categories.forEach((category, index) => {
+        category.classList.toggle(
+            "selected",
+            index === selectedIndex
+        );
+    });
+
+    if (!selected) {
+        previousCategoryIndex = selectedIndex;
+        return;
+    }
+
+    /*
+        Do not use scrollIntoView(). Chromium's smooth scrolling
+        creates the small jiggle because it fights the XMB motion.
+        One shared scroll position makes the whole strip travel
+        together like the console bar.
+    */
+    const target = Math.max(
+        0,
+        Math.min(
+            viewport.scrollWidth - viewport.clientWidth,
+            selected.offsetLeft +
+                selected.offsetWidth / 2 -
+                viewport.clientWidth * 0.42
+        )
+    );
+
+    const start = viewport.scrollLeft;
+
+    if (categoryScrollAnimation) {
+        cancelAnimationFrame(categoryScrollAnimation);
+        categoryScrollAnimation = null;
+    }
+
+    if (direction && Math.abs(target - start) > 1) {
         viewport.classList.remove(
             "category-moving-forward",
             "category-moving-backward"
@@ -511,40 +547,48 @@ function updateCategorySelection(
                 : "category-moving-backward"
         );
 
-        clearTimeout(
-            viewport._categoryMotionTimer
-        );
+        const duration = 360;
+        const startedAt = performance.now();
 
-        viewport._categoryMotionTimer =
-            setTimeout(()=>{
+        const easeInOut = progress =>
+            progress < 0.5
+                ? 2 * progress * progress
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+        const animate = now => {
+            const progress = Math.min(
+                1,
+                (now - startedAt) / duration
+            );
+
+            viewport.scrollLeft =
+                start +
+                (target - start) *
+                easeInOut(progress);
+
+            if (progress < 1) {
+                categoryScrollAnimation =
+                    requestAnimationFrame(animate);
+                return;
+            }
+
+            categoryScrollAnimation = null;
+
+            clearTimeout(viewport._categoryMotionTimer);
+
+            viewport._categoryMotionTimer = setTimeout(() => {
                 viewport.classList.remove(
                     "category-moving-forward",
                     "category-moving-backward"
                 );
-            },260);
+            }, 45);
+        };
+
+        categoryScrollAnimation =
+            requestAnimationFrame(animate);
+    } else {
+        viewport.scrollLeft = target;
     }
-
-    categories.forEach(
-        (
-            category,
-            index
-        ) => {
-
-            category.classList.toggle(
-                "selected",
-                index === selectedIndex
-            );
-
-            if(index === selectedIndex){
-                category.scrollIntoView({
-                    behavior:"smooth",
-                    block:"nearest",
-                    inline:"center"
-                });
-            }
-
-        }
-    );
 
     previousCategoryIndex = selectedIndex;
 }
