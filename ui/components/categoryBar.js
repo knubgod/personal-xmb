@@ -478,11 +478,13 @@ function updateCategorySelection(
     selectedIndex
 ) {
 
-    const categories =
+    const categories = Array.from(
         document.querySelectorAll(
             ".category"
-        );
+        )
+    );
 
+    const count = categories.length;
 
     categories.forEach(
         (
@@ -490,14 +492,49 @@ function updateCategorySelection(
             index
         ) => {
 
-            category.classList.toggle(
-
+            category.classList.remove(
                 "selected",
-
-                index ===
-                    selectedIndex
-
+                "category-adjacent",
+                "category-near",
+                "category-far"
             );
+
+            const rawDistance = Math.abs(
+                index - selectedIndex
+            );
+
+            const distance = Math.min(
+                rawDistance,
+                count > 1
+                    ? count - rawDistance
+                    : rawDistance
+            );
+
+            if (index === selectedIndex) {
+
+                category.classList.add(
+                    "selected"
+                );
+
+            } else if (distance === 1) {
+
+                category.classList.add(
+                    "category-adjacent"
+                );
+
+            } else if (distance === 2) {
+
+                category.classList.add(
+                    "category-near"
+                );
+
+            } else {
+
+                category.classList.add(
+                    "category-far"
+                );
+
+            }
 
         }
     );
