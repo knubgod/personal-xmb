@@ -474,6 +474,8 @@ function applyCategoryIcon(
     ========================================================
 */
 
+let previousCategoryIndex = 0;
+
 function updateCategorySelection(
     selectedIndex
 ) {
@@ -483,6 +485,44 @@ function updateCategorySelection(
             ".category"
         );
 
+    const viewport =
+        document.getElementById(
+            "category-viewport"
+        );
+
+    const direction =
+        selectedIndex > previousCategoryIndex
+            ? "forward"
+            : selectedIndex < previousCategoryIndex
+                ? "backward"
+                : "";
+
+    if(viewport && direction){
+        viewport.classList.remove(
+            "category-moving-forward",
+            "category-moving-backward"
+        );
+
+        void viewport.offsetWidth;
+
+        viewport.classList.add(
+            direction === "forward"
+                ? "category-moving-forward"
+                : "category-moving-backward"
+        );
+
+        clearTimeout(
+            viewport._categoryMotionTimer
+        );
+
+        viewport._categoryMotionTimer =
+            setTimeout(()=>{
+                viewport.classList.remove(
+                    "category-moving-forward",
+                    "category-moving-backward"
+                );
+            },180);
+    }
 
     categories.forEach(
         (
@@ -491,17 +531,22 @@ function updateCategorySelection(
         ) => {
 
             category.classList.toggle(
-
                 "selected",
-
-                index ===
-                    selectedIndex
-
+                index === selectedIndex
             );
+
+            if(index === selectedIndex){
+                category.scrollIntoView({
+                    behavior:"smooth",
+                    block:"nearest",
+                    inline:"center"
+                });
+            }
 
         }
     );
 
+    previousCategoryIndex = selectedIndex;
 }
 
 
