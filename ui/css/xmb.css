@@ -78,7 +78,13 @@
 
     left: 0;
 
-    width: calc(100% - 220px);
+    /*
+        A deliberately compact viewport keeps roughly 3–5
+        categories visible at once even on wider displays.
+        When the strip reaches either end, the selected item
+        is allowed to move toward the center naturally.
+    */
+    width: min(720px, calc(100% - 220px));
 
     height: 150px;
 
@@ -153,18 +159,28 @@
 #categories {
 
     display: flex;
+
     align-items: center;
+
     justify-content: flex-start;
 
-    gap: 92px;
+    /*
+        Keep the visible XMB group compact. The viewport below
+        intentionally shows only a small handful of categories,
+        while the full strip remains available to scroll.
+    */
+    gap: 58px;
 
     width: max-content;
+
     height: 150px;
 
-    padding-left: 150px;
-    padding-right: 180px;
+    padding-left: 110px;
+
+    padding-right: 160px;
 
     box-sizing: border-box;
+
     white-space: nowrap;
 
 }
@@ -192,7 +208,12 @@
 
     gap: 6px;
 
-    opacity: 0.42;
+    /*
+        Visibility is calculated from the selected category's
+        actual screen distance in categoryBar.js.
+    */
+    opacity: var(--category-distance-opacity, 0.42);
+
     transform: scale(0.88);
 
     cursor: pointer;
