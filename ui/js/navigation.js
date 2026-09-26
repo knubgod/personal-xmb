@@ -937,7 +937,7 @@ async function selectCurrentAction() {
     ========================================================
 */
 
-async async function executeCategoryAction(actionName) {
+async function executeCategoryAction(actionName) {
 
     if (actionName === "spotify-launch") {
         const result = await window.electron?.spotifyLaunchDesktop?.();
