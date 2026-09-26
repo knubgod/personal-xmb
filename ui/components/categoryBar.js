@@ -695,7 +695,7 @@ function updateCategorySelection(
         );
 
         const duration =
-            410;
+            480;
 
         const startedAt =
             performance.now();
@@ -703,11 +703,11 @@ function updateCategorySelection(
         const easeInOut =
             progress =>
                 progress < 0.5
-                    ? 2 * progress * progress
+                    ? 4 * progress * progress * progress
                     : 1 -
                         Math.pow(
                             -2 * progress + 2,
-                            2
+                            3
                         ) /
                         2;
 
