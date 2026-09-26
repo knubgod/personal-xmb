@@ -468,8 +468,8 @@ const spotifyService={
         return result;
     },
 
-    isRestrictionError(error){
-        return /restriction violated|only works for users with spotify premium/i
+    isDesktopControlFallbackError(error){
+        return /restriction violated|only works for users with spotify premium|spotify desktop playback device is not available/i
             .test(String(error?.message||error||""));
     },
 
@@ -494,7 +494,7 @@ const spotifyService={
                 await this.refreshNowPlaying(true);
             });
         }catch(error){
-            if(!this.isRestrictionError(error))throw error;
+            if(!this.isDesktopControlFallbackError(error))throw error;
 
             await this.sendDesktopMediaKey("playpause");
             this.lastPlayerRefresh=0;
@@ -516,7 +516,7 @@ const spotifyService={
                 await this.waitForTrackChange(previousTrackId);
             });
         }catch(error){
-            if(!this.isRestrictionError(error))throw error;
+            if(!this.isDesktopControlFallbackError(error))throw error;
 
             await this.sendDesktopMediaKey("next");
             this.lastPlayerRefresh=0;
@@ -538,7 +538,7 @@ const spotifyService={
                 await this.waitForTrackChange(previousTrackId);
             });
         }catch(error){
-            if(!this.isRestrictionError(error))throw error;
+            if(!this.isDesktopControlFallbackError(error))throw error;
 
             await this.sendDesktopMediaKey("previous");
             this.lastPlayerRefresh=0;
