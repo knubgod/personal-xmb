@@ -17,6 +17,7 @@ const spotifyService={
     playerReadyPromise:null,
     playerError:"",
     playbackErrorAt:0,
+    browserPlayback:true,
 
     async initialize(){
         if(this.initialized)return;
@@ -39,16 +40,9 @@ const spotifyService={
         this.startProgressTicker();
 
         /*
-            The SDK may already be loaded, or it may load later.
-            initializeWebPlayback() is deliberately fire-and-forget
-            so Widevine/EME setup never holds up the XMB boot screen.
+            Spotify audio is hosted by a supported desktop browser.
+            Do not initialize the Web Playback SDK inside Electron.
         */
-        this.initializeWebPlayback().catch(error=>{
-            console.debug(
-                "[Spotify] Web Playback startup deferred:",
-                error?.message||error
-            );
-        });
     },
 
     startPolling(){
@@ -456,48 +450,63 @@ const spotifyService={
     },
 
     async ensureLocalPlayer(){
-        if(this.playerReady&&this.playerDeviceId&&this.player){
+        if(
+            this.browserPlayback &&
+            this.playerDeviceId
+        ){
             return true;
         }
 
-        const ready=await this.initializeWebPlayback();
+        if(!this.browserPlayback){
+            const ready=await this.initializeWebPlayback();
 
-        if(!ready||!this.playerDeviceId||!this.player){
+            if(!ready||!this.playerDeviceId||!this.player){
+                throw new Error(
+                    this.playerError||
+                    "Spotify playback is not ready."
+                );
+            }
+
+            return true;
+        }
+
+        const opened=await window.electron?.spotifyBrowserOpen?.();
+
+        if(!opened?.success){
             throw new Error(
-                this.playerError||
-                "Spotify playback is not ready. Make sure Spotify is connected and your account has Premium."
+                opened?.error||
+                "Unable to start the Spotify browser playback engine."
             );
         }
 
-        return true;
+        for(let attempt=0;attempt<40;attempt++){
+            const status=await window.electron.spotifyBrowserStatus();
+
+            if(status?.ready&&status.deviceId){
+                this.playerDeviceId=status.deviceId;
+                this.playerError="";
+                return true;
+            }
+
+            if(status?.lastError){
+                this.playerError=status.lastError;
+            }
+
+            await new Promise(resolve=>setTimeout(resolve,250));
+        }
+
+        throw new Error(
+            this.playerError||
+            "Spotify browser playback did not become ready."
+        );
     },
 
     async activatePlayer(){
         /*
-            If a player already exists, activate it immediately on the
-            original click/gamepad event before any awaited network work.
-            This preserves the user gesture needed by autoplay policies.
+            The supported-browser player is opened by the original XMB
+            user action. The browser handles its own media activation.
         */
-        if(this.player?.activateElement){
-            try{
-                await this.player.activateElement();
-            }catch(error){
-                console.debug(
-                    "[Spotify] Player activation before readiness failed:",
-                    error?.message||error
-                );
-            }
-        }
-
         await this.ensureLocalPlayer();
-
-        /*
-            Call again after readiness so a newly-created player is also
-            activated before the playback command is issued.
-        */
-        if(this.player?.activateElement){
-            await this.player.activateElement();
-        }
     },
 
     async waitForLocalPlayerActive(attempts=12,delay=250){
@@ -546,28 +555,52 @@ const spotifyService={
             body:{device_ids:[this.playerDeviceId],play:false}
         });
 
-        /*
-            Spotify documents that Transfer Playback and other Player
-            endpoints are not guaranteed to execute in order. Wait until
-            Spotify reports that our Web Playback SDK device is actually
-            active before sending the track/context command.
-        */
         await this.waitForLocalPlayerActive();
     },
 
     async togglePlayback(){
-        await this.activatePlayer();
-        await this.player.togglePlay();
+        await this.ensureLocalPlayer();
+
+        const state=await this.api({
+            method:"GET",
+            endpoint:"/me/player"
+        });
+
+        const endpoint=state?.is_playing
+            ?"/me/player/pause?device_id="+encodeURIComponent(this.playerDeviceId)
+            :"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId);
+
+        await this.api({
+            method:"PUT",
+            endpoint
+        });
+
+        this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async next(){
-        await this.activatePlayer();
-        await this.player.nextTrack();
+        await this.ensureLocalPlayer();
+
+        await this.api({
+            method:"POST",
+            endpoint:"/me/player/next?device_id="+encodeURIComponent(this.playerDeviceId)
+        });
+
+        this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async previous(){
-        await this.activatePlayer();
-        await this.player.previousTrack();
+        await this.ensureLocalPlayer();
+
+        await this.api({
+            method:"POST",
+            endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.playerDeviceId)
+        });
+
+        this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async toggleShuffle(){
