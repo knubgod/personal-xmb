@@ -409,37 +409,37 @@ const spotifyService={
         await this.waitForLocalPlayerActive();
     },
 
-    async togglePlayback(){
-        await this.ensureLocalPlayer();
-
-        const state=await this.api({
-            method:"GET",
-            endpoint:"/me/player"
-        });
-
-        if(
-            state?.device?.id &&
-            state.device.id!==this.desktopDeviceId
-        ){
+    async runOnLocalPlayer(command){
+        return this.enqueuePlaybackCommand(async()=>{
             await this.transferToLocalPlayer();
-        }
-
-        await this.api({
-            method:"PUT",
-            endpoint:state?.is_playing
-                ?"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
-                :"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId)
+            return command();
         });
+    },
 
-        this.lastPlayerRefresh=0;
-        await this.refreshNowPlaying();
+    async togglePlayback(){
+        return this.runOnLocalPlayer(async()=>{
+            const state=await this.api({
+                method:"GET",
+                endpoint:"/me/player"
+            });
+
+            const endpoint=state?.is_playing
+                ?"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
+                :"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId);
+
+            await this.api({
+                method:"PUT",
+                endpoint
+            });
+
+            this.lastPlayerRefresh=0;
+            await this.refreshNowPlaying(true);
+        });
     },
 
     async next(){
-        return this.enqueuePlaybackCommand(async()=>{
+        return this.runOnLocalPlayer(async()=>{
             const previousTrackId=this.currentTrack?.id||"";
-
-            await this.ensureLocalPlayer();
 
             await this.api({
                 method:"POST",
@@ -451,10 +451,8 @@ const spotifyService={
     },
 
     async previous(){
-        return this.enqueuePlaybackCommand(async()=>{
+        return this.runOnLocalPlayer(async()=>{
             const previousTrackId=this.currentTrack?.id||"";
-
-            await this.ensureLocalPlayer();
 
             await this.api({
                 method:"POST",
@@ -466,54 +464,73 @@ const spotifyService={
     },
 
     async setVolume(value){
-        const volume=Math.max(
-            0,
-            Math.min(
-                100,
-                Math.round(Number(value)||0)
-            )
-        );
+        return this.runOnLocalPlayer(async()=>{
+            const volume=Math.max(
+                0,
+                Math.min(
+                    100,
+                    Math.round(Number(value)||0)
+                )
+            );
 
-        await this.ensureLocalPlayer();
+            await this.api({
+                method:"PUT",
+                endpoint:
+                    "/me/player/volume?volume_percent="+
+                    volume+
+                    "&device_id="+
+                    encodeURIComponent(this.desktopDeviceId)
+            });
 
-        await this.api({
-            method:"PUT",
-            endpoint:
-                "/me/player/volume?volume_percent="+
-                volume+
-                "&device_id="+
-                encodeURIComponent(this.desktopDeviceId)
+            this.volume=volume;
+
+            const slider=document.getElementById("media-volume");
+            const label=document.getElementById("media-volume-value");
+
+            if(slider)slider.value=String(volume);
+            if(label)label.textContent=volume+"%";
         });
-
-        this.volume=volume;
-
-        const slider=document.getElementById("media-volume");
-        const label=document.getElementById("media-volume-value");
-
-        if(slider)slider.value=String(volume);
-        if(label)label.textContent=volume+"%";
     },
 
     async toggleShuffle(){
-        await this.activatePlayer();
-        const next=!this.shuffle;
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/shuffle?state="+next+"&device_id="+encodeURIComponent(this.desktopDeviceId)
+        return this.runOnLocalPlayer(async()=>{
+            const next=!this.shuffle;
+
+            await this.api({
+                method:"PUT",
+                endpoint:
+                    "/me/player/shuffle?state="+
+                    next+
+                    "&device_id="+
+                    encodeURIComponent(this.desktopDeviceId)
+            });
+
+            this.shuffle=next;
+            this.updateModes();
         });
-        this.shuffle=next;
-        this.updateModes();
     },
 
     async cycleRepeat(){
-        await this.activatePlayer();
-        const next=this.repeat==="off"?"context":this.repeat==="context"?"track":"off";
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/repeat?state="+next+"&device_id="+encodeURIComponent(this.desktopDeviceId)
+        return this.runOnLocalPlayer(async()=>{
+            const next=
+                this.repeat==="off"
+                    ?"context"
+                    :this.repeat==="context"
+                        ?"track"
+                        :"off";
+
+            await this.api({
+                method:"PUT",
+                endpoint:
+                    "/me/player/repeat?state="+
+                    next+
+                    "&device_id="+
+                    encodeURIComponent(this.desktopDeviceId)
+            });
+
+            this.repeat=next;
+            this.updateModes();
         });
-        this.repeat=next;
-        this.updateModes();
     },
 
     updateModes(){
