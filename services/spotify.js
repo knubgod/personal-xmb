@@ -1233,17 +1233,17 @@ const spotifyUi={
 
             content.innerHTML=items.map((item,index)=>
                 '<button class="spotify-library-row" type="button" data-uri="'+
-                    (item.uri||"")+
+                    this.escapeAttribute(item.uri||"")+
                     '" data-type="'+
-                    (item.type||"")+
+                    this.escapeAttribute(item.type||"")+
                     '" data-action="'+
-                    (item.action||"")+
+                    this.escapeAttribute(item.action||"")+
                     '" data-index="'+
                     index+
                 '">'+
                     (item.image
-                        ?'<img src="'+item.image+'" alt="" loading="lazy">'
-                        :'<span class="spotify-library-row-icon '+(item.type||"")+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
+                        ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
+                        :'<span class="spotify-library-row-icon '+this.escapeAttribute(item.type||"")+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
                     '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+
                 '</button>'
             ).join("");
@@ -1484,10 +1484,10 @@ const spotifyUi={
                 ?items.map((item,index)=>{
                     const image=item?.images?.[2]?.url||item?.images?.[0]?.url||"";
                     return '<button class="spotify-playlist-row" type="button" data-uri="'+
-                        (item?.uri||"")+
+                        this.escapeAttribute(item?.uri||"")+
                         '" data-index="'+index+'">'+
                         (image
-                            ?'<img src="'+image+'" alt="" loading="lazy">'
+                            ?'<img src="'+this.escapeAttribute(image)+'" alt="" loading="lazy">'
                             :'<span class="spotify-library-row-icon playlist" aria-hidden="true">▤</span>')+
                         '<span></span>'+
                     '</button>';
