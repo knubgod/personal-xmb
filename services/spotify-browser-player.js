@@ -33,7 +33,7 @@ function authorized(url){
     return url.searchParams.get("key") === secret;
 }
 
-function findEdge(){
+function findBrowser(){
     const candidates=[
         process.env.PROGRAMFILES
             ?path.join(process.env.PROGRAMFILES,"Microsoft","Edge","Application","msedge.exe")
@@ -43,6 +43,15 @@ function findEdge(){
             :"",
         process.env.LOCALAPPDATA
             ?path.join(process.env.LOCALAPPDATA,"Microsoft","Edge","Application","msedge.exe")
+            :"",
+        process.env.PROGRAMFILES
+            ?path.join(process.env.PROGRAMFILES,"Google","Chrome","Application","chrome.exe")
+            :"",
+        process.env["PROGRAMFILES(X86)"]
+            ?path.join(process.env["PROGRAMFILES(X86)"],"Google","Chrome","Application","chrome.exe")
+            :"",
+        process.env.LOCALAPPDATA
+            ?path.join(process.env.LOCALAPPDATA,"Google","Chrome","Application","chrome.exe")
             :""
     ].filter(Boolean);
 
@@ -124,11 +133,11 @@ function ensureServer(getToken){
 function open(getToken){
     ensureServer(getToken);
 
-    const edge=findEdge();
+    const browser=findBrowser();
 
-    if(!edge){
+    if(!browser){
         throw new Error(
-            "Microsoft Edge was not found. Install a supported desktop browser for Spotify playback."
+            "Microsoft Edge was not found. Install Microsoft Edge or Google Chrome for Spotify playback."
         );
     }
 
@@ -143,7 +152,7 @@ function open(getToken){
     }
 
     browserProcess=spawn(
-        edge,
+        browser,
         [
             "--app="+url,
             "--no-first-run",
