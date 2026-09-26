@@ -89,18 +89,13 @@ async function diagnoseSpotifyEme() {
     an actual initialization failure.
 */
 
-window.onSpotifyWebPlaybackSDKReady=async()=>{
-    /*
-        The SDK can load before the user has authenticated with Spotify.
-        Do not treat that as a player failure. The service will retry
-        after spotify-auth-complete and again on the first playback action.
-    */
-    try{
-        await window.spotifyService?.initializeWebPlayback?.();
-    }catch(error){
-        console.debug(
-            "[Spotify] Web Playback SDK loaded; waiting for Spotify authentication.",
-            error?.message||error
-        );
-    }
+/*
+    Electron is intentionally not the Spotify audio engine.
+    Playback is hosted in a supported desktop browser so Spotify's
+    protected-media license flow runs in a supported environment.
+*/
+window.onSpotifyWebPlaybackSDKReady=()=>{
+    console.debug(
+        "[Spotify] SDK is loaded in Electron; browser playback engine is used instead."
+    );
 };
