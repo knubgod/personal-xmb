@@ -455,6 +455,11 @@ const spotifyService={
     },
 
     async sendDesktopMediaKey(action){
+        console.info(
+            "[Spotify] Using desktop media-key fallback:",
+            action
+        );
+
         const result=
             await window.electron?.spotifyMediaKey?.(action);
 
