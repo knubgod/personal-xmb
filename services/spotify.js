@@ -222,8 +222,28 @@ const spotifyService={
     },
 
     async ensureLocalPlayer(){
-        if(this.desktopDeviceId){
-            return true;
+        /*
+            Spotify device IDs are not guaranteed to remain valid.
+            Refresh the device list before trusting a cached ID.
+        */
+        try{
+            const devices=await this.getAvailableDevices();
+            const cached=devices.find(
+                device=>
+                    device?.id===this.desktopDeviceId &&
+                    device?.is_restricted!==true
+            );
+
+            if(cached){
+                this.volume=Math.round(
+                    Number(cached.volume_percent ?? this.volume)
+                );
+                return true;
+            }
+
+            this.desktopDeviceId="";
+        }catch(error){
+            /* Launch/retry below will surface the useful error. */
         }
 
         const launch=await window.electron?.spotifyLaunchDesktop?.();
@@ -244,7 +264,7 @@ const spotifyService={
 
             const computerDevices=devices.filter(
                 device =>
-                    device?.type==="Computer" &&
+                    String(device?.type||"").toLowerCase()==="computer" &&
                     device?.is_restricted!==true
             );
 
@@ -304,14 +324,32 @@ const spotifyService={
     async transferToLocalPlayer(){
         await this.ensureLocalPlayer();
 
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player",
-            body:{
-                device_ids:[this.desktopDeviceId],
-                play:false
+        try{
+            await this.api({
+                method:"PUT",
+                endpoint:"/me/player",
+                body:{
+                    device_ids:[this.desktopDeviceId],
+                    play:false
+                }
+            });
+        }catch(error){
+            if(!/device not found/i.test(error?.message||"")){
+                throw error;
             }
-        });
+
+            this.desktopDeviceId="";
+            await this.ensureLocalPlayer();
+
+            await this.api({
+                method:"PUT",
+                endpoint:"/me/player",
+                body:{
+                    device_ids:[this.desktopDeviceId],
+                    play:false
+                }
+            });
+        }
 
         await this.waitForLocalPlayerActive();
     },
@@ -759,11 +797,22 @@ const spotifyUi={
         await this.renderRecentFilter();
     },
 
-    setRows(rows){
+    setRows(rows,selectedIndex=0){
         this.rows=rows;
-        this.selectedIndex=0;
-        rows.forEach((row,index)=>row.classList.toggle("selected",index===0));
-        rows[0]?.focus();
+        this.selectedIndex=Math.max(
+            0,
+            Math.min(
+                Number(selectedIndex)||0,
+                Math.max(0,rows.length-1)
+            )
+        );
+        rows.forEach((row,index)=>
+            row.classList.toggle(
+                "selected",
+                index===this.selectedIndex
+            )
+        );
+        rows[this.selectedIndex]?.focus();
     },
 
     move(direction){
@@ -1035,8 +1084,7 @@ const spotifyUi={
                 row.querySelector(".spotify-library-row-text > span").textContent=item.subtitle||"";
 
                 row.onclick=()=>{
-                    this.selectedIndex=index;
-                    this.setRows(rows);
+                    this.setRows(rows,index);
                     this.select();
                 };
             });
@@ -1182,8 +1230,7 @@ const spotifyUi={
                         event.preventDefault();
                         event.stopPropagation();
 
-                        this.selectedIndex=index;
-                        this.setRows(rowElements);
+                        this.setRows(rowElements,index);
 
                         try{
                             if(
@@ -1268,8 +1315,7 @@ const spotifyUi={
                 row.querySelector("span").textContent=item.name||"Untitled Playlist";
 
                 row.onclick=async()=>{
-                    this.selectedIndex=index;
-                    this.setRows(rows);
+                    this.setRows(rows,index);
 
                     try{
                         await spotifyService.playPlaylist(row.dataset.uri);
