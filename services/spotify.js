@@ -5,31 +5,47 @@ const spotifyService={
     progressTimer:null,
     currentTrack:null,
     lastPlayerRefresh:0,
+    playerRefreshSequence:0,
+    playbackCommandQueue:Promise.resolve(),
     recentCache:null,
     recentCacheAt:0,
     recentCacheTtl:60000,
     shuffle:false,
     repeat:"off",
-    player:null,
-    playerDeviceId:"",
-    playerReady:false,
-    playerConnecting:false,
-    playerReadyPromise:null,
+    desktopDeviceId:"",
+    volume:100,
+    connected:false,
 
     async initialize(){
         if(this.initialized)return;
         this.initialized=true;
 
         /*
-            XMB uses Spotify's Web API for library, metadata, and
-            playback status. Audio playback itself is handed to the
-            installed Spotify application rather than a remote
-            Spotify Connect device.
+            Read the local connection state first. An unconnected XMB
+            should not wake Spotify's API every 15 seconds forever.
         */
-        await this.refreshNowPlaying();
+        try{
+            const settings=await window.electron?.getSettings?.();
+            this.connected=Boolean(settings?.spotify?.connected);
+        }catch{
+            this.connected=false;
+        }
+
+        if(!this.connected){
+            this.renderPlayer();
+            return;
+        }
+
+        this.startProgressTicker();
+
+        this.refreshNowPlaying().catch(error=>{
+            console.debug(
+                "[Spotify] Initial playback state refresh deferred:",
+                error?.message||error
+            );
+        });
 
         this.startPolling();
-        this.startProgressTicker();
     },
 
     startPolling(){
@@ -91,12 +107,19 @@ const spotifyService={
         return result.data;
     },
 
-    async refreshNowPlaying(){
+    async refreshNowPlaying(force=false){
         const now=Date.now();
 
-        if(now-this.lastPlayerRefresh<10000)return;
+        if(!force && now-this.lastPlayerRefresh<10000)return;
 
         this.lastPlayerRefresh=now;
+
+        /*
+            Multiple Spotify API requests can overlap when the user
+            presses Next/Previous quickly. Older responses must never
+            overwrite a newer track.
+        */
+        const requestId=++this.playerRefreshSequence;
 
         try{
             const data=await this.api({
@@ -104,8 +127,31 @@ const spotifyService={
                 endpoint:"/me/player"
             });
 
+            if(requestId!==this.playerRefreshSequence)return;
+
             this.shuffle=!!data?.shuffle_state;
             this.repeat=data?.repeat_state||"off";
+
+            /*
+                Keep the installed Spotify desktop device ID when
+                Spotify reports one. Media controls must never launch
+                and minimize Spotify just to rediscover a device.
+            */
+            if(
+                data?.device?.id &&
+                String(data.device.type||"").toLowerCase()==="computer" &&
+                data.device.is_restricted!==true
+            ){
+                this.desktopDeviceId=data.device.id;
+            }
+
+            if(data?.device?.volume_percent!=null){
+                this.volume=Number(data.device.volume_percent);
+                const slider=document.getElementById("media-volume");
+                const label=document.getElementById("media-volume-value");
+                if(slider)slider.value=String(this.volume);
+                if(label)label.textContent=this.volume+"%";
+            }
 
             if(!data?.item){
                 this.currentTrack=null;
@@ -139,8 +185,53 @@ const spotifyService={
             this.renderPlayer();
             this.updateModes();
         }catch(error){
-            console.warn("Spotify refresh failed:",error.message);
+            if(this.connected){
+                console.warn("Spotify refresh failed:",error.message);
+            }
         }
+    },
+
+    enqueuePlaybackCommand(command){
+        const run=this.playbackCommandQueue.then(
+            command,
+            command
+        );
+
+        this.playbackCommandQueue=run.catch(()=>{});
+
+        return run;
+    },
+
+    async waitForTrackChange(previousTrackId, attempts=20){
+        /*
+            Spotify can acknowledge Next/Previous before /me/player
+            reports the new item. Wait for the track ID to change so
+            the title and artwork are always taken from the same state.
+        */
+        for(let attempt=0;attempt<attempts;attempt++){
+            try{
+                const state=await this.api({
+                    method:"GET",
+                    endpoint:"/me/player"
+                });
+
+                const nextId=state?.item?.id||"";
+
+                if(nextId && nextId!==previousTrackId){
+                    this.lastPlayerRefresh=0;
+                    await this.refreshNowPlaying(true);
+                    return true;
+                }
+            }catch(error){}
+
+            if(attempt<attempts-1){
+                await new Promise(resolve=>setTimeout(resolve,150));
+            }
+        }
+
+        this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying(true);
+        return false;
     },
 
     renderPlayer(){
@@ -156,6 +247,8 @@ const spotifyService={
         if(result?.success===false){
             throw new Error(result.error||"Spotify login failed.");
         }
+
+        this.connected=true;
     },
 
     async getAvailableDevices(){
@@ -174,153 +267,123 @@ const spotifyService={
         accidentally starting music on an Echo, TV, or other remote device.
     */
     async openDj(){
-        this.showTemporaryMessage("Spotify DJ is not exposed to third-party playback apps.");
-        return {success:false,error:"Spotify DJ is not available through the Spotify Web Playback SDK."};
-    },
+        const launch=await window.electron?.spotifyLaunchDesktop?.();
 
-    async initializeWebPlayback(){
-        if(this.playerReady)return true;
-
-        if(this.playerConnecting && this.playerReadyPromise){
-            try{
-                await this.playerReadyPromise;
-                return this.playerReady;
-            }catch(error){
-                return false;
-            }
+        if(launch?.success===false){
+            throw new Error(
+                launch.error||
+                "Unable to launch Spotify."
+            );
         }
 
-        this.playerConnecting=true;
-        this.playerReadyPromise=null;
+        /*
+            Spotify currently exposes DJ as a playlist/content link.
+            Opening it through Spotify's own client preserves the native
+            DJ experience instead of attempting to reproduce it.
+        */
+        await window.electron?.openExternal?.(
+            "spotify:playlist:37i9dQZF1EYkqdzj48dyYq"
+        );
 
+        this.showTemporaryMessage("Spotify DJ opened.");
+        return {success:true};
+    },
+
+    async ensureLocalPlayer(allowLaunch=false){
+        /*
+            Spotify device IDs are not guaranteed to remain valid.
+            Refresh the device list before trusting a cached ID.
+        */
         try{
-            if(!window.Spotify?.Player){
-                throw new Error("Spotify Web Playback SDK is not loaded.");
+            const devices=await this.getAvailableDevices();
+
+            const cached=devices.find(
+                device=>
+                    device?.id===this.desktopDeviceId &&
+                    device?.is_restricted!==true
+            );
+
+            if(cached){
+                this.volume=Math.round(
+                    Number(cached.volume_percent ?? this.volume)
+                );
+                return true;
             }
 
-            const player=new window.Spotify.Player({
-                name:"Personal XMB",
-                volume:0.75,
-                enableMediaSession:true,
-                getOAuthToken:async callback=>{
-                    try{
-                        const result=await window.electron?.spotifyPlaybackToken?.();
-                        callback(result?.accessToken||"");
-                    }catch(error){
-                        console.warn("Spotify playback token failed:",error.message);
-                        callback("");
-                    }
-                }
-            });
+            const computerDevices=devices.filter(
+                device=>
+                    String(device?.type||"").toLowerCase()==="computer" &&
+                    device?.is_restricted!==true
+            );
 
-            this.playerReadyPromise=new Promise((resolve,reject)=>{
-                player.addListener("ready",({device_id})=>{
-                    this.playerDeviceId=device_id||"";
-                    this.playerReady=Boolean(this.playerDeviceId);
-                    console.log("Personal XMB Spotify player ready:",this.playerDeviceId);
-                    this.showTemporaryMessage("Spotify player ready.");
-                    if(this.playerReady)resolve(true);
-                    else reject(new Error("Spotify returned an empty playback device ID."));
-                });
+            const preferred=
+                computerDevices.find(device=>device.is_active)||
+                computerDevices.find(device=>/spotify|desktop/i.test(device.name||""))||
+                computerDevices[0];
 
-                player.addListener("initialization_error",({message})=>{
-                    reject(new Error(message||"Spotify Web Playback initialization failed."));
-                });
-
-                player.addListener("authentication_error",({message})=>{
-                    reject(new Error(message||"Spotify Web Playback authentication failed."));
-                });
-
-                player.addListener("account_error",({message})=>{
-                    reject(new Error(message||"Spotify Web Playback requires Spotify Premium."));
-                });
-            });
-
-            player.addListener("not_ready",({device_id})=>{
-                if(device_id===this.playerDeviceId)this.playerReady=false;
-            });
-
-            player.addListener("initialization_error",({message})=>{
-                console.error("Spotify Web Playback initialization error:",message);
-                this.showTemporaryMessage("Spotify playback could not initialize.");
-            });
-
-            player.addListener("authentication_error",({message})=>{
-                console.error("Spotify Web Playback authentication error:",message);
-                this.showTemporaryMessage("Spotify playback authorization failed.");
-            });
-
-            player.addListener("account_error",({message})=>{
-                console.error("Spotify Web Playback account error:",message);
-                this.showTemporaryMessage("Spotify Web Playback requires Spotify Premium.");
-            });
-
-            player.addListener("playback_error",({message})=>{
-                console.error("Spotify Web Playback error:",message);
-                this.showTemporaryMessage("Spotify playback error.");
-            });
-
-            player.addListener("player_state_changed",state=>{
-                if(!state)return;
-                const track=state.track_window?.current_track;
-                if(track){
-                    this.currentTrack={
-                        id:track.id,
-                        uri:track.uri||"",
-                        name:track.name||"Unknown",
-                        artist:track.artists?.map(item=>item.name).join(", ")||"Unknown Artist",
-                        album:track.album?.name||"Unknown Album",
-                        artwork:track.album?.images?.[0]?.url||"",
-                        duration:state.duration||track.duration_ms||0,
-                        progress:state.position||0,
-                        isPlaying:!state.paused,
-                        spotifyUrl:""
-                    };
-                }
-                this.renderPlayer();
-            });
-
-            this.player=player;
-            const connected=await player.connect();
-
-            if(!connected){
-                throw new Error("Spotify Web Playback could not connect.");
+            if(preferred?.id){
+                this.desktopDeviceId=preferred.id;
+                this.volume=Math.round(
+                    Number(preferred.volume_percent ?? this.volume)
+                );
+                return true;
             }
 
-            await this.playerReadyPromise;
-
-            this.playerConnecting=false;
-            return this.playerReady;
+            this.desktopDeviceId="";
         }catch(error){
-            this.playerConnecting=false;
-            this.playerReady=false;
-            this.playerDeviceId="";
-            this.playerReadyPromise=null;
-            console.error("Spotify Web Playback setup failed:",error);
-            this.showTemporaryMessage(error.message||"Spotify playback could not initialize.");
-            return false;
-        }
-    },
-
-    async ensureLocalPlayer(){
-        if(this.playerReady&&this.playerDeviceId)return true;
-
-        const ready=await this.initializeWebPlayback();
-        if(!ready||!this.playerDeviceId){
-            throw new Error("Spotify playback is not ready.");
+            /* Launch/retry below will surface the useful error. */
         }
 
-        return true;
+        if(!allowLaunch){
+            throw new Error(
+                "Spotify Desktop playback device is not available."
+            );
+        }
+
+        const launch=await window.electron?.spotifyLaunchDesktop?.();
+
+        if(launch?.success===false){
+            throw new Error(
+                launch.error||
+                "Unable to launch Spotify."
+            );
+        }
+
+        /*
+            Give Spotify Desktop a moment to register itself as a
+            Spotify Connect device, then select a computer device.
+        */
+        for(let attempt=0;attempt<40;attempt++){
+            const devices=await this.getAvailableDevices();
+
+            const computerDevices=devices.filter(
+                device=>
+                    String(device?.type||"").toLowerCase()==="computer" &&
+                    device?.is_restricted!==true
+            );
+
+            const preferred=
+                computerDevices.find(device=>device.is_active)||
+                computerDevices.find(device=>/spotify|desktop/i.test(device.name||""))||
+                computerDevices[0];
+
+            if(preferred?.id){
+                this.desktopDeviceId=preferred.id;
+                this.volume=Math.round(
+                    Number(preferred.volume_percent ?? this.volume)
+                );
+                return true;
+            }
+
+            await new Promise(resolve=>setTimeout(resolve,250));
+        }
+
+        throw new Error(
+            "Spotify Desktop launched, but its playback device did not appear."
+        );
     },
 
-    async activatePlayer(){
-        await this.ensureLocalPlayer();
-        if(this.player?.activateElement)await this.player.activateElement();
-    },
-
-    async waitForLocalPlayerActive(attempts=12,delay=250){
-        let lastError=null;
-
+    async waitForLocalPlayerActive(attempts=20,delay=250){
         for(let attempt=0;attempt<attempts;attempt++){
             try{
                 const state=await this.api({
@@ -329,85 +392,234 @@ const spotifyService={
                 });
 
                 if(
-                    state?.device?.id===this.playerDeviceId &&
+                    state?.device?.id===this.desktopDeviceId &&
                     state.device.is_active
                 ){
                     return true;
                 }
-            }catch(error){
-                lastError=error;
-            }
+            }catch(error){}
 
             if(attempt<attempts-1){
                 await new Promise(resolve=>setTimeout(resolve,delay));
             }
         }
 
-        if(lastError){
-            throw new Error(
-                "Spotify did not make the Personal XMB player active: "+
-                lastError.message
-            );
-        }
-
         throw new Error(
-            "Spotify did not make the Personal XMB player active in time."
+            "Spotify Desktop did not become the active playback device."
         );
     },
 
-    async transferToLocalPlayer(){
-        await this.ensureLocalPlayer();
+    async transferToLocalPlayer(allowLaunch=false){
+        await this.ensureLocalPlayer(allowLaunch);
 
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player",
-            body:{device_ids:[this.playerDeviceId],play:false}
-        });
+        try{
+            await this.api({
+                method:"PUT",
+                endpoint:"/me/player",
+                body:{
+                    device_ids:[this.desktopDeviceId],
+                    play:false
+                }
+            });
+        }catch(error){
+            if(!/device not found/i.test(error?.message||"")){
+                throw error;
+            }
 
-        /*
-            Spotify documents that Transfer Playback and other Player
-            endpoints are not guaranteed to execute in order. Wait until
-            Spotify reports that our Web Playback SDK device is actually
-            active before sending the track/context command.
-        */
+            this.desktopDeviceId="";
+            await this.ensureLocalPlayer();
+
+            await this.api({
+                method:"PUT",
+                endpoint:"/me/player",
+                body:{
+                    device_ids:[this.desktopDeviceId],
+                    play:false
+                }
+            });
+        }
+
         await this.waitForLocalPlayerActive();
     },
 
+    async runOnLocalPlayer(command){
+        return this.enqueuePlaybackCommand(async()=>{
+            /*
+                A media-button press must not launch/minimize Spotify.
+                If the Web API refuses the command, the caller can fall
+                back to the installed desktop client's media-key path.
+            */
+            await this.ensureLocalPlayer(false);
+            return command();
+        });
+    },
+
+    async sendDesktopMediaKey(action){
+        console.info(
+            "[Spotify] Using desktop media-key fallback:",
+            action
+        );
+
+        const result=
+            await window.electron?.spotifyMediaKey?.(action);
+
+        if(!result?.success){
+            throw new Error(
+                result?.error||
+                "Spotify desktop media control failed."
+            );
+        }
+
+        return result;
+    },
+
+    isDesktopControlFallbackError(error){
+        return /restriction violated|only works for users with spotify premium|spotify desktop playback device is not available/i
+            .test(String(error?.message||error||""));
+    },
+
     async togglePlayback(){
-        await this.activatePlayer();
-        await this.player.togglePlay();
+        try{
+            return await this.runOnLocalPlayer(async()=>{
+                const state=await this.api({
+                    method:"GET",
+                    endpoint:"/me/player"
+                });
+
+                const endpoint=state?.is_playing
+                    ?"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
+                    :"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId);
+
+                await this.api({
+                    method:"PUT",
+                    endpoint
+                });
+
+                this.lastPlayerRefresh=0;
+                await this.refreshNowPlaying(true);
+            });
+        }catch(error){
+            if(!this.isDesktopControlFallbackError(error))throw error;
+
+            await this.sendDesktopMediaKey("playpause");
+            this.lastPlayerRefresh=0;
+            await new Promise(resolve=>setTimeout(resolve,120));
+            await this.refreshNowPlaying(true);
+        }
     },
 
     async next(){
-        await this.activatePlayer();
-        await this.player.nextTrack();
+        try{
+            return await this.runOnLocalPlayer(async()=>{
+                const previousTrackId=this.currentTrack?.id||"";
+
+                await this.api({
+                    method:"POST",
+                    endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
+                });
+
+                await this.waitForTrackChange(previousTrackId);
+            });
+        }catch(error){
+            if(!this.isDesktopControlFallbackError(error))throw error;
+
+            await this.sendDesktopMediaKey("next");
+            this.lastPlayerRefresh=0;
+            await new Promise(resolve=>setTimeout(resolve,350));
+            await this.refreshNowPlaying(true);
+        }
     },
 
     async previous(){
-        await this.activatePlayer();
-        await this.player.previousTrack();
+        try{
+            return await this.runOnLocalPlayer(async()=>{
+                const previousTrackId=this.currentTrack?.id||"";
+
+                await this.api({
+                    method:"POST",
+                    endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
+                });
+
+                await this.waitForTrackChange(previousTrackId);
+            });
+        }catch(error){
+            if(!this.isDesktopControlFallbackError(error))throw error;
+
+            await this.sendDesktopMediaKey("previous");
+            this.lastPlayerRefresh=0;
+            await new Promise(resolve=>setTimeout(resolve,350));
+            await this.refreshNowPlaying(true);
+        }
+    },
+
+    async setVolume(value){
+        return this.runOnLocalPlayer(async()=>{
+            const volume=Math.max(
+                0,
+                Math.min(
+                    100,
+                    Math.round(Number(value)||0)
+                )
+            );
+
+            await this.api({
+                method:"PUT",
+                endpoint:
+                    "/me/player/volume?volume_percent="+
+                    volume+
+                    "&device_id="+
+                    encodeURIComponent(this.desktopDeviceId)
+            });
+
+            this.volume=volume;
+
+            const slider=document.getElementById("media-volume");
+            const label=document.getElementById("media-volume-value");
+
+            if(slider)slider.value=String(volume);
+            if(label)label.textContent=volume+"%";
+        });
     },
 
     async toggleShuffle(){
-        await this.activatePlayer();
-        const next=!this.shuffle;
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/shuffle?state="+next+"&device_id="+encodeURIComponent(this.playerDeviceId)
+        return this.runOnLocalPlayer(async()=>{
+            const next=!this.shuffle;
+
+            await this.api({
+                method:"PUT",
+                endpoint:
+                    "/me/player/shuffle?state="+
+                    next+
+                    "&device_id="+
+                    encodeURIComponent(this.desktopDeviceId)
+            });
+
+            this.shuffle=next;
+            this.updateModes();
         });
-        this.shuffle=next;
-        this.updateModes();
     },
 
     async cycleRepeat(){
-        await this.activatePlayer();
-        const next=this.repeat==="off"?"context":this.repeat==="context"?"track":"off";
-        await this.api({
-            method:"PUT",
-            endpoint:"/me/player/repeat?state="+next+"&device_id="+encodeURIComponent(this.playerDeviceId)
+        return this.runOnLocalPlayer(async()=>{
+            const next=
+                this.repeat==="off"
+                    ?"context"
+                    :this.repeat==="context"
+                        ?"track"
+                        :"off";
+
+            await this.api({
+                method:"PUT",
+                endpoint:
+                    "/me/player/repeat?state="+
+                    next+
+                    "&device_id="+
+                    encodeURIComponent(this.desktopDeviceId)
+            });
+
+            this.repeat=next;
+            this.updateModes();
         });
-        this.repeat=next;
-        this.updateModes();
     },
 
     updateModes(){
@@ -439,38 +651,50 @@ const spotifyService={
 
     async playTrack(uri){
         if(!uri)throw new Error("Spotify track URI is missing.");
+
         await this.activatePlayer();
         await this.transferToLocalPlayer();
+
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{uris:[uri]}
         });
+
         this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async playPlaylist(uri){
         if(!uri)throw new Error("Spotify playlist URI is missing.");
+
         await this.activatePlayer();
         await this.transferToLocalPlayer();
+
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
+
         this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async playContext(uri){
         if(!uri)throw new Error("Spotify context URI is missing.");
+
         await this.activatePlayer();
         await this.transferToLocalPlayer();
+
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
+
         this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying();
     },
 
     async playPodcastShow(uri){
@@ -479,7 +703,7 @@ const spotifyService={
         await this.transferToLocalPlayer();
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
         this.lastPlayerRefresh=0;
@@ -513,16 +737,81 @@ function formatTime(ms){
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
-    document.getElementById("media-play")?.addEventListener("click",()=>spotifyService.togglePlayback());
-    document.getElementById("media-next")?.addEventListener("click",()=>spotifyService.next());
-    document.getElementById("media-previous")?.addEventListener("click",()=>spotifyService.previous());
-    document.getElementById("media-shuffle")?.addEventListener("click",()=>spotifyService.toggleShuffle());
-    document.getElementById("media-repeat")?.addEventListener("click",()=>spotifyService.cycleRepeat());
+    const runPlaybackCommand=async(command,successMessage)=>{
+        try{
+            await command();
+            if(successMessage)spotifyService.showTemporaryMessage(successMessage);
+        }catch(error){
+            console.error("[Spotify] Playback command failed:",error);
+            spotifyService.showTemporaryMessage(
+                error?.message||"Spotify playback is unavailable."
+            );
+        }
+    };
+
+    document.getElementById("media-play")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.togglePlayback()
+        )
+    );
+
+    document.getElementById("media-next")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.next()
+        )
+    );
+
+    document.getElementById("media-previous")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.previous()
+        )
+    );
+
+    document.getElementById("media-shuffle")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.toggleShuffle()
+        )
+    );
+
+    document.getElementById("media-repeat")?.addEventListener(
+        "click",
+        ()=>runPlaybackCommand(
+            ()=>spotifyService.cycleRepeat()
+        )
+    );
+
+    document.getElementById("media-volume")?.addEventListener(
+        "input",
+        event=>{
+            const value=Number(event.target.value);
+            const label=document.getElementById("media-volume-value");
+            if(label)label.textContent=value+"%";
+        }
+    );
+
+    document.getElementById("media-volume")?.addEventListener(
+        "change",
+        event=>runPlaybackCommand(
+            ()=>spotifyService.setVolume(event.target.value)
+        )
+    );
 
     window.electron?.onSpotifyAuthComplete?.(async()=>{
         spotifyService.initialized=false;
         spotifyService.stopPolling();
-        await spotifyService.initialize();
+
+        try{
+            await spotifyService.initialize();
+        }catch(error){
+            console.warn(
+                "[Spotify] Post-login initialization deferred:",
+                error
+            );
+        }
     });
 });
 
@@ -548,8 +837,9 @@ window.updateSpotifyPlayer=(track)=>{
         if(duration)duration.textContent="0:00";
         if(fill)fill.className="progress-0";
         if(play){
-            play.textContent="↗";
-            play.setAttribute("aria-label","Open Spotify");
+            play.textContent="▶";
+            play.setAttribute("aria-label","Play Spotify");
+            play.title="Play";
         }
         spotifyService.updateModes();
         return;
@@ -573,8 +863,12 @@ window.updateSpotifyPlayer=(track)=>{
         fill.className="progress-"+Math.max(0,Math.min(100,percent));
     }
     if(play){
-        play.textContent="↗";
-        play.setAttribute("aria-label","Open in Spotify");
+        play.textContent=track.isPlaying?"❚❚":"▶";
+        play.setAttribute(
+            "aria-label",
+            track.isPlaying?"Pause Spotify":"Play Spotify"
+        );
+        play.title=track.isPlaying?"Pause":"Play";
     }
     spotifyService.updateModes();
 };
@@ -587,6 +881,7 @@ const spotifyUi={
         {id:"all",name:"All"},
         {id:"songs",name:"Songs"},
         {id:"artists",name:"Artists"},
+        {id:"albums",name:"Albums"},
         {id:"playlists",name:"Playlists"},
         {id:"podcasts",name:"Podcasts"},
         {id:"dj",name:"DJ"}
@@ -637,6 +932,8 @@ const spotifyUi={
         this.rows=[];
         this.selectedIndex=0;
         this.selectedFilter=0;
+        const filters=this.overlay.querySelector(".spotify-library-filters");
+        if(filters)filters.style.display="";
         this.updateFilterVisuals();
     },
 
@@ -668,11 +965,22 @@ const spotifyUi={
         await this.renderRecentFilter();
     },
 
-    setRows(rows){
+    setRows(rows,selectedIndex=0){
         this.rows=rows;
-        this.selectedIndex=0;
-        rows.forEach((row,index)=>row.classList.toggle("selected",index===0));
-        rows[0]?.focus();
+        this.selectedIndex=Math.max(
+            0,
+            Math.min(
+                Number(selectedIndex)||0,
+                Math.max(0,rows.length-1)
+            )
+        );
+        rows.forEach((row,index)=>
+            row.classList.toggle(
+                "selected",
+                index===this.selectedIndex
+            )
+        );
+        rows[this.selectedIndex]?.focus();
     },
 
     move(direction){
@@ -760,6 +1068,7 @@ const spotifyUi={
             }));
 
             const artistMap=new Map();
+            const albumMap=new Map();
             const playlistMap=new Map();
             const podcastMap=new Map();
 
@@ -767,6 +1076,21 @@ const spotifyUi={
                 const playedAt=item.played_at||"";
                 const track=item.track;
                 const context=item.context;
+
+                if(track?.album?.id){
+                    const existing=albumMap.get(track.album.id);
+                    if(!existing||String(playedAt)>String(existing.playedAt)){
+                        albumMap.set(track.album.id,{
+                            type:"album",
+                            name:track.album.name||"Unknown Album",
+                            subtitle:track.artists?.map(a=>a.name).join(", ")||"Album",
+                            image:track.album?.images?.[2]?.url||track.album?.images?.[0]?.url||"",
+                            uri:track.album.uri||"",
+                            playedAt,
+                            source:"derived"
+                        });
+                    }
+                }
 
                 for(const artist of track?.artists||[]){
                     if(!artist?.id)continue;
@@ -828,6 +1152,7 @@ const spotifyUi={
             */
 
             const artists=[...artistMap.values()];
+            const albums=[...albumMap.values()];
             const playlists=[...playlistMap.values()];
             const podcasts=[...podcastMap.values()];
             const dj={
@@ -846,9 +1171,10 @@ const spotifyUi={
             );
 
             return {
-                all:sorted([...songs,...artists,...playlists,...podcasts,dj]),
+                all:sorted([...songs,...artists,...albums,...playlists,...podcasts,dj]),
                 songs:sorted(songs),
                 artists:sorted(artists),
+                albums:sorted(albums),
                 playlists:sorted(playlists),
                 podcasts:sorted(podcasts),
                 dj:[dj]
@@ -870,6 +1196,7 @@ const spotifyUi={
         const icons={
             song:"♫",
             artist:"♪",
+            album:"▰",
             playlist:"▤",
             podcast:"◉",
             dj:"✦"
@@ -882,7 +1209,9 @@ const spotifyUi={
         const content=overlay.querySelector("#spotify-library-content");
         const filter=this.filters[this.selectedFilter];
 
+        overlay.querySelector(".spotify-library-filters").style.display="";
         overlay.querySelector("#spotify-library-title").textContent="Recently Played";
+        overlay.querySelector(".spotify-library-filters").style.display="flex";
         overlay.classList.add("visible");
         this.updateFilterVisuals();
 
@@ -904,17 +1233,17 @@ const spotifyUi={
 
             content.innerHTML=items.map((item,index)=>
                 '<button class="spotify-library-row" type="button" data-uri="'+
-                    (item.uri||"")+
+                    this.escapeAttribute(item.uri||"")+
                     '" data-type="'+
-                    (item.type||"")+
+                    this.escapeAttribute(item.type||"")+
                     '" data-action="'+
-                    (item.action||"")+
+                    this.escapeAttribute(item.action||"")+
                     '" data-index="'+
                     index+
                 '">'+
                     (item.image
-                        ?'<img src="'+item.image+'" alt="" loading="lazy">'
-                        :'<span class="spotify-library-row-icon '+(item.type||"")+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
+                        ?'<img src="'+this.escapeAttribute(item.image)+'" alt="" loading="lazy">'
+                        :'<span class="spotify-library-row-icon '+this.escapeAttribute(item.type||"")+'" aria-hidden="true">'+this.getRowIcon(item.type)+'</span>')+
                     '<span class="spotify-library-row-text"><strong></strong><span></span></span>'+
                 '</button>'
             ).join("");
@@ -943,8 +1272,7 @@ const spotifyUi={
                 row.querySelector(".spotify-library-row-text > span").textContent=item.subtitle||"";
 
                 row.onclick=()=>{
-                    this.selectedIndex=index;
-                    this.setRows(rows);
+                    this.setRows(rows,index);
                     this.select();
                 };
             });
@@ -1090,8 +1418,7 @@ const spotifyUi={
                         event.preventDefault();
                         event.stopPropagation();
 
-                        this.selectedIndex=index;
-                        this.setRows(rowElements);
+                        this.setRows(rowElements,index);
 
                         try{
                             if(
@@ -1157,10 +1484,10 @@ const spotifyUi={
                 ?items.map((item,index)=>{
                     const image=item?.images?.[2]?.url||item?.images?.[0]?.url||"";
                     return '<button class="spotify-playlist-row" type="button" data-uri="'+
-                        (item?.uri||"")+
+                        this.escapeAttribute(item?.uri||"")+
                         '" data-index="'+index+'">'+
                         (image
-                            ?'<img src="'+image+'" alt="" loading="lazy">'
+                            ?'<img src="'+this.escapeAttribute(image)+'" alt="" loading="lazy">'
                             :'<span class="spotify-library-row-icon playlist" aria-hidden="true">▤</span>')+
                         '<span></span>'+
                     '</button>';
@@ -1176,8 +1503,7 @@ const spotifyUi={
                 row.querySelector("span").textContent=item.name||"Untitled Playlist";
 
                 row.onclick=async()=>{
-                    this.selectedIndex=index;
-                    this.setRows(rows);
+                    this.setRows(rows,index);
 
                     try{
                         await spotifyService.playPlaylist(row.dataset.uri);
