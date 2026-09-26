@@ -5,6 +5,8 @@ const spotifyService={
     progressTimer:null,
     currentTrack:null,
     lastPlayerRefresh:0,
+    playerRefreshSequence:0,
+    playbackCommandQueue:Promise.resolve(),
     recentCache:null,
     recentCacheAt:0,
     recentCacheTtl:60000,
@@ -105,12 +107,19 @@ const spotifyService={
         return result.data;
     },
 
-    async refreshNowPlaying(){
+    async refreshNowPlaying(force=false){
         const now=Date.now();
 
-        if(now-this.lastPlayerRefresh<10000)return;
+        if(!force && now-this.lastPlayerRefresh<10000)return;
 
         this.lastPlayerRefresh=now;
+
+        /*
+            Multiple Spotify API requests can overlap when the user
+            presses Next/Previous quickly. Older responses must never
+            overwrite a newer track.
+        */
+        const requestId=++this.playerRefreshSequence;
 
         try{
             const data=await this.api({
@@ -118,8 +127,11 @@ const spotifyService={
                 endpoint:"/me/player"
             });
 
+            if(requestId!==this.playerRefreshSequence)return;
+
             this.shuffle=!!data?.shuffle_state;
             this.repeat=data?.repeat_state||"off";
+
             if(data?.device?.volume_percent!=null){
                 this.volume=Number(data.device.volume_percent);
                 const slider=document.getElementById("media-volume");
@@ -164,6 +176,49 @@ const spotifyService={
                 console.warn("Spotify refresh failed:",error.message);
             }
         }
+    },
+
+    enqueuePlaybackCommand(command){
+        const run=this.playbackCommandQueue.then(
+            command,
+            command
+        );
+
+        this.playbackCommandQueue=run.catch(()=>{});
+
+        return run;
+    },
+
+    async waitForTrackChange(previousTrackId, attempts=20){
+        /*
+            Spotify can acknowledge Next/Previous before /me/player
+            reports the new item. Wait for the track ID to change so
+            the title and artwork are always taken from the same state.
+        */
+        for(let attempt=0;attempt<attempts;attempt++){
+            try{
+                const state=await this.api({
+                    method:"GET",
+                    endpoint:"/me/player"
+                });
+
+                const nextId=state?.item?.id||"";
+
+                if(nextId && nextId!==previousTrackId){
+                    this.lastPlayerRefresh=0;
+                    await this.refreshNowPlaying(true);
+                    return true;
+                }
+            }catch(error){}
+
+            if(attempt<attempts-1){
+                await new Promise(resolve=>setTimeout(resolve,150));
+            }
+        }
+
+        this.lastPlayerRefresh=0;
+        await this.refreshNowPlaying(true);
+        return false;
     },
 
     renderPlayer(){
@@ -381,27 +436,33 @@ const spotifyService={
     },
 
     async next(){
-        await this.ensureLocalPlayer();
+        return this.enqueuePlaybackCommand(async()=>{
+            const previousTrackId=this.currentTrack?.id||"";
 
-        await this.api({
-            method:"POST",
-            endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
+            await this.ensureLocalPlayer();
+
+            await this.api({
+                method:"POST",
+                endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
+            });
+
+            await this.waitForTrackChange(previousTrackId);
         });
-
-        this.lastPlayerRefresh=0;
-        await this.refreshNowPlaying();
     },
 
     async previous(){
-        await this.ensureLocalPlayer();
+        return this.enqueuePlaybackCommand(async()=>{
+            const previousTrackId=this.currentTrack?.id||"";
 
-        await this.api({
-            method:"POST",
-            endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
+            await this.ensureLocalPlayer();
+
+            await this.api({
+                method:"POST",
+                endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
+            });
+
+            await this.waitForTrackChange(previousTrackId);
         });
-
-        this.lastPlayerRefresh=0;
-        await this.refreshNowPlaying();
     },
 
     async setVolume(value){
