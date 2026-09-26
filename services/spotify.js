@@ -29,12 +29,12 @@ const spotifyService={
             this.connected=false;
         }
 
-        this.startProgressTicker();
-
         if(!this.connected){
             this.renderPlayer();
             return;
         }
+
+        this.startProgressTicker();
 
         this.refreshNowPlaying().catch(error=>{
             console.debug(
