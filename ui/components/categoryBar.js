@@ -511,10 +511,9 @@ function updateCategorySelection(
     }
 
     /*
-        Do not use scrollIntoView(). Chromium's smooth scrolling
-        creates the small jiggle because it fights the XMB motion.
-        One shared scroll position makes the whole strip travel
-        together like the console bar.
+        Keep the whole strip moving from one shared scroll position.
+        The blur is velocity-based rather than simply "on/off", which
+        keeps the icons crisp when the strip settles.
     */
     const target = Math.max(
         0,
@@ -547,7 +546,7 @@ function updateCategorySelection(
                 : "category-moving-backward"
         );
 
-        const duration = 360;
+        const duration = 410;
         const startedAt = performance.now();
 
         const easeInOut = progress =>
@@ -561,16 +560,36 @@ function updateCategorySelection(
                 (now - startedAt) / duration
             );
 
+            const eased = easeInOut(progress);
+
             viewport.scrollLeft =
                 start +
                 (target - start) *
-                easeInOut(progress);
+                eased;
+
+            /*
+                Motion blur follows the movement velocity:
+                crisp -> blur -> crisp.
+            */
+            const velocity =
+                Math.sin(progress * Math.PI);
+
+            viewport.style.setProperty(
+                "--category-motion-blur",
+                (0.15 + velocity * 0.95).toFixed(3) + "px"
+            );
 
             if (progress < 1) {
                 categoryScrollAnimation =
                     requestAnimationFrame(animate);
                 return;
             }
+
+            viewport.scrollLeft = target;
+            viewport.style.setProperty(
+                "--category-motion-blur",
+                "0px"
+            );
 
             categoryScrollAnimation = null;
 
@@ -581,13 +600,22 @@ function updateCategorySelection(
                     "category-moving-forward",
                     "category-moving-backward"
                 );
-            }, 45);
+            }, 35);
         };
+
+        viewport.style.setProperty(
+            "--category-motion-blur",
+            "0px"
+        );
 
         categoryScrollAnimation =
             requestAnimationFrame(animate);
     } else {
         viewport.scrollLeft = target;
+        viewport.style.setProperty(
+            "--category-motion-blur",
+            "0px"
+        );
     }
 
     previousCategoryIndex = selectedIndex;
