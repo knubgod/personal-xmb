@@ -158,7 +158,7 @@
 
     justify-content: flex-start;
 
-    gap: 42px;
+    gap: 34px;
 
     width: max-content;
 
@@ -211,17 +211,17 @@
 
     gap: 5px;
 
-    opacity: 0.55;
+    opacity: 0.72;
 
-    transform: scale(0.9);
+    transform: scale(0.94);
 
     cursor: pointer;
 
     transition:
 
-        opacity 0.35s ease,
+        opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
 
-        transform 0.35s ease;
+        transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 
 }
 
@@ -273,7 +273,7 @@
 
     object-fit: contain;
 
-    opacity: 0.65;
+    opacity: 0.86;
 
     /*
         Force brand icons into the same
@@ -288,9 +288,9 @@
 
     transition:
 
-        opacity 0.35s ease,
+        opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
 
-        transform 0.35s ease;
+        transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 
 }
 
@@ -352,7 +352,7 @@
 
     opacity: 1;
 
-    transform: scale(1.08);
+    transform: scale(1.08) translateY(-1px);
 
 }
 
@@ -2323,3 +2323,49 @@ body.navigation-visible #input-mode {
 
 }
 
+
+
+/*
+    ========================================================
+    CATEGORY PROXIMITY STATES
+    ========================================================
+
+    The selected category remains dominant, but nearby
+    categories stay readable instead of disappearing.
+*/
+
+.category.category-adjacent {
+    opacity: 0.82;
+    transform: scale(0.98);
+}
+
+.category.category-adjacent .category-icon-image {
+    opacity: 0.92;
+}
+
+.category.category-near {
+    opacity: 0.62;
+    transform: scale(0.95);
+}
+
+.category.category-near .category-icon-image {
+    opacity: 0.78;
+}
+
+.category.category-far {
+    opacity: 0.48;
+    transform: scale(0.93);
+}
+
+.category.category-far .category-icon-image {
+    opacity: 0.66;
+}
+
+.category.selected {
+    opacity: 1;
+    transform: scale(1.08) translateY(-1px);
+}
+
+.category.selected .category-icon-image {
+    opacity: 1;
+}
