@@ -17,7 +17,8 @@ const spotifyService={
     playerReadyPromise:null,
     playerError:"",
     playbackErrorAt:0,
-    browserPlayback:true,
+    desktopDeviceId:"",
+    volume:100,
 
     async initialize(){
         if(this.initialized)return;
@@ -119,6 +120,13 @@ const spotifyService={
 
             this.shuffle=!!data?.shuffle_state;
             this.repeat=data?.repeat_state||"off";
+            if(data?.device?.volume_percent!=null){
+                this.volume=Number(data.device.volume_percent);
+                const slider=document.getElementById("media-volume");
+                const label=document.getElementById("media-volume-value");
+                if(slider)slider.value=String(this.volume);
+                if(label)label.textContent=this.volume+"%";
+            }
 
             if(!data?.item){
                 this.currentTrack=null;
@@ -187,17 +195,35 @@ const spotifyService={
         accidentally starting music on an Echo, TV, or other remote device.
     */
     async openDj(){
-        this.showTemporaryMessage("Spotify DJ is not exposed to third-party playback apps.");
-        return {success:false,error:"Spotify DJ is not available through the Spotify Web Playback SDK."};
+        const launch=await window.electron?.spotifyLaunchDesktop?.();
+
+        if(launch?.success===false){
+            throw new Error(
+                launch.error||
+                "Unable to launch Spotify."
+            );
+        }
+
+        /*
+            Spotify currently exposes DJ as a playlist/content link.
+            Opening it through Spotify's own client preserves the native
+            DJ experience instead of attempting to reproduce it.
+        */
+        await window.electron?.openExternal?.(
+            "spotify:playlist:37i9dQZF1EYkqdzj48dyYq"
+        );
+
+        this.showTemporaryMessage("Spotify DJ opened.");
+        return {success:true};
     },
 
     async initializeWebPlayback(){
-        if(this.playerReady&&this.playerDeviceId)return true;
+        if(this.playerReady&&this.desktopDeviceId)return true;
 
         if(this.playerConnecting&&this.playerReadyPromise){
             try{
                 await this.playerReadyPromise;
-                return this.playerReady&&!!this.playerDeviceId;
+                return this.playerReady&&!!this.desktopDeviceId;
             }catch(error){
                 return false;
             }
@@ -208,7 +234,7 @@ const spotifyService={
         }
 
         if(this.playerConnecting){
-            return this.playerReady&&!!this.playerDeviceId;
+            return this.playerReady&&!!this.desktopDeviceId;
         }
 
         this.playerConnecting=true;
@@ -266,13 +292,13 @@ const spotifyService={
 
             this.playerReadyPromise=new Promise((resolve,reject)=>{
                 player.addListener("ready",({device_id})=>{
-                    this.playerDeviceId=device_id||"";
-                    this.playerReady=Boolean(this.playerDeviceId);
+                    this.desktopDeviceId=device_id||"";
+                    this.playerReady=Boolean(this.desktopDeviceId);
                     this.playerError="";
 
                     console.log(
                         "Personal XMB Spotify player ready:",
-                        this.playerDeviceId
+                        this.desktopDeviceId
                     );
 
                     if(this.playerReady){
@@ -287,10 +313,10 @@ const spotifyService={
                 });
 
                 player.addListener("not_ready",({device_id})=>{
-                    if(!device_id||device_id===this.playerDeviceId){
+                    if(!device_id||device_id===this.desktopDeviceId){
                         this.playerReady=false;
-                        if(device_id===this.playerDeviceId){
-                            this.playerDeviceId="";
+                        if(device_id===this.desktopDeviceId){
+                            this.desktopDeviceId="";
                         }
                     }
 
@@ -366,7 +392,7 @@ const spotifyService={
 
                 if(this.player===player){
                     this.player=null;
-                    this.playerDeviceId="";
+                    this.desktopDeviceId="";
                 }
 
                 this.playerConnecting=false;
@@ -424,11 +450,11 @@ const spotifyService={
             this.playerConnecting=false;
             this.playerError="";
 
-            return this.playerReady&&!!this.playerDeviceId;
+            return this.playerReady&&!!this.desktopDeviceId;
         }catch(error){
             this.playerConnecting=false;
             this.playerReady=false;
-            this.playerDeviceId="";
+            this.desktopDeviceId="";
             this.playerReadyPromise=null;
 
             if(this.player){
@@ -450,68 +476,61 @@ const spotifyService={
     },
 
     async ensureLocalPlayer(){
-        if(
-            this.browserPlayback &&
-            this.playerDeviceId
-        ){
+        if(this.desktopDeviceId){
             return true;
         }
 
-        if(!this.browserPlayback){
-            const ready=await this.initializeWebPlayback();
+        const launch=await window.electron?.spotifyLaunchDesktop?.();
 
-            if(!ready||!this.playerDeviceId||!this.player){
-                throw new Error(
-                    this.playerError||
-                    "Spotify playback is not ready."
-                );
-            }
-
-            return true;
-        }
-
-        const opened=await window.electron?.spotifyBrowserOpen?.();
-
-        if(!opened?.success){
+        if(launch?.success===false){
             throw new Error(
-                opened?.error||
-                "Unable to start the Spotify browser playback engine."
+                launch.error||
+                "Unable to launch Spotify."
             );
         }
 
+        /*
+            Give Spotify Desktop a moment to register itself as a
+            Spotify Connect device, then select a computer device.
+        */
         for(let attempt=0;attempt<40;attempt++){
-            const status=await window.electron.spotifyBrowserStatus();
+            const devices=await this.getAvailableDevices();
 
-            if(status?.ready&&status.deviceId){
-                this.playerDeviceId=status.deviceId;
-                this.playerError="";
+            const computerDevices=devices.filter(
+                device =>
+                    device?.type==="Computer" &&
+                    device?.is_restricted!==true
+            );
+
+            const preferred=
+                computerDevices.find(device=>device.is_active)||
+                computerDevices.find(device=>
+                    /spotify|desktop/i.test(device.name||"")
+                )||
+                computerDevices[0];
+
+            if(preferred?.id){
+                this.desktopDeviceId=preferred.id;
+                this.desktopDeviceId=preferred.id;
+                this.volume=Math.round(
+                    Number(preferred.volume_percent ?? this.volume)
+                );
                 return true;
-            }
-
-            if(status?.lastError){
-                this.playerError=status.lastError;
             }
 
             await new Promise(resolve=>setTimeout(resolve,250));
         }
 
         throw new Error(
-            this.playerError||
-            "Spotify browser playback did not become ready."
+            "Spotify Desktop launched, but its playback device did not appear."
         );
     },
 
     async activatePlayer(){
-        /*
-            The supported-browser player is opened by the original XMB
-            user action. The browser handles its own media activation.
-        */
         await this.ensureLocalPlayer();
     },
 
-    async waitForLocalPlayerActive(attempts=12,delay=250){
-        let lastError=null;
-
+    async waitForLocalPlayerActive(attempts=20,delay=250){
         for(let attempt=0;attempt<attempts;attempt++){
             try{
                 const state=await this.api({
@@ -520,29 +539,20 @@ const spotifyService={
                 });
 
                 if(
-                    state?.device?.id===this.playerDeviceId &&
+                    state?.device?.id===this.desktopDeviceId &&
                     state.device.is_active
                 ){
                     return true;
                 }
-            }catch(error){
-                lastError=error;
-            }
+            }catch(error){}
 
             if(attempt<attempts-1){
                 await new Promise(resolve=>setTimeout(resolve,delay));
             }
         }
 
-        if(lastError){
-            throw new Error(
-                "Spotify did not make the Personal XMB player active: "+
-                lastError.message
-            );
-        }
-
         throw new Error(
-            "Spotify did not make the Personal XMB player active in time."
+            "Spotify Desktop did not become the active playback device."
         );
     },
 
@@ -552,7 +562,10 @@ const spotifyService={
         await this.api({
             method:"PUT",
             endpoint:"/me/player",
-            body:{device_ids:[this.playerDeviceId],play:false}
+            body:{
+                device_ids:[this.desktopDeviceId],
+                play:false
+            }
         });
 
         await this.waitForLocalPlayerActive();
@@ -566,13 +579,18 @@ const spotifyService={
             endpoint:"/me/player"
         });
 
-        const endpoint=state?.is_playing
-            ?"/me/player/pause?device_id="+encodeURIComponent(this.playerDeviceId)
-            :"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId);
+        if(
+            state?.device?.id &&
+            state.device.id!==this.desktopDeviceId
+        ){
+            await this.transferToLocalPlayer();
+        }
 
         await this.api({
             method:"PUT",
-            endpoint
+            endpoint:state?.is_playing
+                ?"/me/player/pause?device_id="+encodeURIComponent(this.desktopDeviceId)
+                :"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId)
         });
 
         this.lastPlayerRefresh=0;
@@ -584,7 +602,7 @@ const spotifyService={
 
         await this.api({
             method:"POST",
-            endpoint:"/me/player/next?device_id="+encodeURIComponent(this.playerDeviceId)
+            endpoint:"/me/player/next?device_id="+encodeURIComponent(this.desktopDeviceId)
         });
 
         this.lastPlayerRefresh=0;
@@ -596,11 +614,40 @@ const spotifyService={
 
         await this.api({
             method:"POST",
-            endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.playerDeviceId)
+            endpoint:"/me/player/previous?device_id="+encodeURIComponent(this.desktopDeviceId)
         });
 
         this.lastPlayerRefresh=0;
         await this.refreshNowPlaying();
+    },
+
+    async setVolume(value){
+        const volume=Math.max(
+            0,
+            Math.min(
+                100,
+                Math.round(Number(value)||0)
+            )
+        );
+
+        await this.ensureLocalPlayer();
+
+        await this.api({
+            method:"PUT",
+            endpoint:
+                "/me/player/volume?volume_percent="+
+                volume+
+                "&device_id="+
+                encodeURIComponent(this.desktopDeviceId)
+        });
+
+        this.volume=volume;
+
+        const slider=document.getElementById("media-volume");
+        const label=document.getElementById("media-volume-value");
+
+        if(slider)slider.value=String(volume);
+        if(label)label.textContent=volume+"%";
     },
 
     async toggleShuffle(){
@@ -608,7 +655,7 @@ const spotifyService={
         const next=!this.shuffle;
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/shuffle?state="+next+"&device_id="+encodeURIComponent(this.playerDeviceId)
+            endpoint:"/me/player/shuffle?state="+next+"&device_id="+encodeURIComponent(this.desktopDeviceId)
         });
         this.shuffle=next;
         this.updateModes();
@@ -619,7 +666,7 @@ const spotifyService={
         const next=this.repeat==="off"?"context":this.repeat==="context"?"track":"off";
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/repeat?state="+next+"&device_id="+encodeURIComponent(this.playerDeviceId)
+            endpoint:"/me/player/repeat?state="+next+"&device_id="+encodeURIComponent(this.desktopDeviceId)
         });
         this.repeat=next;
         this.updateModes();
@@ -660,7 +707,7 @@ const spotifyService={
 
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{uris:[uri]}
         });
 
@@ -676,7 +723,7 @@ const spotifyService={
 
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
 
@@ -692,7 +739,7 @@ const spotifyService={
 
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
 
@@ -706,7 +753,7 @@ const spotifyService={
         await this.transferToLocalPlayer();
         await this.api({
             method:"PUT",
-            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.playerDeviceId),
+            endpoint:"/me/player/play?device_id="+encodeURIComponent(this.desktopDeviceId),
             body:{context_uri:uri}
         });
         this.lastPlayerRefresh=0;
