@@ -84,7 +84,7 @@
         When the strip reaches either end, the selected item
         is allowed to move toward the center naturally.
     */
-    width: min(720px, calc(100% - 220px));
+    width: calc(100% - 220px);
 
     height: 150px;
 
