@@ -834,6 +834,22 @@ document.addEventListener("DOMContentLoaded",()=>{
         )
     );
 
+    document.getElementById("media-volume")?.addEventListener(
+        "input",
+        event=>{
+            const value=Number(event.target.value);
+            const label=document.getElementById("media-volume-value");
+            if(label)label.textContent=value+"%";
+        }
+    );
+
+    document.getElementById("media-volume")?.addEventListener(
+        "change",
+        event=>runPlaybackCommand(
+            ()=>spotifyService.setVolume(event.target.value)
+        )
+    );
+
     window.electron?.onSpotifyAuthComplete?.(async()=>{
         spotifyService.initialized=false;
         spotifyService.stopPolling();
