@@ -97,7 +97,6 @@ const {
     module. They share the same trusted-renderer security helper.
 */
 require("./auth-main");
-const spotifyBrowserPlayer = require("./services/spotify-browser-player");
 
 protocol.registerSchemesAsPrivileged([
     {
@@ -7575,56 +7574,6 @@ ipcMain.handle(
     in the trusted renderer. The refresh token remains in
     the main process and secure storage.
 */
-
-ipcMain.handle(
-    "spotify-browser-open",
-    async event => {
-        requireTrustedRenderer(event);
-
-        try {
-            return spotifyBrowserPlayer.open(async () => {
-                try {
-                    let tokens = loadSpotifyTokens();
-
-                    if (!tokens?.accessToken) {
-                        throw new Error("Spotify is not connected.");
-                    }
-
-                    if (
-                        tokens.expiresAt &&
-                        Date.now() >= tokens.expiresAt - 30000
-                    ) {
-                        tokens.accessToken =
-                            await refreshSpotifyToken();
-                    }
-
-                    return {
-                        success: true,
-                        accessToken: tokens.accessToken
-                    };
-                } catch (error) {
-                    return {
-                        success: false,
-                        error: error.message
-                    };
-                }
-            });
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-);
-
-ipcMain.handle(
-    "spotify-browser-status",
-    event => {
-        requireTrustedRenderer(event);
-        return spotifyBrowserPlayer.status();
-    }
-);
 
 ipcMain.handle(
     "spotify-playback-token",
