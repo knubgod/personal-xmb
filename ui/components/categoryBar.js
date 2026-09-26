@@ -539,6 +539,54 @@ function updateCategorySelection(
         }
     );
 
+    /*
+        Keep the selected category on the left side of the
+        viewport while there is still content to scroll.
+        Smooth scrolling supplies the missing travel/momentum
+        between category selections instead of snapping the
+        strip to a new position.
+    */
+    const viewport = document.getElementById(
+        "category-viewport"
+    );
+
+    const selectedCategory = categories[
+        selectedIndex
+    ];
+
+    if (
+        viewport &&
+        selectedCategory
+    ) {
+
+        requestAnimationFrame(() => {
+
+            const preferredLeft =
+                selectedCategory.offsetLeft -
+                viewport.clientWidth * 0.24;
+
+            const maxScroll = Math.max(
+                0,
+                viewport.scrollWidth - viewport.clientWidth
+            );
+
+            const targetLeft = Math.max(
+                0,
+                Math.min(
+                    maxScroll,
+                    preferredLeft
+                )
+            );
+
+            viewport.scrollTo({
+                left: targetLeft,
+                behavior: "smooth"
+            });
+
+        });
+
+    }
+
 }
 
 
