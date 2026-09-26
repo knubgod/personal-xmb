@@ -6628,19 +6628,24 @@ function focusXmbWindow(){
 }
 
 
-async function hideSpotifyWindows(){
+async function minimizeSpotifyWindows(){
     if(process.platform!=="win32"){
         focusXmbWindow();
         return;
     }
 
+    /*
+        SW_MINIMIZE (6) minimizes Spotify without terminating it.
+        The previous SW_HIDE (0) made Spotify disappear completely
+        and could look like the app had been closed.
+    */
     const script=[
         "$ErrorActionPreference='SilentlyContinue';",
         "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class XmbWindow { [DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); }';",
-        "Get-Process Spotify | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [XmbWindow]::ShowWindow($_.MainWindowHandle,0) }"
+        "Get-Process Spotify | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [XmbWindow]::ShowWindow($_.MainWindowHandle,6) }"
     ].join("");
 
-    for(let attempt=0;attempt<10;attempt++){
+    for(let attempt=0;attempt<12;attempt++){
         await new Promise(resolve=>{
             const child=spawn(
                 "powershell.exe",
@@ -6662,8 +6667,13 @@ async function hideSpotifyWindows(){
             child.once("error",()=>resolve());
         });
 
-        if(attempt>=2)break;
-        await new Promise(resolve=>setTimeout(resolve,200));
+        /*
+            Spotify can take a moment to create its actual window
+            after the process starts. Keep checking without blocking
+            the XMB UI itself.
+        */
+        if(attempt>=7)break;
+        await new Promise(resolve=>setTimeout(resolve,150));
     }
 
     focusXmbWindow();
@@ -6673,7 +6683,7 @@ async function hideSpotifyWindows(){
 async function launchSpotifyDesktop() {
 
     if (await isSpotifyRunning()) {
-        await hideSpotifyWindows();
+        await minimizeSpotifyWindows();
 
         return {
             success:true,
@@ -6722,7 +6732,7 @@ async function launchSpotifyDesktop() {
             });
 
             if(launched){
-                await hideSpotifyWindows();
+                await minimizeSpotifyWindows();
 
                 return {
                     success:true,
@@ -6741,10 +6751,20 @@ async function launchSpotifyDesktop() {
         */
         try{
             await shell.openExternal("spotify:");
+
+            /*
+                URI launches can create the Spotify window after the
+                shell call returns, so give Windows a short head start
+                and then minimize it back out of the XMB's way.
+            */
+            await new Promise(resolve=>setTimeout(resolve,350));
+            await minimizeSpotifyWindows();
+
             return {
                 success:true,
                 alreadyRunning:false,
-                launchedByProtocol:true
+                launchedByProtocol:true,
+                hidden:true
             };
         }catch(error){
             throw new Error(
