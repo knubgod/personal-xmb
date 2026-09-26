@@ -13,6 +13,7 @@ getArtworkManifest:()=>ipcRenderer.invoke("get-artwork-manifest"),
 spotifyLogin:()=>ipcRenderer.invoke("spotify-login"),
 spotifyLaunchDesktop:()=>ipcRenderer.invoke("spotify-launch-desktop"),
 spotifyApi:(request)=>ipcRenderer.invoke("spotify-api",request),
+spotifyMediaKey:(action)=>ipcRenderer.invoke("spotify-media-key",action),
 
 onSpotifyAuthComplete:(callback)=>ipcRenderer.on("spotify-auth-complete",()=>callback()),
 getAccounts:()=>ipcRenderer.invoke("accounts-get"),
