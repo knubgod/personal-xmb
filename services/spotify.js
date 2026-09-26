@@ -12,17 +12,30 @@ const spotifyService={
     repeat:"off",
     desktopDeviceId:"",
     volume:100,
+    connected:false,
 
     async initialize(){
         if(this.initialized)return;
         this.initialized=true;
 
         /*
-            Spotify is optional during XMB startup. Do not wait for
-            the Web API or Web Playback SDK here; either can take time
-            to authenticate or establish a protected media session.
-            The launcher should become interactive immediately.
+            Read the local connection state first. An unconnected XMB
+            should not wake Spotify's API every 15 seconds forever.
         */
+        try{
+            const settings=await window.electron?.getSettings?.();
+            this.connected=Boolean(settings?.spotify?.connected);
+        }catch{
+            this.connected=false;
+        }
+
+        this.startProgressTicker();
+
+        if(!this.connected){
+            this.renderPlayer();
+            return;
+        }
+
         this.refreshNowPlaying().catch(error=>{
             console.debug(
                 "[Spotify] Initial playback state refresh deferred:",
@@ -31,12 +44,6 @@ const spotifyService={
         });
 
         this.startPolling();
-        this.startProgressTicker();
-
-        /*
-            Spotify audio is hosted by a supported desktop browser.
-            Do not initialize the Web Playback SDK inside Electron.
-        */
     },
 
     startPolling(){
@@ -153,7 +160,9 @@ const spotifyService={
             this.renderPlayer();
             this.updateModes();
         }catch(error){
-            console.warn("Spotify refresh failed:",error.message);
+            if(this.connected){
+                console.warn("Spotify refresh failed:",error.message);
+            }
         }
     },
 
@@ -170,6 +179,8 @@ const spotifyService={
         if(result?.success===false){
             throw new Error(result.error||"Spotify login failed.");
         }
+
+        this.connected=true;
     },
 
     async getAvailableDevices(){
