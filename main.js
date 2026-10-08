@@ -791,7 +791,7 @@ function createWindow() {
                 true,
 
             fullscreen:
-                true,
+                false,
 
             fullscreenable:
                 true,
@@ -6683,12 +6683,10 @@ async function minimizeSpotifyWindows(){
 async function launchSpotifyDesktop() {
 
     if (await isSpotifyRunning()) {
-        await minimizeSpotifyWindows();
-
         return {
             success:true,
             alreadyRunning:true,
-            hidden:true
+            hidden:false
         };
     }
 
@@ -6716,7 +6714,7 @@ async function launchSpotifyDesktop() {
                     */
                     const child=spawn(
                         executable,
-                        ["--minimized"],
+                        [],
                         {
                             detached:true,
                             windowsHide:true,
@@ -6732,14 +6730,12 @@ async function launchSpotifyDesktop() {
             });
 
             if(launched){
-                await minimizeSpotifyWindows();
-
                 return {
                     success:true,
                     alreadyRunning:false,
                     launchedByExecutable:true,
-                    minimizedRequested:true,
-                    hidden:true
+                    minimizedRequested:false,
+                    hidden:false
                 };
             }
         }
@@ -6757,14 +6753,11 @@ async function launchSpotifyDesktop() {
                 shell call returns, so give Windows a short head start
                 and then minimize it back out of the XMB's way.
             */
-            await new Promise(resolve=>setTimeout(resolve,350));
-            await minimizeSpotifyWindows();
-
             return {
                 success:true,
                 alreadyRunning:false,
                 launchedByProtocol:true,
-                hidden:true
+                hidden:false
             };
         }catch(error){
             throw new Error(
