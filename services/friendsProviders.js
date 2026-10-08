@@ -45,10 +45,21 @@ function getProviderStates({
             label: "Discord",
             connected: Boolean(accounts.discord?.connected),
             available: false,
-            status: "social-sdk-required",
+            status: accounts.discord?.connected
+                ? "oauth-profile-and-connections"
+                : "disconnected",
+            capabilities: accounts.discord?.connected
+                ? [
+                    "profile",
+                    ...(Array.isArray(accounts.discord?.scopes) &&
+                    accounts.discord.scopes.includes("connections")
+                        ? ["connections"]
+                        : [])
+                ]
+                : [],
             message: accounts.discord?.connected
-                ? "Discord is connected. The official Discord Social SDK is required for friends, presence, and messaging."
-                : "Connect Discord first, then enable the Discord Social SDK integration."
+                ? "Discord OAuth is connected. Personal XMB can read your Discord profile and authorized linked connections; friends and presence require Discord's Social SDK."
+                : "Connect Discord to enable the available OAuth account features."
         },
         microsoft: {
             label: "Xbox",
