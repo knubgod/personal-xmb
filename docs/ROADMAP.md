@@ -57,34 +57,49 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 **Goal:** turn the Friends category into a unified presence dashboard.
 
 ### Discord
-- [ ] Discord connection/authentication
+- [x] Discord connection/authentication
+- [x] Discord profile retrieval
+- [ ] Discord Social SDK integration
 - [ ] Friends/presence data
 - [ ] Online/idle/DND/offline states
 - [ ] Current activity/game
 - [ ] Rich presence details where available
 - [ ] Friend selection/details view
+- [x] Truthful "Social SDK required" provider state
 
 ### Xbox
-- [ ] Xbox/Microsoft authentication
+- [x] Xbox/Microsoft authentication foundation
+- [x] Xbox Live token/XSTS exchange foundation
+- [ ] Eligible Xbox social-service integration
 - [ ] Friends/presence data
 - [ ] Current game/activity
 - [ ] Online status
 - [ ] Friend details
+- [x] Truthful provider-unavailable state
 
 ### Riot
-- [ ] Riot account integration
-- [ ] League presence/status where supported
+- [x] Riot RSO account integration
+- [x] Account identity retrieval
+- [ ] Supported League presence/status integration
 - [ ] Current game information where supported
 - [ ] Friend list/status where supported
+- [x] Truthful RSO identity-only provider state
 
 ### Unified Friends UI
-- [ ] Cross-service friend model
-- [ ] Service badges
+- [x] Inline XMB Friends surface
+- [x] Cross-service normalized friend model
+- [x] Service badges
+- [x] Platform switching
+- [x] Keyboard/controller navigation
+- [x] Scrolling friend selection
+- [x] Provider availability states
+- [x] Background refresh without blocking navigation
+- [x] Subtle selection/provider animations
+- [x] XMB navigation sound integration
 - [ ] Duplicate-account handling
 - [ ] Sort/filter controls
 - [ ] Friend detail panel
 - [ ] Service-specific actions
-- [ ] Background refresh without blocking navigation
 
 ## Phase 3 — Platform Expansion
 
@@ -171,7 +186,7 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 7. **Visual polish comes after reliable interaction, but the final product should still feel like a cohesive console-style interface.**
 
 
-## Current build status — September 23, 2026
+## Current build status — October 8, 2026
 
 The launcher now has the first real **Accounts / Social integration layer** in place:
 
@@ -184,4 +199,6 @@ The launcher now has the first real **Accounts / Social integration layer** in p
 - Spotify Connect action corrected to use the existing Spotify OAuth flow.
 - Provider limitations are explicitly surfaced instead of pretending Discord/Xbox/Riot expose identical friend APIs.
 
-The next implementation step for the Friends phase is **provider-specific social adapters**: Discord's supported Social SDK path, Xbox services social access where the application is eligible, and Riot-supported account/game data. The XMB UI should continue consuming one normalized friend/presence model.
+The current Friends implementation now has a clean provider-state model, automatic background refresh, truthful unavailable states, Steam friend data, XMB-style selection feedback, and audio hooks. The remaining real-service work is provider-specific: Discord requires the official Discord Social SDK, Xbox social access depends on the application's eligible service/API path, and Riot's public RSO flow currently identifies the signed-in account rather than exposing a general friends list. These providers must never be faked. The XMB UI continues consuming one normalized friend/presence model.
+
+The current development branch is `feature/friends-v2`, based directly on `consolidated/xmb-approved-2026-09-26`. Spotify desktop launching was also corrected on this branch so the XMB no longer intentionally minimizes Spotify, and the default Electron window is no longer forced into fullscreen at startup.
