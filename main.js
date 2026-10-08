@@ -769,6 +769,8 @@ const {
     requireTrustedRenderer
 } = require("./ipc-security");
 
+const { getProviderStates } = require("./services/friendsProviders");
+
 
 function createWindow() {
 
@@ -8458,60 +8460,6 @@ async function getSteamFriends() {
 }
 
 
-function getFriendsProviderStates() {
-    let accountState = {};
-
-    try {
-        const accountPath = path.join(
-            app.getPath("userData"),
-            "accounts.json"
-        );
-
-        if (fs.existsSync(accountPath)) {
-            accountState = JSON.parse(
-                fs.readFileSync(accountPath, "utf8")
-            );
-        }
-    } catch {}
-
-    return {
-        steam: {
-            label: "Steam",
-            connected: Boolean(getSteamLocalSettings().steamId && getSteamLocalSettings().apiKey),
-            available: true,
-            status: "ready",
-            message: "Steam friends are available."
-        },
-        discord: {
-            label: "Discord",
-            connected: Boolean(accountState.discord?.connected),
-            available: false,
-            status: "social-sdk-required",
-            message: accountState.discord?.connected
-                ? "Discord is connected. The Discord Social SDK is required for friends, presence, and messaging."
-                : "Connect Discord first, then enable the Discord Social SDK integration."
-        },
-        microsoft: {
-            label: "Xbox",
-            connected: Boolean(accountState.microsoft?.connected),
-            available: false,
-            status: "provider-not-implemented",
-            message: accountState.microsoft?.connected
-                ? "Microsoft/Xbox is connected. Xbox friends and presence are not yet exposed by this provider."
-                : "Connect Microsoft/Xbox first to prepare this provider."
-        },
-        riot: {
-            label: "Riot Games",
-            connected: Boolean(accountState.riot?.connected),
-            available: false,
-            status: "rso-identity-only",
-            message: accountState.riot?.connected
-                ? "Riot account is connected. RSO currently provides account identity; Friends requires a separate supported client integration."
-                : "Connect Riot first to prepare this provider."
-        }
-    };
-}
-
 ipcMain.handle(
     "friends-get",
     async (
@@ -8520,7 +8468,12 @@ ipcMain.handle(
 
         requireTrustedRenderer(event);
 
-        const providers = getFriendsProviderStates();
+        const providers = getProviderStates({
+            app,
+            fs,
+            path,
+            steamConfigured: Boolean(getSteamLocalSettings().steamId && getSteamLocalSettings().apiKey)
+        });
 
         try {
 
