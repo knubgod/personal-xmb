@@ -5,6 +5,7 @@ const friendsSurface = (() => {
     let lastData = null;
     let selectedFriendIndex = 0;
     let inputFocus = "platforms";
+    let refreshTimer = null;
 
     const platforms = {
         discord: { label: "Discord", short: "DISCORD", icon: "D" },
@@ -12,6 +13,23 @@ const friendsSurface = (() => {
         steam: { label: "Steam", short: "STEAM", icon: "S" },
         riot: { label: "Riot Games", short: "RIOT", icon: "R" }
     };
+
+    function playSound(type) {
+        try {
+            if (type === "select") window.xmbAudio?.select?.();
+            else if (type === "back") window.xmbAudio?.back?.();
+            else window.xmbAudio?.navigation?.();
+        } catch {}
+    }
+
+    function providerState(data, platform) {
+        return data?.providers?.[platform] || {
+            connected: false,
+            available: false,
+            status: "unavailable",
+            message: "Friend provider is not available."
+        };
+    }
 
     function ensure() {
         if (overlay) return overlay;
@@ -65,6 +83,10 @@ const friendsSurface = (() => {
     function closeInline() {
         inlineRoot?.remove();
         inlineRoot = null;
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
     }
 
     function openInline(host) {
@@ -86,6 +108,11 @@ const friendsSurface = (() => {
         root.dataset.loaded = "true";
         refresh().then(() => {
             focusPlatforms();
+            if (!refreshTimer) {
+                refreshTimer = setInterval(() => {
+                    if (document.body.contains(root)) refresh();
+                }, 30000);
+            }
         });
     }
 
@@ -290,12 +317,21 @@ const friendsSurface = (() => {
 
     function renderEmpty(root) {
         const empty = document.createElement("div");
-        empty.className = "friends-empty";
+        empty.className = "friends-empty friends-state-card";
+        const state = activePlatform === "all" ? null : providerState(lastData, activePlatform);
         const title = document.createElement("h3");
-        title.textContent = "No friend activity yet";
+        title.textContent = state?.label || (activePlatform === "all" ? "No friend activity yet" : platforms[activePlatform]?.label || "Friends");
         const body = document.createElement("p");
-        body.textContent = "The unified Friends surface is ready for platform activity. Connect a supported platform, then refresh this view.";
+        body.textContent = state?.message || (activePlatform === "all"
+            ? "Connect a supported platform to populate your Friends dashboard."
+            : "No friends were returned by this provider.");
         empty.append(title, body);
+        if (state?.connected && !state.available) {
+            const status = document.createElement("span");
+            status.className = "friends-provider-status";
+            status.textContent = "Connected · provider unavailable";
+            empty.appendChild(status);
+        }
         root.appendChild(empty);
     }
 
@@ -322,14 +358,24 @@ const friendsSurface = (() => {
 
         Object.keys(platforms).forEach(platform => {
             const button = document.createElement("button");
+            const state = providerState(lastData, platform);
             button.type = "button";
             button.textContent = platforms[platform].short;
-            button.disabled = !available.has(platform);
-            button.className = activePlatform === platform ? "active" : "";
+            button.title = state.message || "";
+            button.disabled = false;
+            button.className =
+                (activePlatform === platform ? "active " : "") +
+                (state.available ? "is-ready" : "is-unavailable");
             button.tabIndex = -1;
             button.addEventListener("mouseenter", () => { inputFocus = "platforms"; });
             button.addEventListener("focus", () => { inputFocus = "platforms"; });
-            button.addEventListener("click", () => { inputFocus = "platforms"; activePlatform = platform; render(lastData); });
+            button.addEventListener("click", () => {
+                inputFocus = "platforms";
+                playSound("select");
+                activePlatform = platform;
+                selectedFriendIndex = 0;
+                render(lastData);
+            });
             nav.appendChild(button);
         });
 
@@ -354,6 +400,7 @@ const friendsSurface = (() => {
             card.dataset.friendIndex = String(index);
             card.tabIndex = 0;
             card.classList.toggle("selected", index === selectedFriendIndex);
+            if (index === selectedFriendIndex) card.classList.add("friends-card-enter");
             card.addEventListener("mouseenter", () => {
                 inputFocus = "friends";
                 setFriendSelection(index);
