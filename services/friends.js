@@ -5,6 +5,7 @@ const friendsSurface = (() => {
     let lastData = null;
     let selectedFriendIndex = 0;
     let inputFocus = "platforms";
+    let refreshTimer = null;
 
     const platforms = {
         discord: { label: "Discord", short: "DISCORD", icon: "D" },
@@ -13,6 +14,23 @@ const friendsSurface = (() => {
         riot: { label: "Riot Games", short: "RIOT", icon: "R" }
     };
 
+    function playSound(type) {
+        try {
+            if (type === "select") window.xmbAudio?.select?.();
+            else if (type === "back") window.xmbAudio?.back?.();
+            else window.xmbAudio?.navigation?.();
+        } catch {}
+    }
+
+    function providerState(data, platform) {
+        return data?.providers?.[platform] || {
+            connected: false,
+            available: false,
+            status: "unavailable",
+            message: "Friend provider is not available."
+        };
+    }
+
     function ensure() {
         if (overlay) return overlay;
         overlay = document.createElement("div");
@@ -20,7 +38,10 @@ const friendsSurface = (() => {
         overlay.innerHTML = `<section class="friends-panel" role="dialog" aria-modal="true" aria-labelledby="friends-title">
             <header class="friends-header"><div><div class="friends-kicker">SOCIAL</div><h2 id="friends-title">Friends</h2><p id="friends-summary">Your friends and their current activity.</p></div><button id="friends-close" class="friends-close" type="button">ESC</button></header>
             <nav id="friends-platforms" class="friends-platforms" aria-label="Friend platforms"></nav>
-            <main id="friends-content" class="friends-content"></main>
+            <div class="friends-main-layout">
+                <main id="friends-content" class="friends-content"></main>
+                <aside id="friends-detail" class="friends-detail" aria-live="polite"></aside>
+            </div>
             <footer class="friends-footer"><span id="friends-updated">Waiting for friend activity...</span><button id="friends-refresh" type="button">Refresh</button></footer>
         </section>`;
         document.body.appendChild(overlay);
@@ -50,7 +71,10 @@ const friendsSurface = (() => {
                 </div>
             </header>
             <nav data-friends-role="platforms" class="friends-platforms" aria-label="Friend platforms"></nav>
-            <main data-friends-role="content" class="friends-content"></main>
+            <div class="friends-main-layout">
+                <main data-friends-role="content" class="friends-content"></main>
+                <aside data-friends-role="detail" class="friends-detail" aria-live="polite"></aside>
+            </div>
             <footer class="friends-footer">
                 <span data-friends-role="updated">Waiting for friend activity...</span>
                 <button data-friends-role="refresh" type="button">Refresh</button>
@@ -65,6 +89,10 @@ const friendsSurface = (() => {
     function closeInline() {
         inlineRoot?.remove();
         inlineRoot = null;
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
     }
 
     function openInline(host) {
@@ -86,6 +114,11 @@ const friendsSurface = (() => {
         root.dataset.loaded = "true";
         refresh().then(() => {
             focusPlatforms();
+            if (!refreshTimer) {
+                refreshTimer = setInterval(() => {
+                    if (document.body.contains(root)) refresh();
+                }, 30000);
+            }
         });
     }
 
@@ -130,8 +163,19 @@ const friendsSurface = (() => {
     function platformBadge(platform) {
         const badge = document.createElement("span");
         badge.className = `friends-platform-badge platform-${platform}`;
-        badge.textContent = platforms[platform]?.icon || "?";
         badge.title = platforms[platform]?.label || platform;
+        badge.setAttribute("aria-label", platforms[platform]?.label || platform);
+
+        if (platform === "steam") {
+            badge.innerHTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.353 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.252-1.017 2.266-2.266 2.266z"/>
+                </svg>
+            `;
+        } else {
+            badge.textContent = platforms[platform]?.icon || "?";
+        }
+
         return badge;
     }
 
@@ -277,14 +321,118 @@ const friendsSurface = (() => {
         return section;
     }
 
+    function renderFriendDetail(friend) {
+        const root = inlineRoot || overlay;
+        const detail = root?.querySelector('#friends-detail, [data-friends-role="detail"]');
+        if (!detail) return;
+
+        detail.innerHTML = "";
+
+        if (!friend) {
+            const title = document.createElement("h3");
+            title.textContent = "Select a friend";
+            const body = document.createElement("p");
+            body.textContent = "Use the directional controls to inspect a friend.";
+            detail.append(title, body);
+            return;
+        }
+
+        const avatar = document.createElement("div");
+        avatar.className = "friends-detail-avatar";
+
+        if (friend.avatar) {
+            const image = document.createElement("img");
+            image.src = friend.avatar;
+            image.alt = "";
+            image.loading = "lazy";
+            avatar.appendChild(image);
+        } else {
+            avatar.textContent = friend.name.charAt(0).toUpperCase();
+        }
+
+        const heading = document.createElement("div");
+        heading.className = "friends-detail-heading";
+
+        const title = document.createElement("h3");
+        title.textContent = friend.name;
+
+        const status = document.createElement("span");
+        status.className = "friends-detail-status";
+        status.textContent = statusLabel(friend.status);
+
+        heading.append(title, status);
+
+        const platform = document.createElement("span");
+        platform.className = "friends-detail-platform";
+        platform.textContent = platforms[friend.platform]?.label || friend.platform;
+
+        detail.append(avatar, heading, platform);
+
+        if (friend.activity) {
+            const activity = document.createElement("div");
+            activity.className = "friends-detail-activity";
+            activity.textContent = friend.activity.name;
+
+            if (friend.activity.details || friend.activity.state) {
+                const sub = document.createElement("span");
+                sub.textContent = friend.activity.details || friend.activity.state;
+                activity.appendChild(sub);
+            }
+
+            detail.appendChild(activity);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "friends-detail-actions";
+
+        if (friend.platform === "steam" && /^\d{10,20}$/.test(friend.id)) {
+            const profile = document.createElement("button");
+            profile.type = "button";
+            profile.textContent = "Open Steam Profile";
+            profile.addEventListener("click", async () => {
+                try {
+                    await window.electron?.openExternal?.(
+                        "https://steamcommunity.com/profiles/" + friend.id
+                    );
+                } catch {}
+            });
+            actions.appendChild(profile);
+        }
+
+        if (!actions.children.length) {
+            const state = document.createElement("span");
+            state.className = "friends-detail-note";
+            state.textContent =
+                friend.platform === "discord"
+                    ? "Discord actions will be enabled with the Social SDK."
+                    : friend.platform === "riot"
+                        ? "Riot actions will appear when a supported social provider is available."
+                        : friend.platform === "microsoft"
+                            ? "Xbox actions will appear when the social provider is available."
+                            : "No additional actions are available yet.";
+            actions.appendChild(state);
+        }
+
+        detail.appendChild(actions);
+    }
+
     function renderEmpty(root) {
         const empty = document.createElement("div");
-        empty.className = "friends-empty";
+        empty.className = "friends-empty friends-state-card";
+        const state = activePlatform === "all" ? null : providerState(lastData, activePlatform);
         const title = document.createElement("h3");
-        title.textContent = "No friend activity yet";
+        title.textContent = state?.label || (activePlatform === "all" ? "No friend activity yet" : platforms[activePlatform]?.label || "Friends");
         const body = document.createElement("p");
-        body.textContent = "The unified Friends surface is ready for platform activity. Connect a supported platform, then refresh this view.";
+        body.textContent = state?.message || (activePlatform === "all"
+            ? "Connect a supported platform to populate your Friends dashboard."
+            : "No friends were returned by this provider.");
         empty.append(title, body);
+        if (state?.connected && !state.available) {
+            const status = document.createElement("span");
+            status.className = "friends-provider-status";
+            status.textContent = "Connected · provider unavailable";
+            empty.appendChild(status);
+        }
         root.appendChild(empty);
     }
 
@@ -311,14 +459,24 @@ const friendsSurface = (() => {
 
         Object.keys(platforms).forEach(platform => {
             const button = document.createElement("button");
+            const state = providerState(lastData, platform);
             button.type = "button";
             button.textContent = platforms[platform].short;
-            button.disabled = !available.has(platform);
-            button.className = activePlatform === platform ? "active" : "";
+            button.title = state.message || "";
+            button.disabled = false;
+            button.className =
+                (activePlatform === platform ? "active " : "") +
+                (state.available ? "is-ready" : "is-unavailable");
             button.tabIndex = -1;
             button.addEventListener("mouseenter", () => { inputFocus = "platforms"; });
             button.addEventListener("focus", () => { inputFocus = "platforms"; });
-            button.addEventListener("click", () => { inputFocus = "platforms"; activePlatform = platform; render(lastData); });
+            button.addEventListener("click", () => {
+                inputFocus = "platforms";
+                playSound("select");
+                activePlatform = platform;
+                selectedFriendIndex = 0;
+                render(lastData);
+            });
             nav.appendChild(button);
         });
 
@@ -338,11 +496,14 @@ const friendsSurface = (() => {
         }
 
         const cards = Array.from(content.querySelectorAll(".friend-card"));
-        selectedFriendIndex = Math.max(0, Math.min(selectedFriendIndex, cards.length - 1));
+        selectedFriendIndex = cards.length
+            ? Math.max(0, Math.min(selectedFriendIndex, cards.length - 1))
+            : 0;
         cards.forEach((card, index) => {
             card.dataset.friendIndex = String(index);
             card.tabIndex = 0;
             card.classList.toggle("selected", index === selectedFriendIndex);
+            if (index === selectedFriendIndex) card.classList.add("friends-card-enter");
             card.addEventListener("mouseenter", () => {
                 inputFocus = "friends";
                 setFriendSelection(index);
@@ -400,7 +561,16 @@ const friendsSurface = (() => {
         });
 
         const selected = cards[selectedFriendIndex];
-        if (!selected) return;
+        if (!selected) {
+            renderFriendDetail(null);
+            return;
+        }
+
+        const friend = lastData?.friends?.find(
+            entry => String(entry?.id || "") === String(selected.dataset.friendId || "")
+        ) || null;
+
+        renderFriendDetail(friend);
 
         /*
             The friend list itself is the scrolling viewport.

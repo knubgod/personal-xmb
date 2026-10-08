@@ -110,14 +110,14 @@ function initializeStartupReveal() {
     /*
         Safety fallback.
 
-        xmbStartupFade is currently 4.6 seconds long.
+        xmbStartupFade is currently about 3.4 seconds long.
         Waiting 5 seconds ensures the logo has already
         completed before forcing the controls visible.
     */
 
     window.setTimeout(
         reveal,
-        5000
+        3800
     );
 
 }
@@ -666,13 +666,19 @@ async function startApplication() {
 
 
     if (
-        window.xmbAudio &&
-        typeof window.xmbAudio.startup ===
-            "function"
+        window.xmbAudio
     ) {
+        /*
+            Electron can start Web Audio suspended. Resume it first so
+            the boot chime is actually heard during startup.
+        */
+        try {
+            await window.xmbAudio.unlock?.();
+        } catch (error) {
+            console.debug("XMB startup audio unlock deferred:", error);
+        }
 
-        window.xmbAudio.startup();
-
+        window.xmbAudio.startup?.();
     }
 
 

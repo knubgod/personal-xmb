@@ -769,6 +769,8 @@ const {
     requireTrustedRenderer
 } = require("./ipc-security");
 
+const { getProviderStates } = require("./services/friendsProviders");
+
 
 function createWindow() {
 
@@ -791,7 +793,7 @@ function createWindow() {
                 true,
 
             fullscreen:
-                true,
+                false,
 
             fullscreenable:
                 true,
@@ -825,6 +827,13 @@ function createWindow() {
                     true
             }
         });
+
+    /*
+        Start maximized rather than fullscreen. This keeps the
+        console-style presentation while preserving normal
+        desktop window controls and Alt+Enter fullscreen.
+    */
+    mainWindow.maximize();
 
 
     mainWindow.loadFile(
@@ -6612,12 +6621,81 @@ function isSpotifyRunning() {
 }
 
 
+function focusXmbWindow(){
+    if(!mainWindow || mainWindow.isDestroyed())return;
+
+    try{
+        if(!mainWindow.isFullScreen()){
+            mainWindow.setFullScreen(true);
+        }
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.moveTop();
+    }catch(error){
+        console.debug("Unable to refocus Personal XMB:",error?.message||error);
+    }
+}
+
+
+async function minimizeSpotifyWindows(){
+    if(process.platform!=="win32"){
+        focusXmbWindow();
+        return;
+    }
+
+    /*
+        SW_MINIMIZE (6) minimizes Spotify without terminating it.
+        The previous SW_HIDE (0) made Spotify disappear completely
+        and could look like the app had been closed.
+    */
+    const script=[
+        "$ErrorActionPreference='SilentlyContinue';",
+        "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class XmbWindow { [DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); }';",
+        "Get-Process Spotify | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [XmbWindow]::ShowWindow($_.MainWindowHandle,6) }"
+    ].join("");
+
+    for(let attempt=0;attempt<12;attempt++){
+        await new Promise(resolve=>{
+            const child=spawn(
+                "powershell.exe",
+                [
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-WindowStyle",
+                    "Hidden",
+                    "-Command",
+                    script
+                ],
+                {
+                    windowsHide:true,
+                    stdio:"ignore"
+                }
+            );
+
+            child.once("close",()=>resolve());
+            child.once("error",()=>resolve());
+        });
+
+        /*
+            Spotify can take a moment to create its actual window
+            after the process starts. Keep checking without blocking
+            the XMB UI itself.
+        */
+        if(attempt>=7)break;
+        await new Promise(resolve=>setTimeout(resolve,150));
+    }
+
+    focusXmbWindow();
+}
+
+
 async function launchSpotifyDesktop() {
 
     if (await isSpotifyRunning()) {
         return {
             success:true,
-            alreadyRunning:true
+            alreadyRunning:true,
+            hidden:false
         };
     }
 
@@ -6645,7 +6723,7 @@ async function launchSpotifyDesktop() {
                     */
                     const child=spawn(
                         executable,
-                        ["--minimized"],
+                        [],
                         {
                             detached:true,
                             windowsHide:true,
@@ -6665,7 +6743,8 @@ async function launchSpotifyDesktop() {
                     success:true,
                     alreadyRunning:false,
                     launchedByExecutable:true,
-                    minimizedRequested:true
+                    minimizedRequested:false,
+                    hidden:false
                 };
             }
         }
@@ -6677,10 +6756,17 @@ async function launchSpotifyDesktop() {
         */
         try{
             await shell.openExternal("spotify:");
+
+            /*
+                URI launches can create the Spotify window after the
+                shell call returns, so give Windows a short head start
+                and then minimize it back out of the XMB's way.
+            */
             return {
                 success:true,
                 alreadyRunning:false,
-                launchedByProtocol:true
+                launchedByProtocol:true,
+                hidden:false
             };
         }catch(error){
             throw new Error(
@@ -6747,6 +6833,125 @@ async function launchSpotifyDesktop() {
         "Spotify desktop launching is currently supported on Windows and macOS."
     );
 }
+
+
+/*
+    ========================================================
+    SPOTIFY DESKTOP MEDIA KEYS
+    ========================================================
+
+    The Spotify Web API playback endpoints require Premium.
+    When the API rejects a playback command with a restriction,
+    the installed Windows client can still receive the normal
+    system media-key command.
+
+    Only three fixed actions are accepted.
+*/
+
+function sendSpotifyMediaKey(action) {
+
+    if (process.platform !== "win32") {
+        throw new Error(
+            "Desktop media-key fallback is only available on Windows."
+        );
+    }
+
+    const virtualKeys = {
+        playpause: "0xB3",
+        next: "0xB0",
+        previous: "0xB1"
+    };
+
+    const virtualKey = virtualKeys[action];
+
+    if (!virtualKey) {
+        throw new Error("Unsupported Spotify media key.");
+    }
+
+    const script = [
+        "Add-Type -TypeDefinition @'",
+        "using System;",
+        "using System.Runtime.InteropServices;",
+        "public static class XmbMediaKey {",
+        "  [DllImport(\"user32.dll\", SetLastError=true)]",
+        "  public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);",
+        "}",
+        "'@",
+        "$vk = [byte]__VK__",
+        "[XmbMediaKey]::keybd_event($vk, 0, 0, [UIntPtr]::Zero)",
+        "Start-Sleep -Milliseconds 18",
+        "[XmbMediaKey]::keybd_event($vk, 0, 2, [UIntPtr]::Zero)"
+    ].join("; ").replace("__VK__", virtualKey);
+
+    return new Promise((resolve, reject) => {
+
+        const child = spawn(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                script
+            ],
+            {
+                windowsHide: true,
+                stdio: "ignore"
+            }
+        );
+
+        child.once("error", reject);
+
+        child.once("exit", code => {
+            if (code === 0) {
+                resolve({
+                    success: true,
+                    action
+                });
+                return;
+            }
+
+            reject(
+                new Error(
+                    "Windows did not accept the Spotify media key."
+                )
+            );
+        });
+
+    });
+
+}
+
+
+ipcMain.handle(
+    "spotify-media-key",
+    async (
+        event,
+        action
+    ) => {
+
+        requireTrustedRenderer(event);
+
+        try {
+
+            return await sendSpotifyMediaKey(
+                String(action || "")
+            );
+
+        } catch (error) {
+
+            return {
+                success: false,
+                error:
+                    error?.message ||
+                    "Unable to send Spotify media key."
+            };
+
+        }
+
+    }
+);
 
 
 ipcMain.handle(
@@ -7576,66 +7781,6 @@ ipcMain.handle(
 */
 
 ipcMain.handle(
-    "spotify-playback-token",
-    async event => {
-
-        requireTrustedRenderer(event);
-
-        try {
-
-            let tokens =
-                loadSpotifyTokens();
-
-            if (!tokens?.accessToken) {
-                throw new Error("Spotify is not connected.");
-            }
-
-            if (
-                typeof tokens.scope !== "string" ||
-                !tokens.scope.split(/\s+/).includes("streaming")
-            ) {
-                return {
-                    success: false,
-                    requiresReauth: true,
-                    error:
-                        "Spotify playback permission is missing. Reconnect Spotify in Settings > Accounts."
-                };
-            }
-
-            if (
-                tokens.expiresAt &&
-                Date.now() >= tokens.expiresAt - 30000
-            ) {
-                tokens.accessToken =
-                    await refreshSpotifyToken();
-
-                if (!tokens.accessToken) {
-                    throw new Error("Spotify token refresh failed.");
-                }
-            }
-
-            return {
-                success: true,
-                accessToken: tokens.accessToken
-            };
-
-        } catch (error) {
-
-            console.error(
-                "Spotify playback token request failed:",
-                error
-            );
-
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-);
-
-
-ipcMain.handle(
     "spotify-api",
     async (
         event,
@@ -8330,9 +8475,21 @@ ipcMain.handle(
 
         requireTrustedRenderer(event);
 
+        const providers = getProviderStates({
+            app,
+            fs,
+            path,
+            steamConfigured: Boolean(getSteamLocalSettings().steamId && getSteamLocalSettings().apiKey)
+        });
+
         try {
 
-            return await getSteamFriends();
+            const steam = await getSteamFriends();
+
+            return {
+                ...steam,
+                providers
+            };
 
         }
         catch (
@@ -8347,7 +8504,8 @@ ipcMain.handle(
             return {
                 friends: [],
                 provider: "steam",
-                configured: true,
+                configured: providers.steam.connected,
+                providers,
                 error:
                     error?.message ||
                     "Unable to load Steam friends."

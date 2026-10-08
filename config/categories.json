@@ -113,81 +113,22 @@
     },
     "Spotify": {
         "icon": "",
-        "description": "Browse Spotify and play music directly inside Personal XMB.",
+        "description": "Open Spotify Desktop.",
         "theme": "spotify",
+        "launchAction": "spotify-launch",
         "items": [
             {
-                "id": "spotify-now-playing",
-                "name": "Now Playing",
+                "id": "spotify-launch-desktop",
+                "name": "Launch Spotify",
                 "type": "music",
                 "platform": "Spotify",
-                "description": "View and refresh current Spotify playback.",
+                "description": "Open the installed Spotify desktop application.",
                 "status": "Available",
                 "icon": "",
                 "actions": [
                     {
-                        "name": "Refresh Now Playing",
-                        "action": "spotify-now-playing"
-                    }
-                ]
-            },
-            {
-                "id": "spotify-recently-played",
-                "name": "Recently Played",
-                "type": "music",
-                "platform": "Spotify",
-                "description": "Browse and play recently played tracks.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "View Recently Played",
-                        "action": "spotify-recent"
-                    }
-                ]
-            },
-            {
-                "id": "spotify-playlists",
-                "name": "Playlists",
-                "type": "music",
-                "platform": "Spotify",
-                "description": "Browse and play your Spotify playlists.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "View Playlists",
-                        "action": "spotify-playlists"
-                    }
-                ]
-            },
-            {
-                "id": "spotify-search",
-                "name": "Search Spotify",
-                "type": "music",
-                "platform": "Spotify",
-                "description": "Search Spotify for songs, artists, albums, playlists, podcasts, and episodes.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "Search Spotify",
-                        "action": "spotify-search"
-                    }
-                ]
-            },
-            {
-                "id": "spotify-dj",
-                "name": "DJ",
-                "type": "music",
-                "platform": "Spotify",
-                "description": "Open Spotify DJ and start a personalized listening session.",
-                "status": "Available",
-                "icon": "",
-                "actions": [
-                    {
-                        "name": "Start DJ",
-                        "action": "spotify-dj"
+                        "name": "Launch Spotify",
+                        "action": "spotify-launch"
                     }
                 ]
             }

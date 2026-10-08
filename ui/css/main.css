@@ -150,6 +150,22 @@ body {
 
     background:
 
+        radial-gradient(
+
+            circle at 50% 44%,
+
+            rgba(70, 155, 255, 0.34) 0%,
+
+            rgba(40, 105, 190, 0.28) 28%,
+
+            rgba(20, 58, 105, 0.42) 52%,
+
+            rgba(15, 35, 62, 0.78) 76%,
+
+            rgba(8, 20, 36, 0.96) 100%
+
+        ),
+
         var(--xmb-secondary);
 
     /*
@@ -465,11 +481,13 @@ body {
 
             ),
 
-            transparent 65%
+            rgba(53, 137, 255, 0.16) 38%,
+
+            transparent 72%
 
         );
 
-    opacity: 0.9;
+    opacity: 1;
 
     /*
         CHANGED:
@@ -589,6 +607,77 @@ body {
 
 }
 
+
+
+/*
+    ========================================================
+    ILLUMINATED XMB RIBBONS
+    ========================================================
+
+    Keep the ribbons bright enough to read against the
+    blue atmosphere. The SVG paths are deliberately layered
+    at different opacities so the front ribbon carries the
+    strongest light while the deeper ribbons create depth.
+*/
+
+#wave1,
+#wave2,
+#wave3,
+#wave4 {
+
+    stroke-linejoin: round;
+
+    paint-order: stroke fill;
+
+}
+
+#wave1 {
+
+    fill: rgba(176, 226, 255, 0.34);
+
+    stroke: rgba(221, 244, 255, 0.18);
+
+    stroke-width: 1.5;
+
+    filter: drop-shadow(0 0 18px rgba(101, 195, 255, 0.32));
+
+}
+
+#wave2 {
+
+    fill: rgba(120, 198, 255, 0.24);
+
+    stroke: rgba(195, 232, 255, 0.13);
+
+    stroke-width: 1.2;
+
+    filter: drop-shadow(0 0 16px rgba(72, 166, 255, 0.24));
+
+}
+
+#wave3 {
+
+    fill: rgba(90, 170, 245, 0.17);
+
+    stroke: rgba(177, 222, 255, 0.10);
+
+    stroke-width: 1;
+
+    filter: drop-shadow(0 0 13px rgba(58, 144, 236, 0.18));
+
+}
+
+#wave4 {
+
+    fill: rgba(76, 151, 226, 0.11);
+
+    stroke: rgba(165, 211, 255, 0.07);
+
+    stroke-width: 1;
+
+    filter: drop-shadow(0 0 10px rgba(48, 126, 220, 0.14));
+
+}
 
 /*
     ========================================================

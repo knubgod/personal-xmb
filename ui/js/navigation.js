@@ -32,33 +32,39 @@ let currentAction = 0;
 
 function getCategoryNames() {
 
+    const data=window.categoriesData;
+
     if (
-        !window.categoriesData
+        !data ||
+        typeof data !== "object"
     ) {
-
         return [];
-
     }
 
-
-    return Object.keys(
-        window.categoriesData
-    );
+    return Object.keys(data);
 
 }
 
 
 function getCurrentCategoryData() {
 
-    const categoryNames =
-        getCategoryNames();
+    const data=window.categoriesData;
 
+    if (
+        !data ||
+        typeof data !== "object"
+    ) {
+        return null;
+    }
 
-    return (
-        window.categoriesData[
-            categoryNames[currentCategory]
-        ] || null
-    );
+    const categoryNames=getCategoryNames();
+    const categoryName=categoryNames[currentCategory];
+
+    if (!categoryName) {
+        return null;
+    }
+
+    return data[categoryName] || null;
 
 }
 
@@ -258,14 +264,21 @@ function enterItemLevel() {
     const category = getCurrentCategoryData();
 
     /*
+        Direct-launch categories intentionally skip the vertical
+        item menu. ENTER on the category itself launches the app.
+    */
+    if (category?.launchAction) {
+        executeCategoryAction(category.launchAction);
+        return;
+    }
+
+    /*
         Inline XMB surfaces skip the normal item submenu.
         Arrow Down still enters the item level so Left can
         return to the category bar, but the renderer owns
         the visible surface.
     */
-    if (
-        category?.inlineSurface === "friends"
-    ) {
+    if (category?.inlineSurface === "friends") {
 
         navigationLevel = "items";
         currentItem = 0;
@@ -275,39 +288,19 @@ function enterItemLevel() {
         return;
     }
 
-    const items =
-        getCurrentItems();
+    const items = getCurrentItems();
 
-
-    if (
-        items.length === 0
-    ) {
-
+    if (items.length === 0) {
         return;
-
     }
 
+    navigationLevel = "items";
+    currentItem = 0;
+    currentAction = 0;
 
-    navigationLevel =
-        "items";
+    setOptionsPanel(false);
 
-
-    currentItem =
-        0;
-
-
-    currentAction =
-        0;
-
-
-    setOptionsPanel(
-        false
-    );
-
-
-    refreshNavigation(
-        true
-    );
+    refreshNavigation(true);
 
 }
 
@@ -944,6 +937,36 @@ async function selectCurrentAction() {
     ========================================================
 */
 
+async function executeCategoryAction(actionName) {
+
+    if (actionName === "spotify-launch") {
+        const result = await window.electron?.spotifyLaunchDesktop?.();
+
+        if (result?.success) {
+            showTemporaryMessage(
+                result.alreadyRunning
+                    ? "Spotify is already running."
+                    : "Spotify launched."
+            );
+        } else {
+            showTemporaryMessage(
+                result?.error || "Unable to launch Spotify."
+            );
+        }
+
+        return;
+    }
+
+    showTemporaryMessage("Category action not implemented yet.");
+}
+
+
+/*
+    ========================================================
+    EXECUTE ACTION
+    ========================================================
+
+*/
 async function executeAction(
     action
 ) {
@@ -1236,12 +1259,6 @@ async function executeAction(
     if (action.action === "friends") {
         window.friendsSurface?.open?.();
         if (!window.friendsSurface) showTemporaryMessage("Friends service is unavailable.");
-        return;
-    }
-
-    if (action.action === "spotify-now-playing") {
-        await window.spotifyService?.refreshNowPlaying?.();
-        showTemporaryMessage("Now Playing refreshed.");
         return;
     }
 
@@ -2164,6 +2181,11 @@ function updateNavigationHints() {
             "friends-platform-hint"
         );
 
+    const spotifyControllerHint =
+        document.getElementById(
+            "spotify-controller-hint"
+        );
+
 
     if (mode) {
 
@@ -2241,6 +2263,25 @@ function updateNavigationHints() {
             friendsOpen && gamepadConnected
         );
 
+    }
+
+    if (spotifyControllerHint) {
+        const controllerConnected =
+            typeof window.isGamepadConnected === "function" &&
+            window.isGamepadConnected();
+
+        const mediaMode =
+            typeof window.isSpotifyControllerMode === "function" &&
+            window.isSpotifyControllerMode();
+
+        spotifyControllerHint.classList.toggle(
+            "visible",
+            controllerConnected && mediaMode
+        );
+
+        spotifyControllerHint.innerHTML=mediaMode
+            ? '<span class="input-button">A</span><span>Play/Pause</span><span class="input-button">◀/▶</span><span>Prev/Next</span><span class="input-button">B</span><span>Close</span>'
+            : '<span class="input-button">LB+RB</span><span>Media</span>';
     }
 
 }
