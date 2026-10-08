@@ -828,6 +828,13 @@ function createWindow() {
             }
         });
 
+    /*
+        Start maximized rather than fullscreen. This keeps the
+        console-style presentation while preserving normal
+        desktop window controls and Alt+Enter fullscreen.
+    */
+    mainWindow.maximize();
+
 
     mainWindow.loadFile(
         path.join(
