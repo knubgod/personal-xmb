@@ -160,3 +160,104 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* ========================================================
+   FRIENDS V2 — XMB MOTION / PROVIDER STATES
+   ======================================================== */
+
+.friends-platforms button {
+    transition:
+        opacity 160ms ease,
+        transform 160ms ease,
+        background-color 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease;
+}
+
+.friends-platforms button.is-unavailable {
+    opacity: 0.48;
+}
+
+.friends-platforms button.is-unavailable:hover,
+.friends-platforms button.is-unavailable.input-selected {
+    opacity: 0.82;
+}
+
+.friends-platforms button.active {
+    transform: translateY(-1px);
+}
+
+.friend-card {
+    transition:
+        transform 180ms ease,
+        opacity 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease,
+        box-shadow 180ms ease;
+}
+
+.friend-card.selected {
+    transform: translateX(5px);
+}
+
+.friends-card-enter {
+    animation: friends-card-enter 220ms ease both;
+}
+
+.selected-pulse {
+    animation: friends-selected-pulse 220ms ease;
+}
+
+.friends-state-card {
+    animation: friends-state-enter 260ms ease both;
+}
+
+.friends-provider-status {
+    display: inline-flex;
+    margin-top: 12px;
+    opacity: 0.72;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+}
+
+@keyframes friends-card-enter {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes friends-selected-pulse {
+    0% { transform: translateX(5px) scale(1); }
+    50% { transform: translateX(5px) scale(1.012); }
+    100% { transform: translateX(5px) scale(1); }
+}
+
+@keyframes friends-state-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .friends-platforms button,
+    .friend-card {
+        transition: none;
+    }
+
+    .friends-card-enter,
+    .selected-pulse,
+    .friends-state-card {
+        animation: none;
+    }
+}
