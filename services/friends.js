@@ -38,7 +38,10 @@ const friendsSurface = (() => {
         overlay.innerHTML = `<section class="friends-panel" role="dialog" aria-modal="true" aria-labelledby="friends-title">
             <header class="friends-header"><div><div class="friends-kicker">SOCIAL</div><h2 id="friends-title">Friends</h2><p id="friends-summary">Your friends and their current activity.</p></div><button id="friends-close" class="friends-close" type="button">ESC</button></header>
             <nav id="friends-platforms" class="friends-platforms" aria-label="Friend platforms"></nav>
-            <main id="friends-content" class="friends-content"></main>
+            <div class="friends-main-layout">
+                <main id="friends-content" class="friends-content"></main>
+                <aside id="friends-detail" class="friends-detail" aria-live="polite"></aside>
+            </div>
             <footer class="friends-footer"><span id="friends-updated">Waiting for friend activity...</span><button id="friends-refresh" type="button">Refresh</button></footer>
         </section>`;
         document.body.appendChild(overlay);
@@ -68,7 +71,10 @@ const friendsSurface = (() => {
                 </div>
             </header>
             <nav data-friends-role="platforms" class="friends-platforms" aria-label="Friend platforms"></nav>
-            <main data-friends-role="content" class="friends-content"></main>
+            <div class="friends-main-layout">
+                <main data-friends-role="content" class="friends-content"></main>
+                <aside data-friends-role="detail" class="friends-detail" aria-live="polite"></aside>
+            </div>
             <footer class="friends-footer">
                 <span data-friends-role="updated">Waiting for friend activity...</span>
                 <button data-friends-role="refresh" type="button">Refresh</button>
@@ -315,6 +321,101 @@ const friendsSurface = (() => {
         return section;
     }
 
+    function renderFriendDetail(friend) {
+        const root = inlineRoot || overlay;
+        const detail = root?.querySelector('#friends-detail, [data-friends-role="detail"]');
+        if (!detail) return;
+
+        detail.innerHTML = "";
+
+        if (!friend) {
+            const title = document.createElement("h3");
+            title.textContent = "Select a friend";
+            const body = document.createElement("p");
+            body.textContent = "Use the directional controls to inspect a friend.";
+            detail.append(title, body);
+            return;
+        }
+
+        const avatar = document.createElement("div");
+        avatar.className = "friends-detail-avatar";
+
+        if (friend.avatar) {
+            const image = document.createElement("img");
+            image.src = friend.avatar;
+            image.alt = "";
+            image.loading = "lazy";
+            avatar.appendChild(image);
+        } else {
+            avatar.textContent = friend.name.charAt(0).toUpperCase();
+        }
+
+        const heading = document.createElement("div");
+        heading.className = "friends-detail-heading";
+
+        const title = document.createElement("h3");
+        title.textContent = friend.name;
+
+        const status = document.createElement("span");
+        status.className = "friends-detail-status";
+        status.textContent = statusLabel(friend.status);
+
+        heading.append(title, status);
+
+        const platform = document.createElement("span");
+        platform.className = "friends-detail-platform";
+        platform.textContent = platforms[friend.platform]?.label || friend.platform;
+
+        detail.append(avatar, heading, platform);
+
+        if (friend.activity) {
+            const activity = document.createElement("div");
+            activity.className = "friends-detail-activity";
+            activity.textContent = friend.activity.name;
+
+            if (friend.activity.details || friend.activity.state) {
+                const sub = document.createElement("span");
+                sub.textContent = friend.activity.details || friend.activity.state;
+                activity.appendChild(sub);
+            }
+
+            detail.appendChild(activity);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "friends-detail-actions";
+
+        if (friend.platform === "steam" && /^\d{10,20}$/.test(friend.id)) {
+            const profile = document.createElement("button");
+            profile.type = "button";
+            profile.textContent = "Open Steam Profile";
+            profile.addEventListener("click", async () => {
+                try {
+                    await window.electron?.openExternal?.(
+                        "https://steamcommunity.com/profiles/" + friend.id
+                    );
+                } catch {}
+            });
+            actions.appendChild(profile);
+        }
+
+        if (!actions.children.length) {
+            const state = document.createElement("span");
+            state.className = "friends-detail-note";
+            state.textContent =
+                friend.platform === "discord"
+                    ? "Discord actions will be enabled with the Social SDK."
+                    : friend.platform === "riot"
+                        ? "Riot actions will appear when a supported social provider is available."
+                        : friend.platform === "microsoft"
+                            ? "Xbox actions will appear when the social provider is available."
+                            : "No additional actions are available yet.";
+            actions.appendChild(state);
+        }
+
+        detail.appendChild(actions);
+    }
+
     function renderEmpty(root) {
         const empty = document.createElement("div");
         empty.className = "friends-empty friends-state-card";
@@ -395,7 +496,9 @@ const friendsSurface = (() => {
         }
 
         const cards = Array.from(content.querySelectorAll(".friend-card"));
-        selectedFriendIndex = Math.max(0, Math.min(selectedFriendIndex, cards.length - 1));
+        selectedFriendIndex = cards.length
+            ? Math.max(0, Math.min(selectedFriendIndex, cards.length - 1))
+            : 0;
         cards.forEach((card, index) => {
             card.dataset.friendIndex = String(index);
             card.tabIndex = 0;
@@ -458,7 +561,16 @@ const friendsSurface = (() => {
         });
 
         const selected = cards[selectedFriendIndex];
-        if (!selected) return;
+        if (!selected) {
+            renderFriendDetail(null);
+            return;
+        }
+
+        const friend = lastData?.friends?.find(
+            entry => String(entry?.id || "") === String(selected.dataset.friendId || "")
+        ) || null;
+
+        renderFriendDetail(friend);
 
         /*
             The friend list itself is the scrolling viewport.
