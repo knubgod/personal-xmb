@@ -6428,9 +6428,9 @@ ipcMain.handle(
     ========================================================
 
     Spotify playback is handled by the installed Spotify
-    desktop application. XMB controls Spotify through the
-    Spotify Web API while this helper makes sure the real
-    Spotify client is running in the background.
+    desktop application. This helper launches the installed
+    client without minimizing it or changing focus when it is
+    already running.
 
     Windows:
         Supports common per-user and system install paths.
@@ -6715,11 +6715,9 @@ async function launchSpotifyDesktop() {
 
                 try{
                     /*
-                        Spotify accepts --minimized, but some Windows
-                        builds still create a visible window. Starting
-                        through the fixed executable with the Windows
-                        minimize flag gives those builds a second,
-                        non-shell path to honor the request.
+                        Spawn the installed executable directly. Do not
+                        request minimized startup or manipulate its window:
+                        Spotify should open normally when the user selects it.
                     */
                     const child=spawn(
                         executable,
@@ -6758,9 +6756,8 @@ async function launchSpotifyDesktop() {
             await shell.openExternal("spotify:");
 
             /*
-                URI launches can create the Spotify window after the
-                shell call returns, so give Windows a short head start
-                and then minimize it back out of the XMB's way.
+                Let the registered desktop client open normally. The XMB
+                does not attempt to minimize, hide, or refocus Spotify.
             */
             return {
                 success:true,
