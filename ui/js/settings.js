@@ -20,11 +20,23 @@ function renderSettingsSection(section){
  if(section==="system"){c.querySelector("#setting-maximize").onclick=()=>window.electron?.setWindowState?.("maximize");c.querySelector("#setting-fullscreen").onclick=()=>window.electron?.setWindowState?.("fullscreen");c.querySelector("#setting-exit").onclick=()=>window.electron?.quitApp?.();}
  if(section==="accounts"){
   const cfg=window.xmbConfig||{};c.querySelector("#account-spotify-client").value=cfg.spotify?.clientId||"";c.querySelector("#account-steam-id").value=cfg.integrations?.steam?.steamId||"";if(cfg.integrations?.steam?.configured){c.querySelector("#account-steam-key").placeholder="Saved securely — leave blank to keep existing key";}c.querySelector("#account-discord-client").value=cfg.integrations?.discord?.clientId||"";c.querySelector("#account-microsoft-client").value=cfg.integrations?.microsoft?.clientId||"";c.querySelector("#account-riot-client").value=cfg.integrations?.riot?.clientId||"";
-  c.querySelector("#save-account-config").onclick=async()=>{const v={spotifyClientId:c.querySelector("#account-spotify-client").value.trim(),steamApiKey:c.querySelector("#account-steam-key").value.trim(),steamId:c.querySelector("#account-steam-id").value.trim(),discordClientId:c.querySelector("#account-discord-client").value.trim(),microsoftClientId:c.querySelector("#account-microsoft-client").value.trim(),riotClientId:c.querySelector("#account-riot-client").value.trim()};const r=await window.electron?.saveSteamConfig?.({steamId:v.steamId,steamApiKey:v.steamApiKey});if(!r?.success){c.querySelector("#account-status").textContent=r?.error||"Unable to save Steam configuration.";return;}const accountResult=await window.electron?.saveAccountConfig?.(v);c.querySelector("#account-status").textContent=accountResult?.success?"Configuration saved. Steam API key is stored securely.":(accountResult?.error||"Unable to save configuration.");};
+  const readAccountForm=()=>({spotifyClientId:c.querySelector("#account-spotify-client").value.trim(),steamApiKey:c.querySelector("#account-steam-key").value.trim(),steamId:c.querySelector("#account-steam-id").value.trim(),discordClientId:c.querySelector("#account-discord-client").value.trim(),microsoftClientId:c.querySelector("#account-microsoft-client").value.trim(),riotClientId:c.querySelector("#account-riot-client").value.trim()});
+  c.querySelector("#save-account-config").onclick=async()=>{
+   const status=c.querySelector("#account-status"),v=readAccountForm(),accountResult=await window.electron?.saveAccountConfig?.(v);
+   if(!accountResult?.success){status.textContent=accountResult?.error||"Unable to save account configuration.";return;}
+   if(v.steamId||v.steamApiKey){
+    const steamResult=await window.electron?.saveSteamConfig?.({steamId:v.steamId,steamApiKey:v.steamApiKey});
+    status.textContent=steamResult?.success?"Account configuration saved. Steam credentials are stored securely.":"Account configuration saved, but Steam setup needs attention: "+(steamResult?.error||"Unable to save Steam configuration.");
+   }else{
+    status.textContent="Account configuration saved. Steam setup was left unchanged.";
+   }
+  };
   [["spotify","connect-spotify"],["discord","connect-discord"],["microsoft","connect-microsoft"],["riot","connect-riot"]].forEach(([p,id])=>c.querySelector("#"+id).onclick=async()=>{
    const q=c.querySelector("#account-status"),button=c.querySelector("#"+id);
    button.disabled=true;q.textContent="Connecting "+p+"…";
    try{
+    const saved=await window.electron?.saveAccountConfig?.(readAccountForm());
+    if(!saved?.success)throw new Error(saved?.error||"Could not save account configuration before connecting.");
     const r=p==="spotify"?await window.electron?.spotifyLogin?.():await window.electron?.loginAccount?.(p);
     if(p==="spotify"){
      if(r?.success===false)throw new Error(r.error||"Spotify connection failed.");
