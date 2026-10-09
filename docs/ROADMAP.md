@@ -67,7 +67,7 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 - [ ] Current activity/game
 - [ ] Rich presence details where available
 - [ ] Friend selection/details view
-- [x] Truthful "Social SDK required" provider state
+- [x] Truthful account-connected / friends-presence-unavailable provider state
 
 ### Xbox
 - [x] Xbox/Microsoft authentication foundation
