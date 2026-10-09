@@ -15,7 +15,7 @@ const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
 const activeLogins = new Set();
 
 const configFile = () =>
-    path.join(__dirname, "config", "settings.json");
+    path.join(app.getPath("userData"), "settings.json");
 
 const tokenFile = () =>
     path.join(app.getPath("userData"), "accounts.json");
