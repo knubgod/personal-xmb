@@ -59,13 +59,15 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 ### Discord
 - [x] Discord connection/authentication
 - [x] Discord profile retrieval
+- [x] Authorized linked-account retrieval (OAuth `connections` scope)
+- [x] Display Discord identity and linked accounts in Friends
 - [ ] Discord Social SDK integration
 - [ ] Friends/presence data
 - [ ] Online/idle/DND/offline states
 - [ ] Current activity/game
 - [ ] Rich presence details where available
 - [ ] Friend selection/details view
-- [x] Truthful "Social SDK required" provider state
+- [x] Truthful account-connected / friends-presence-unavailable provider state
 
 ### Xbox
 - [x] Xbox/Microsoft authentication foundation
@@ -98,8 +100,8 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 - [x] XMB navigation sound integration
 - [ ] Duplicate-account handling
 - [ ] Sort/filter controls
-- [ ] Friend detail panel
-- [ ] Service-specific actions
+- [x] Friend detail panel
+- [x] Service-specific actions (Steam profile; provider connect/reconnect/disconnect)
 
 ## Phase 3 — Platform Expansion
 
@@ -116,7 +118,9 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 ## Phase 4 — Media & Services
 
 ### Spotify
-- [ ] OAuth flow
+- [x] OAuth flow
+- [x] Launch installed Spotify desktop app without minimizing it
+- [x] Remove the legacy embedded Spotify player/overlay from the XMB UI
 - [ ] Now Playing
 - [ ] Play/pause
 - [ ] Previous/next
@@ -202,3 +206,12 @@ The launcher now has the first real **Accounts / Social integration layer** in p
 The current Friends implementation now has a clean provider-state model, automatic background refresh, truthful unavailable states, Steam friend data, XMB-style selection feedback, and audio hooks. The remaining real-service work is provider-specific: Discord requires the official Discord Social SDK, Xbox social access depends on the application's eligible service/API path, and Riot's public RSO flow currently identifies the signed-in account rather than exposing a general friends list. These providers must never be faked. The XMB UI continues consuming one normalized friend/presence model.
 
 The current consolidated development base is `consolidated/xmb-approved-2026-09-26`. Friends v2 foundation, the provider registry refactor, the Friends detail panel, and the window/Spotify behavior fixes have now been merged into that base. Spotify desktop launching no longer intentionally minimizes Spotify, and the default Electron window starts maximized rather than fullscreen.
+
+
+## Implementation pass — October 9, 2026
+
+The Friends surface now renders real account cards when a provider has no friend-list data, including connected/disconnected state, account identity, Discord linked connections when the OAuth scope is granted, and connect/reconnect/disconnect/open-account actions. Refresh requests are coalesced so timer/manual refreshes do not issue duplicate concurrent Friends requests. Provider status text distinguishes a configured Steam friend-list provider from one that still needs setup.
+
+**Provider limits remain explicit:** Steam is the only currently implemented live friend-list source. Discord profile and linked third-party accounts are available through existing OAuth scopes, but Discord friends/presence still require Social SDK access. Riot OAuth identifies the account; it does not provide a general friends list. Xbox account sign-in is available, but the Xbox social API path remains unimplemented. The UI must continue to show these limits rather than fabricating friend records.
+
+The legacy embedded Spotify overlay/player has been removed from the renderer entry point. The Spotify category is intended to launch the installed desktop app; the launcher does not request minimized startup or minimize an existing Spotify process. OAuth/API code is retained for future desktop-control work.

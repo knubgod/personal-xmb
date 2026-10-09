@@ -38,17 +38,30 @@ function getProviderStates({
             label: "Steam",
             connected: Boolean(steamConfigured),
             available: true,
-            status: "ready",
-            message: "Steam friends are available."
+            status: steamConfigured ? "ready" : "not-configured",
+            message: steamConfigured
+                ? "Steam friends are available."
+                : "Add your Steam ID and Web API key in Settings to load your Steam friends."
         },
         discord: {
             label: "Discord",
             connected: Boolean(accounts.discord?.connected),
             available: false,
-            status: "social-sdk-required",
+            status: accounts.discord?.connected
+                ? "oauth-profile-and-connections"
+                : "disconnected",
+            capabilities: accounts.discord?.connected
+                ? [
+                    "profile",
+                    ...(Array.isArray(accounts.discord?.scopes) &&
+                    accounts.discord.scopes.includes("connections")
+                        ? ["connections"]
+                        : [])
+                ]
+                : [],
             message: accounts.discord?.connected
-                ? "Discord is connected. The official Discord Social SDK is required for friends, presence, and messaging."
-                : "Connect Discord first, then enable the Discord Social SDK integration."
+                ? "Discord OAuth is connected. Personal XMB can show your profile and authorized linked accounts; friends and presence require Discord Social SDK access."
+                : "Connect Discord to show your profile and authorized linked accounts."
         },
         microsoft: {
             label: "Xbox",

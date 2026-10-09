@@ -397,3 +397,160 @@
         animation: none;
     }
 }
+
+
+/* ========================================================
+   PROVIDER ACCOUNT CARDS
+   ======================================================== */
+
+.friends-provider-card {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 12px;
+    padding: 18px 20px;
+    border: 1px solid rgba(255,255,255,.09);
+    background: linear-gradient(110deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+    animation: friends-state-enter 220ms ease both;
+}
+
+.friends-provider-card-heading,
+.friends-provider-identity,
+.friends-provider-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.friends-provider-card-heading {
+    justify-content: space-between;
+}
+
+.friends-provider-card-heading h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .04em;
+}
+
+.friends-provider-badge {
+    padding: 4px 7px;
+    border: 1px solid rgba(255,255,255,.12);
+    font-size: 9px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    opacity: .65;
+}
+
+.friends-provider-badge.is-connected {
+    border-color: rgba(120,220,170,.32);
+    color: #a8e7c5;
+    opacity: .95;
+}
+
+.friends-provider-identity {
+    align-items: flex-start;
+}
+
+.friends-provider-avatar {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255,255,255,.08);
+}
+
+.friends-provider-identity-text {
+    min-width: 0;
+}
+
+.friends-provider-identity-text strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.friends-provider-message,
+.friends-linked-connections p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.6;
+    opacity: .58;
+}
+
+.friends-provider-actions {
+    flex-wrap: wrap;
+}
+
+.friends-provider-actions button {
+    padding: 7px 11px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.045);
+    color: inherit;
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.friends-provider-actions button:hover:not(:disabled) {
+    background: rgba(255,255,255,.1);
+    border-color: rgba(255,255,255,.28);
+    transform: translateY(-1px);
+}
+
+.friends-provider-actions button:disabled {
+    opacity: .45;
+    cursor: wait;
+}
+
+.friends-provider-actions .friends-provider-secondary {
+    opacity: .72;
+}
+
+.friends-linked-connections {
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.07);
+}
+
+.friends-linked-connections-title {
+    display: block;
+    margin-bottom: 7px;
+    font-size: 9px;
+    letter-spacing: .13em;
+    opacity: .5;
+}
+
+.friends-linked-connections ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.friends-linked-connections li {
+    padding: 5px 7px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.025);
+    font-size: 10px;
+    opacity: .78;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .friends-provider-card,
+    .friends-provider-actions button {
+        animation: none;
+        transition: none;
+    }
+}
+
+
+.friends-provider-actions button.input-selected {
+    border-color: rgba(255,255,255,.48);
+    background: rgba(255,255,255,.11);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+}

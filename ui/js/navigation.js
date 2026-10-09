@@ -1437,6 +1437,26 @@ document.addEventListener(
                 return;
             }
 
+            if (focus === "provider-actions") {
+                if (key === "arrowleft" || key === "arrowup") {
+                    event.preventDefault();
+                    window.friendsSurface?.focusPlatforms?.();
+                    return;
+                }
+
+                if (key === "arrowright" || key === "arrowdown") {
+                    event.preventDefault();
+                    window.friendsSurface?.moveProviderAction?.(1);
+                    return;
+                }
+
+                if (key === "enter") {
+                    event.preventDefault();
+                    window.friendsSurface?.activateProviderAction?.();
+                    return;
+                }
+            }
+
             if (focus === "platforms") {
                 if (key === "arrowleft" || key === "arrowright") {
                     event.preventDefault();

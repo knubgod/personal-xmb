@@ -4,8 +4,10 @@ const friendsSurface = (() => {
     let activePlatform = "all";
     let lastData = null;
     let selectedFriendIndex = 0;
+    let selectedProviderActionIndex = 0;
     let inputFocus = "platforms";
     let refreshTimer = null;
+    let refreshPromise = null;
 
     const platforms = {
         discord: { label: "Discord", short: "DISCORD", icon: "D" },
@@ -416,24 +418,202 @@ const friendsSurface = (() => {
         detail.appendChild(actions);
     }
 
-    function renderEmpty(root) {
-        const empty = document.createElement("div");
-        empty.className = "friends-empty friends-state-card";
-        const state = activePlatform === "all" ? null : providerState(lastData, activePlatform);
-        const title = document.createElement("h3");
-        title.textContent = state?.label || (activePlatform === "all" ? "No friend activity yet" : platforms[activePlatform]?.label || "Friends");
-        const body = document.createElement("p");
-        body.textContent = state?.message || (activePlatform === "all"
-            ? "Connect a supported platform to populate your Friends dashboard."
-            : "No friends were returned by this provider.");
-        empty.append(title, body);
-        if (state?.connected && !state.available) {
-            const status = document.createElement("span");
-            status.className = "friends-provider-status";
-            status.textContent = "Connected · provider unavailable";
-            empty.appendChild(status);
+    function accountForPlatform(platform) {
+        return lastData?.accounts?.[platform] || null;
+    }
+
+    function accountDisplayName(platform, account) {
+        const profile = account?.profile || {};
+        if (platform === "discord") {
+            return profile.global_name || profile.username || "Discord account";
         }
-        root.appendChild(empty);
+        if (platform === "microsoft") {
+            return profile.displayName || profile.mail || profile.userPrincipalName || "Microsoft account";
+        }
+        if (platform === "riot") {
+            return profile.gameName
+                ? profile.gameName + (profile.tagLine ? "#" + profile.tagLine : "")
+                : "Riot account";
+        }
+        return "Steam account";
+    }
+
+    function accountAvatar(platform, account) {
+        const profile = account?.profile || {};
+        if (platform === "discord" && profile.id && profile.avatar) {
+            const extension = String(profile.avatar).startsWith("a_") ? "gif" : "png";
+            return "https://cdn.discordapp.com/avatars/" +
+                encodeURIComponent(profile.id) + "/" +
+                encodeURIComponent(profile.avatar) + "." + extension + "?size=128";
+        }
+        return "";
+    }
+
+    function renderProviderCard(platform) {
+        const state = providerState(lastData, platform);
+        const account = accountForPlatform(platform);
+        const card = document.createElement("section");
+        card.className = "friends-provider-card friends-state-card";
+        card.dataset.platform = platform;
+
+        const heading = document.createElement("div");
+        heading.className = "friends-provider-card-heading";
+        const title = document.createElement("h3");
+        title.textContent = platforms[platform]?.label || platform;
+        const badge = document.createElement("span");
+        badge.className = "friends-provider-badge " + (state.connected ? "is-connected" : "is-disconnected");
+        badge.textContent = state.connected ? "Connected" : (platform === "steam" ? "Setup needed" : "Not connected");
+        heading.append(title, badge);
+        card.appendChild(heading);
+
+        const identity = document.createElement("div");
+        identity.className = "friends-provider-identity";
+        const avatarUrl = accountAvatar(platform, account);
+        if (avatarUrl) {
+            const avatar = document.createElement("img");
+            avatar.className = "friends-provider-avatar";
+            avatar.alt = "";
+            avatar.loading = "lazy";
+            avatar.src = avatarUrl;
+            avatar.addEventListener("error", () => avatar.remove(), { once: true });
+            identity.appendChild(avatar);
+        }
+        const identityText = document.createElement("div");
+        identityText.className = "friends-provider-identity-text";
+        const name = document.createElement("strong");
+        name.textContent = account?.connected
+            ? accountDisplayName(platform, account)
+            : (platform === "steam" ? "Steam friend list" : "Account not linked");
+        const message = document.createElement("p");
+        message.className = "friends-provider-message";
+        message.textContent = state.message || "Provider status is unavailable.";
+        identityText.append(name, message);
+        identity.appendChild(identityText);
+        card.appendChild(identity);
+
+        if (platform === "discord" && account?.connected) {
+            const connections = Array.isArray(account.connections) ? account.connections : [];
+            const connectionSection = document.createElement("div");
+            connectionSection.className = "friends-linked-connections";
+            const connectionTitle = document.createElement("span");
+            connectionTitle.className = "friends-linked-connections-title";
+            connectionTitle.textContent = "LINKED ACCOUNTS";
+            connectionSection.appendChild(connectionTitle);
+
+            if (connections.length) {
+                const list = document.createElement("ul");
+                connections.slice(0, 8).forEach(connection => {
+                    const item = document.createElement("li");
+                    const serviceName = String(connection?.name || connection?.type || "Linked account");
+                    item.textContent = serviceName + (connection?.verified ? " · Verified" : "");
+                    list.appendChild(item);
+                });
+                connectionSection.appendChild(list);
+                if (connections.length > 8) {
+                    const more = document.createElement("span");
+                    more.textContent = "+" + (connections.length - 8) + " more";
+                    connectionSection.appendChild(more);
+                }
+            } else {
+                const note = document.createElement("p");
+                note.textContent = account.connectionsError ||
+                    (Array.isArray(account.scopes) && account.scopes.includes("connections")
+                        ? "Discord did not return any linked accounts."
+                        : "Reconnect Discord to grant the linked-accounts permission.");
+                connectionSection.appendChild(note);
+            }
+            card.appendChild(connectionSection);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "friends-provider-actions";
+        if (platform !== "steam") {
+            const connect = document.createElement("button");
+            connect.type = "button";
+            connect.textContent = state.connected ? "Reconnect" : "Connect";
+            connect.addEventListener("click", async () => {
+                connect.disabled = true;
+                message.textContent = state.connected ? "Reconnecting account…" : "Connecting account…";
+                try {
+                    const result = await window.electron?.loginAccount?.(platform);
+                    if (!result?.success) throw new Error(result?.error || "Account connection did not complete.");
+                    const refreshed = await window.electron?.refreshAccounts?.();
+                    lastData = { ...lastData, accounts: refreshed || await window.electron?.getAccounts?.() || {} };
+                    await refresh();
+                } catch (error) {
+                    message.textContent = error?.message || "Account connection failed.";
+                } finally {
+                    connect.disabled = false;
+                }
+            });
+            actions.appendChild(connect);
+
+            if (state.connected) {
+                const disconnect = document.createElement("button");
+                disconnect.type = "button";
+                disconnect.className = "friends-provider-secondary";
+                disconnect.textContent = "Disconnect";
+                disconnect.addEventListener("click", async () => {
+                    disconnect.disabled = true;
+                    try {
+                        const result = await window.electron?.logoutAccount?.(platform);
+                        if (!result?.success) throw new Error(result?.error || "Account could not be disconnected.");
+                        const refreshed = await window.electron?.getAccounts?.();
+                        lastData = { ...lastData, accounts: refreshed || {} };
+                        await refresh();
+                    } catch (error) {
+                        message.textContent = error?.message || "Account could not be disconnected.";
+                    } finally {
+                        disconnect.disabled = false;
+                    }
+                });
+                actions.appendChild(disconnect);
+
+                const open = document.createElement("button");
+                open.type = "button";
+                open.className = "friends-provider-secondary";
+                open.textContent = "Open account";
+                open.addEventListener("click", async () => {
+                    const profile = account?.profile || {};
+                    const url = platform === "discord" && profile.id
+                        ? "https://discord.com/users/" + encodeURIComponent(profile.id)
+                        : platform === "microsoft"
+                            ? "https://account.microsoft.com/"
+                            : "https://account.riotgames.com/";
+                    try {
+                        await window.electron?.openExternal?.(url);
+                    } catch (error) {
+                        message.textContent = error?.message || "Could not open the account page.";
+                    }
+                });
+                actions.appendChild(open);
+            }
+        } else {
+            const setup = document.createElement("span");
+            setup.className = "friends-detail-note";
+            setup.textContent = "Configure your Steam ID and Web API key in Settings.";
+            actions.appendChild(setup);
+        }
+        card.appendChild(actions);
+        return card;
+    }
+
+    function renderEmpty(root) {
+        root.innerHTML = "";
+        if (activePlatform === "all") {
+            const heading = document.createElement("div");
+            heading.className = "friends-empty friends-state-card";
+            const title = document.createElement("h3");
+            title.textContent = "Your social accounts";
+            const body = document.createElement("p");
+            body.textContent = "No friend activity has been received yet. Connect an account or check the provider setup below.";
+            heading.append(title, body);
+            root.appendChild(heading);
+            Object.keys(platforms).forEach(platform => root.appendChild(renderProviderCard(platform)));
+            return;
+        }
+
+        root.appendChild(renderProviderCard(activePlatform));
     }
 
     function render(data) {
@@ -523,22 +703,48 @@ const friendsSurface = (() => {
     }
 
     async function refresh() {
+        if (refreshPromise) return refreshPromise;
+
         const root = inlineRoot || ensure();
         const button = root.querySelector('#friends-refresh, [data-friends-role="refresh"]');
-        button.disabled = true;
-        try {
-            const data = await window.electron?.getFriends?.() || { friends: [] };
-            render(data);
+        if (button) button.disabled = true;
 
-            if (data.error) {
-                const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
-                if (updated) updated.textContent = data.error;
+        refreshPromise = (async () => {
+            try {
+                const [friendsResult, accountsResult] = await Promise.allSettled([
+                    window.electron?.getFriends?.() || Promise.resolve({ friends: [] }),
+                    window.electron?.getAccounts?.() || Promise.resolve({})
+                ]);
+
+                const data = friendsResult.status === "fulfilled"
+                    ? (friendsResult.value || { friends: [] })
+                    : { friends: [], error: friendsResult.reason?.message || "Unable to load friend activity." };
+
+                data.accounts = accountsResult.status === "fulfilled"
+                    ? (accountsResult.value || {})
+                    : (lastData?.accounts || {});
+
+                render(data);
+
+                if (data.error) {
+                    const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
+                    if (updated) updated.textContent = data.error;
+                }
+                return data;
+            } catch (error) {
+                console.error("Friends refresh failed:", error);
+                const fallback = { ...(lastData || {}), friends: [], error: error?.message || "Friends refresh failed." };
+                render(fallback);
+                return fallback;
+            } finally {
+                if (button) button.disabled = false;
             }
-        } catch (error) {
-            console.error("Friends refresh failed:", error);
-            render({ friends: [] });
+        })();
+
+        try {
+            return await refreshPromise;
         } finally {
-            button.disabled = false;
+            refreshPromise = null;
         }
     }
 
@@ -548,6 +754,12 @@ const friendsSurface = (() => {
 
     function getFriendCards() {
         return Array.from(inlineRoot?.querySelectorAll(".friend-card") || []);
+    }
+
+    function getProviderActionButtons() {
+        return Array.from(
+            inlineRoot?.querySelectorAll(".friends-provider-actions button:not(:disabled)") || []
+        );
     }
 
     function setFriendSelection(index) {
@@ -612,6 +824,7 @@ const friendsSurface = (() => {
         const buttons = getPlatformButtons();
         if (!buttons.length) return false;
         buttons.forEach(button => button.classList.toggle("input-selected", button.classList.contains("active")));
+        getProviderActionButtons().forEach(button => button.classList.remove("input-selected"));
         /*
             Friends uses logical focus rather than native button focus.
             This prevents Chromium's button behavior from interfering
@@ -624,9 +837,46 @@ const friendsSurface = (() => {
         return true;
     }
 
+    function focusProviderActions() {
+        const buttons = getProviderActionButtons();
+        if (!buttons.length) return false;
+
+        inputFocus = "provider-actions";
+        selectedProviderActionIndex = Math.max(0, Math.min(selectedProviderActionIndex, buttons.length - 1));
+        playSound("navigation");
+        buttons.forEach((button, index) => {
+            button.classList.toggle("input-selected", index === selectedProviderActionIndex);
+        });
+        buttons[selectedProviderActionIndex]?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function moveProviderAction(direction) {
+        const buttons = getProviderActionButtons();
+        if (!buttons.length) return false;
+        inputFocus = "provider-actions";
+        selectedProviderActionIndex =
+            (selectedProviderActionIndex + direction + buttons.length) % buttons.length;
+        playSound("navigation");
+        buttons.forEach((button, index) => {
+            button.classList.toggle("input-selected", index === selectedProviderActionIndex);
+        });
+        buttons[selectedProviderActionIndex]?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function activateProviderAction() {
+        const buttons = getProviderActionButtons();
+        const button = buttons[selectedProviderActionIndex];
+        if (!button) return false;
+        playSound("select");
+        button.click();
+        return true;
+    }
+
     function focusFriends() {
         const cards = getFriendCards();
-        if (!cards.length) return false;
+        if (!cards.length) return focusProviderActions();
         inputFocus = "friends";
         setFriendSelection(selectedFriendIndex);
         cards[selectedFriendIndex]?.focus({ preventScroll: true });
@@ -765,7 +1015,13 @@ const friendsSurface = (() => {
         }
     }, true);
 
-    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms, focusFriends, getInputFocus, getFriendCards, selectFriend, setFriendSelection, isInlineActive };
+    return {
+        open, close, openInline, closeInline, refresh, isOpen, render,
+        moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms,
+        focusFriends, focusProviderActions, moveProviderAction,
+        activateProviderAction, getInputFocus, getFriendCards,
+        selectFriend, setFriendSelection, isInlineActive
+    };
 })();
 
 window.friendsSurface = friendsSurface;
