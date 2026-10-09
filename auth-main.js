@@ -365,7 +365,15 @@ function summary(all = accounts()) {
     return {
         discord: {
             connected: !!all.discord?.connected,
-            profile: all.discord?.profile || null
+            profile: all.discord?.profile || null,
+            connections: Array.isArray(all.discord?.connections)
+                ? all.discord.connections
+                : [],
+            scopes: Array.isArray(all.discord?.scopes)
+                ? all.discord.scopes
+                : [],
+            authorizationExpiresAt:
+                all.discord?.authorizationExpiresAt || 0
         },
         microsoft: {
             connected: !!all.microsoft?.connected,
@@ -395,6 +403,39 @@ async function discordProfile(all) {
             }
         }
     );
+}
+
+async function discordAuthorization(all) {
+    const credentials = loadCredentials("discord", all);
+    if (!credentials?.accessToken) return null;
+    return requestJson("https://discord.com/api/oauth2/@me", {
+        headers: { Authorization: `Bearer ${credentials.accessToken}` }
+    });
+}
+
+async function discordConnections(all) {
+    const credentials = loadCredentials("discord", all);
+    if (!credentials?.accessToken) return [];
+    const connections = await requestJson("https://discord.com/api/users/@me/connections", {
+        headers: { Authorization: `Bearer ${credentials.accessToken}` }
+    });
+    return Array.isArray(connections) ? connections : [];
+}
+
+async function refreshDiscordAccount(all) {
+    const profile = await discordProfile(all);
+    const authorization = await discordAuthorization(all);
+    all.discord.profile = profile;
+    all.discord.scopes = Array.isArray(authorization?.scopes) ? authorization.scopes : [];
+    all.discord.authorizationExpiresAt = authorization?.expires
+        ? Date.parse(authorization.expires)
+        : (all.discord.expiresAt || 0);
+    if (all.discord.scopes.includes("connections")) {
+        all.discord.connections = await discordConnections(all);
+    } else {
+        all.discord.connections = [];
+    }
+    return profile;
 }
 
 async function microsoftProfile(all) {
@@ -538,8 +579,7 @@ ipcMain.handle(
                     }
                 );
 
-                all.discord.profile =
-                    await discordProfile(all);
+                await refreshDiscordAccount(all);
             }
 
             if (provider === "microsoft") {
@@ -686,8 +726,7 @@ ipcMain.handle(
 
         try {
             if (all.discord?.accessToken || all.discord?.credentials) {
-                all.discord.profile =
-                    await discordProfile(all);
+                await refreshDiscordAccount(all);
             }
         } catch {}
 
