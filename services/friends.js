@@ -131,7 +131,7 @@ const friendsSurface = (() => {
             platform: friend?.platform || "discord",
             name: String(friend?.name || "Unknown friend"),
             avatar: typeof friend?.avatar === "string" ? friend.avatar : "",
-            status: ["online", "idle", "dnd", "offline"].includes(friend?.status) ? friend.status : "offline",
+            status: ["online", "idle", "dnd", "offline", "unknown"].includes(friend?.status) ? friend.status : "unknown",
             activity: activity?.type === "game" ? {
                 name: String(activity.name || "Unknown game"),
                 details: String(activity.details || ""),
@@ -149,7 +149,7 @@ const friendsSurface = (() => {
     }
 
     function statusLabel(status) {
-        return { online: "Online", idle: "Idle", dnd: "Do Not Disturb", offline: "Offline" }[status] || "Offline";
+        return { online: "Online", idle: "Idle", dnd: "Do Not Disturb", offline: "Offline", unknown: "Presence unavailable" }[status] || "Presence unavailable";
     }
 
     function formatDuration(startedAt) {
@@ -235,15 +235,6 @@ const friendsSurface = (() => {
         if (friend.activity) {
             const activity = document.createElement("div");
             activity.className = "friend-activity";
-            if (friend.activity.artwork) {
-                const art = document.createElement("img");
-                art.className = "friend-game-art";
-                art.alt = "";
-                art.loading = "lazy";
-                art.src = friend.activity.artwork;
-                art.addEventListener("error", () => art.remove(), { once: true });
-                activity.appendChild(art);
-            }
             const text = document.createElement("div");
             text.className = "friend-activity-text";
             const game = document.createElement("div");
@@ -262,10 +253,15 @@ const friendsSurface = (() => {
             }
             activity.appendChild(text);
             card.appendChild(activity);
-        } else if (friend.status !== "offline") {
+        } else if (["online", "idle", "dnd"].includes(friend.status)) {
             const activity = document.createElement("div");
             activity.className = "friend-no-activity";
-            activity.textContent = "Online";
+            activity.textContent = statusLabel(friend.status);
+            card.appendChild(activity);
+        } else if (friend.status === "unknown") {
+            const activity = document.createElement("div");
+            activity.className = "friend-no-activity";
+            activity.textContent = "Presence unavailable";
             card.appendChild(activity);
         }
 
@@ -304,8 +300,9 @@ const friendsSurface = (() => {
         heading.append(wrap, platformBadge(platform));
         section.appendChild(heading);
 
-        const online = friends.filter(friend => friend.status !== "offline");
+        const online = friends.filter(friend => ["online", "idle", "dnd"].includes(friend.status));
         const offline = friends.filter(friend => friend.status === "offline");
+        const unknown = friends.filter(friend => friend.status === "unknown");
         const games = new Map();
 
         online.forEach(friend => {
@@ -318,6 +315,9 @@ const friendsSurface = (() => {
 
         if (offline.length) {
             section.appendChild(renderGameGroup("Offline", offline));
+        }
+        if (unknown.length) {
+            section.appendChild(renderGameGroup("Presence unavailable", unknown));
         }
 
         return section;
@@ -371,6 +371,18 @@ const friendsSurface = (() => {
         detail.append(avatar, heading, platform);
 
         if (friend.activity) {
+            if (friend.activity.artwork) {
+                const preview = document.createElement("div");
+                preview.className = "friends-detail-game-preview";
+                const image = document.createElement("img");
+                image.src = friend.activity.artwork;
+                image.alt = friend.activity.name + " artwork";
+                image.loading = "lazy";
+                image.addEventListener("error", () => preview.remove(), { once: true });
+                preview.appendChild(image);
+                detail.appendChild(preview);
+            }
+
             const activity = document.createElement("div");
             activity.className = "friends-detail-activity";
             activity.textContent = friend.activity.name;
