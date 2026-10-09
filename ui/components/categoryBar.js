@@ -296,6 +296,15 @@ async function loadCategoryIcon(
 
     }
 
+    /*
+        Friends has a small, local fallback icon so the category
+        remains recognizable even when no artwork icon is configured.
+        A real configured/preloaded icon above always takes precedence.
+    */
+    if (categoryName === "Friends") {
+        container.innerHTML = '<svg class="category-icon-image category-icon-fallback" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.25" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M2.8 19c.25-3.2 2.7-5.2 6.2-5.2s5.95 2 6.2 5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M15.3 5.2a3.25 3.25 0 0 1 0 6.2M17 14.1c2.45.65 3.8 2.25 4.1 4.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+        return;
+    }
 
     /*
         Once the startup manifest exists, a null entry is
