@@ -373,7 +373,9 @@ function summary(all = accounts()) {
                 ? all.discord.scopes
                 : [],
             authorizationExpiresAt:
-                all.discord?.authorizationExpiresAt || 0
+                all.discord?.authorizationExpiresAt || 0,
+            connectionsError:
+                all.discord?.connectionsError || ""
         },
         microsoft: {
             connected: !!all.microsoft?.connected,
