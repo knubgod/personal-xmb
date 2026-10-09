@@ -424,9 +424,7 @@ const friendsSurface = (() => {
     function accountDisplayName(platform, account) {
         const profile = account?.profile || {};
         if (platform === "discord") {
-            return profile.global_name || profile.username || profile.discriminator && profile.username
-                ? (profile.global_name || profile.username)
-                : "Discord account";
+            return profile.global_name || profile.username || "Discord account";
         }
         if (platform === "microsoft") {
             return profile.displayName || profile.mail || profile.userPrincipalName || "Microsoft account";
@@ -517,9 +515,10 @@ const friendsSurface = (() => {
                 }
             } else {
                 const note = document.createElement("p");
-                note.textContent = Array.isArray(account.scopes) && account.scopes.includes("connections")
-                    ? "Discord did not return any linked accounts."
-                    : "Reconnect Discord to grant the linked-accounts permission.";
+                note.textContent = account.connectionsError ||
+                    (Array.isArray(account.scopes) && account.scopes.includes("connections")
+                        ? "Discord did not return any linked accounts."
+                        : "Reconnect Discord to grant the linked-accounts permission.");
                 connectionSection.appendChild(note);
             }
             card.appendChild(connectionSection);
@@ -549,6 +548,26 @@ const friendsSurface = (() => {
             actions.appendChild(connect);
 
             if (state.connected) {
+                const disconnect = document.createElement("button");
+                disconnect.type = "button";
+                disconnect.className = "friends-provider-secondary";
+                disconnect.textContent = "Disconnect";
+                disconnect.addEventListener("click", async () => {
+                    disconnect.disabled = true;
+                    try {
+                        const result = await window.electron?.logoutAccount?.(platform);
+                        if (!result?.success) throw new Error(result?.error || "Account could not be disconnected.");
+                        const refreshed = await window.electron?.getAccounts?.();
+                        lastData = { ...lastData, accounts: refreshed || {} };
+                        await refresh();
+                    } catch (error) {
+                        message.textContent = error?.message || "Account could not be disconnected.";
+                    } finally {
+                        disconnect.disabled = false;
+                    }
+                });
+                actions.appendChild(disconnect);
+
                 const open = document.createElement("button");
                 open.type = "button";
                 open.className = "friends-provider-secondary";
