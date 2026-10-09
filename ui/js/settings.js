@@ -21,7 +21,22 @@ function renderSettingsSection(section){
  if(section==="accounts"){
   const cfg=window.xmbConfig||{};c.querySelector("#account-spotify-client").value=cfg.spotify?.clientId||"";c.querySelector("#account-steam-id").value=cfg.integrations?.steam?.steamId||"";if(cfg.integrations?.steam?.configured){c.querySelector("#account-steam-key").placeholder="Saved securely — leave blank to keep existing key";}c.querySelector("#account-discord-client").value=cfg.integrations?.discord?.clientId||"";c.querySelector("#account-microsoft-client").value=cfg.integrations?.microsoft?.clientId||"";c.querySelector("#account-riot-client").value=cfg.integrations?.riot?.clientId||"";
   c.querySelector("#save-account-config").onclick=async()=>{const v={spotifyClientId:c.querySelector("#account-spotify-client").value.trim(),steamApiKey:c.querySelector("#account-steam-key").value.trim(),steamId:c.querySelector("#account-steam-id").value.trim(),discordClientId:c.querySelector("#account-discord-client").value.trim(),microsoftClientId:c.querySelector("#account-microsoft-client").value.trim(),riotClientId:c.querySelector("#account-riot-client").value.trim()};const r=await window.electron?.saveSteamConfig?.({steamId:v.steamId,steamApiKey:v.steamApiKey});if(!r?.success){c.querySelector("#account-status").textContent=r?.error||"Unable to save Steam configuration.";return;}const accountResult=await window.electron?.saveAccountConfig?.(v);c.querySelector("#account-status").textContent=accountResult?.success?"Configuration saved. Steam API key is stored securely.":(accountResult?.error||"Unable to save configuration.");};
-  [["spotify","connect-spotify"],["discord","connect-discord"],["microsoft","connect-microsoft"],["riot","connect-riot"]].forEach(([p,id])=>c.querySelector("#"+id).onclick=async()=>{const q=c.querySelector("#account-status");q.textContent="Connecting "+p+"...";const r=p==="spotify"?await window.electron?.spotifyLogin?.():await window.electron?.loginAccount?.(p);q.textContent=r?.success===false?(r.error||"Connection failed."):p+" authorization started in your browser.";});
+  [["spotify","connect-spotify"],["discord","connect-discord"],["microsoft","connect-microsoft"],["riot","connect-riot"]].forEach(([p,id])=>c.querySelector("#"+id).onclick=async()=>{
+   const q=c.querySelector("#account-status"),button=c.querySelector("#"+id);
+   button.disabled=true;q.textContent="Connecting "+p+"…";
+   try{
+    const r=p==="spotify"?await window.electron?.spotifyLogin?.():await window.electron?.loginAccount?.(p);
+    if(!r||r.success===false)throw new Error(r?.error||"Connection failed. Check the provider configuration and try again.");
+    if(p==="spotify"){q.textContent="Spotify authorization completed.";return;}
+    const accounts=await window.electron?.refreshAccounts?.()||r.accounts||await window.electron?.getAccounts?.()||{};
+    const account=accounts[p]||{};
+    if(!account.connected)throw new Error("Authorization returned, but the account is not marked connected. Try reconnecting.");
+    if(p==="discord")q.textContent=Array.isArray(account.scopes)&&account.scopes.includes("connections")?"Discord connected. Linked-account permission is granted.":"Discord connected, but linked-account permission was not confirmed. Reconnect Discord and approve the requested access.";
+    else if(p==="microsoft")q.textContent="Xbox / Microsoft connected."+ (account.xbox?.xuid?" Xbox profile linked.":" Check Xbox access if friends do not load.");
+    else q.textContent="Riot account connected.";
+   }catch(error){q.textContent=error?.message||"Connection failed. Check the provider configuration and try again.";}
+   finally{button.disabled=false;}
+  });
  }
 }
 document.addEventListener("keydown",e=>{if(settingsBranch&&e.key==="Escape"){e.preventDefault();e.stopPropagation();closeSettingsPanel();}},true);
