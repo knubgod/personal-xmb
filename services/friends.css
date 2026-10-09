@@ -547,3 +547,10 @@
         transition: none;
     }
 }
+
+
+.friends-provider-actions button.input-selected {
+    border-color: rgba(255,255,255,.48);
+    background: rgba(255,255,255,.11);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+}
