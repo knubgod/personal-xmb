@@ -687,7 +687,7 @@ async function getXboxFriends() {
 
     let profiles = [];
     try {
-        const profileData = await requestJson("https://profile.xboxlive.com/users/batch", {
+        const profileData = await requestJson("https://profile.xboxlive.com/users/batch/profile/settings", {
             method: "POST",
             headers: {
                 ...headers,
@@ -763,7 +763,11 @@ async function getXboxFriends() {
             id: xuid,
             platform: "microsoft",
             name: String(gamertag || `Xbox user ${xuid.slice(-4)}`),
-            avatar: String(profile.gamedisplaypicraw || "").toLowerCase().startsWith("https://") ? profile.gamedisplaypicraw : "",
+            avatar: String(profile.gamedisplaypicraw || "").toLowerCase().startsWith("https://")
+                ? profile.gamedisplaypicraw
+                : String(profile.gamedisplaypicraw || "").toLowerCase().startsWith("http://images-eds.xboxlive.com/")
+                    ? String(profile.gamedisplaypicraw).replace(/^http:/i, "https:")
+                    : "",
             status,
             activity: gameName ? {
                 type: "game",
