@@ -710,7 +710,7 @@ async function getXboxFriends() {
             id: xuid,
             platform: "microsoft",
             name: String(gamertag || `Xbox user ${xuid.slice(-4)}`),
-            avatar: /^https:\\/\\//i.test(String(profile.gamedisplaypicraw || "")) ? profile.gamedisplaypicraw : "",
+            avatar: String(profile.gamedisplaypicraw || "").toLowerCase().startsWith("https://") ? profile.gamedisplaypicraw : "",
             status,
             activity: gameName ? {
                 type: "game",
