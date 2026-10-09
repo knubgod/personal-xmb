@@ -604,7 +604,7 @@ async function getXboxFriends() {
         writeJson(tokenFile(), all);
     }
 
-    if (!xbox.xuid || !/^\\d{5,25}$/.test(String(xbox.xuid))) {
+    if (!xbox.xuid || !/^\d{5,25}$/.test(String(xbox.xuid))) {
         return {
             friends: [],
             available: false,
@@ -620,14 +620,22 @@ async function getXboxFriends() {
         "x-xbl-contract-version": "3"
     };
 
-    const peopleUrl = new URL("https://social.xboxlive.com/users/me/people");
-    peopleUrl.searchParams.set("view", "all");
-    peopleUrl.searchParams.set("startIndex", "0");
-    peopleUrl.searchParams.set("maxItems", "100");
+    const people = [];
+    for (let startIndex = 0; startIndex < 1000; startIndex += 100) {
+        const peopleUrl = new URL("https://social.xboxlive.com/users/me/people");
+        peopleUrl.searchParams.set("view", "all");
+        peopleUrl.searchParams.set("startIndex", String(startIndex));
+        peopleUrl.searchParams.set("maxItems", "100");
 
-    const peopleData = await requestJson(peopleUrl.toString(), { headers });
-    const people = Array.isArray(peopleData?.people) ? peopleData.people : [];
-    const xuids = [...new Set(people.map(person => String(person?.xuid || "")).filter(id => /^\\d{5,25}$/.test(id)))];
+        const peopleData = await requestJson(peopleUrl.toString(), { headers });
+        const page = Array.isArray(peopleData?.people) ? peopleData.people : [];
+        people.push(...page);
+
+        const totalCount = Number(peopleData?.totalCount || 0);
+        if (page.length < 100 || (totalCount > 0 && people.length >= totalCount)) break;
+    }
+
+    const xuids = [...new Set(people.map(person => String(person?.xuid || "")).filter(id => /^\d{5,25}$/.test(id)))];
 
     if (!xuids.length) {
         return { friends: [], available: true, status: "ready", message: "Xbox friend list loaded. No friends were returned." };
@@ -639,6 +647,7 @@ async function getXboxFriends() {
             method: "POST",
             headers: {
                 ...headers,
+                "x-xbl-contract-version": "2",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
