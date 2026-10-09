@@ -15,7 +15,7 @@ const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
 const activeLogins = new Set();
 
 const configFile = () =>
-    path.join(__dirname, "config", "settings.json");
+    path.join(app.getPath("userData"), "settings.json");
 
 const tokenFile = () =>
     path.join(app.getPath("userData"), "accounts.json");
@@ -109,7 +109,8 @@ function loadCredentials(provider, all = accounts()) {
         refreshToken: record.refreshToken || "",
         userToken: record.userToken || "",
         xstsToken: record.xstsToken || "",
-        userHash: record.userHash || ""
+        userHash: record.userHash || "",
+        scope: record.scope || ""
     };
 
     const hasLegacyCredentials = Object.values(legacy).some(Boolean);
@@ -269,7 +270,7 @@ function callback(port, expectedState) {
 async function oauth(provider, cfg) {
     if (!cfg.clientId) {
         throw new Error(
-            `${provider} client ID is not configured in config/settings.json.`
+            `${provider} client ID is not configured. Open Settings → Accounts and enter the provider client ID.`
         );
     }
 
@@ -284,8 +285,9 @@ async function oauth(provider, cfg) {
     try {
         const s = state();
         const v = verifier();
+        const redirectHost = cfg.redirectHost || "127.0.0.1";
         const redirect =
-            `http://127.0.0.1:${cfg.port}/callback`;
+            `http://${redirectHost}:${cfg.port}/callback`;
 
         const query = new URLSearchParams({
             client_id: cfg.clientId,
@@ -351,7 +353,8 @@ async function oauth(provider, cfg) {
                 refreshToken:
                     token.refresh_token ||
                     loadCredentials(provider, all)?.refreshToken ||
-                    ""
+                    "",
+                scope: cfg.scope
             }
         );
 
@@ -380,7 +383,8 @@ function summary(all = accounts()) {
         microsoft: {
             connected: !!all.microsoft?.connected,
             profile: all.microsoft?.profile || null,
-            xbox: all.microsoft?.xbox || null
+            xbox: all.microsoft?.xbox || null,
+            xboxError: all.microsoft?.xboxError || ""
         },
         riot: {
             connected: !!all.riot?.connected,
@@ -437,7 +441,7 @@ async function refreshDiscordAccount(all) {
 
     all.discord.scopes = Array.isArray(authorization?.scopes)
         ? authorization.scopes
-        : String(loadCredentials("discord", all)?.scope || "").split(/\\s+/).filter(Boolean);
+        : String(loadCredentials("discord", all)?.scope || "").split(/\s+/).filter(Boolean);
     all.discord.authorizationExpiresAt = authorization?.expires
         ? Date.parse(authorization.expires)
         : (all.discord.expiresAt || 0);
@@ -653,7 +657,7 @@ async function getXboxFriends() {
                     grant_type: "refresh_token",
                     client_id: clientId,
                     refresh_token: credentials.refreshToken,
-                    scope: "openid profile email offline_access XboxLive.signin"
+                    scope: "XboxLive.signin XboxLive.offline_access"
                 })
             }
         );
@@ -846,14 +850,17 @@ ipcMain.handle(
                         token:
                             "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
                         scope:
-                            "openid profile email offline_access XboxLive.signin",
+                            "XboxLive.signin XboxLive.offline_access",
+                        redirectHost: "localhost",
                         port:
                             ports.microsoft
                     }
                 );
 
-                all.microsoft.profile =
-                    await microsoftProfile(all);
+                // The Xbox Live token is not a Microsoft Graph token.
+                // Do not call Graph /me with this audience; it makes an otherwise
+                // successful Xbox authorization look like a failed sign-in.
+                all.microsoft.profile = null;
 
                 try {
                     const credentials =
@@ -905,7 +912,7 @@ ipcMain.handle(
                     !secret
                 ) {
                     throw new Error(
-                        "Riot RSO needs an approved client ID and PERSONAL_XMB_RIOT_CLIENT_SECRET."
+                        "Riot sign-in requires an approved Riot Sign On (RSO) client ID and the PERSONAL_XMB_RIOT_CLIENT_SECRET environment variable. A standard/development API key is not sufficient."
                     );
                 }
 
