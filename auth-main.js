@@ -551,7 +551,240 @@ async function xboxTokens(msaToken) {
         userHash:
             x.DisplayClaims?.xui?.[0]?.uhs ||
             userHash,
+        xuid:
+            x.DisplayClaims?.xui?.[0]?.xid ||
+            u.DisplayClaims?.xui?.[0]?.xid ||
+            "",
         xstsToken: x.Token
+    };
+}
+
+async function getXboxFriends() {
+    const all = accounts();
+    if (!all.microsoft?.connected) {
+        return {
+            friends: [],
+            available: false,
+            status: "not-connected",
+            message: "Connect your Microsoft/Xbox account to load Xbox friends."
+        };
+    }
+
+    let credentials = loadCredentials("microsoft", all);
+    if (!credentials?.accessToken && !credentials?.xstsToken) {
+        return {
+            friends: [],
+            available: false,
+            status: "reauth-required",
+            message: "Reconnect your Microsoft/Xbox account to refresh Xbox authorization."
+        };
+    }
+
+    let xbox = {
+        userHash: credentials.userHash || all.microsoft.xbox?.userHash || "",
+        xuid: credentials.xuid || all.microsoft.xbox?.xuid || "",
+        xstsToken: credentials.xstsToken || ""
+    };
+
+    if (!xbox.xstsToken || !xbox.userHash || !xbox.xuid) {
+        if (!credentials.accessToken) {
+            return {
+                friends: [],
+                available: false,
+                status: "reauth-required",
+                message: "Xbox authorization needs to be renewed. Reconnect your Microsoft account."
+            };
+        }
+
+        const renewed = await xboxTokens(credentials.accessToken);
+        credentials = { ...credentials, ...renewed };
+        xbox = renewed;
+        saveCredentials(all, "microsoft", credentials);
+        all.microsoft.xbox = { userHash: xbox.userHash, xuid: xbox.xuid || "" };
+        writeJson(tokenFile(), all);
+    }
+
+    if (!xbox.xuid || !/^\d{5,25}$/.test(String(xbox.xuid))) {
+        return {
+            friends: [],
+            available: false,
+            status: "xuid-unavailable",
+            message: "Xbox did not provide the signed-in account's XUID. Reconnect Microsoft/Xbox and try again."
+        };
+    }
+
+    let headers = {
+        Authorization: `XBL3.0 x=${xbox.userHash};${xbox.xstsToken}`,
+        Accept: "application/json",
+        "x-xbl-contract-version": "3"
+    };
+
+    const loadPeople = async () => {
+        const people = [];
+        for (let startIndex = 0; startIndex < 1000; startIndex += 100) {
+            const peopleUrl = new URL("https://social.xboxlive.com/users/me/people");
+            peopleUrl.searchParams.set("view", "all");
+            peopleUrl.searchParams.set("startIndex", String(startIndex));
+            peopleUrl.searchParams.set("maxItems", "100");
+
+            const peopleData = await requestJson(peopleUrl.toString(), { headers });
+            const page = Array.isArray(peopleData?.people) ? peopleData.people : [];
+            people.push(...page);
+
+            const totalCount = Number(peopleData?.totalCount || 0);
+            if (page.length < 100 || (totalCount > 0 && people.length >= totalCount)) break;
+        }
+        return people;
+    };
+
+    let people;
+    try {
+        people = await loadPeople();
+    } catch (firstError) {
+        const clientId = settings().integrations?.microsoft?.clientId;
+        if (!credentials.refreshToken || !clientId) throw firstError;
+
+        const token = await requestJson(
+            "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    grant_type: "refresh_token",
+                    client_id: clientId,
+                    refresh_token: credentials.refreshToken,
+                    scope: "openid profile email offline_access XboxLive.signin"
+                })
+            }
+        );
+
+        if (!token.access_token) throw firstError;
+
+        const renewed = await xboxTokens(token.access_token);
+        credentials = {
+            ...credentials,
+            accessToken: token.access_token,
+            refreshToken: token.refresh_token || credentials.refreshToken,
+            ...renewed
+        };
+        xbox = renewed;
+        saveCredentials(all, "microsoft", credentials);
+        all.microsoft.xbox = { userHash: xbox.userHash, xuid: xbox.xuid || "" };
+        writeJson(tokenFile(), all);
+        headers = {
+            Authorization: `XBL3.0 x=${xbox.userHash};${xbox.xstsToken}`,
+            Accept: "application/json",
+            "x-xbl-contract-version": "3"
+        };
+        people = await loadPeople();
+    }
+
+    const xuids = [...new Set(people.map(person => String(person?.xuid || "")).filter(id => /^\d{5,25}$/.test(id)))];
+
+    if (!xuids.length) {
+        return { friends: [], available: true, status: "ready", message: "Xbox friend list loaded. No friends were returned." };
+    }
+
+    let profiles = [];
+    try {
+        const profileData = await requestJson("https://profile.xboxlive.com/users/batch/profile/settings", {
+            method: "POST",
+            headers: {
+                ...headers,
+                "x-xbl-contract-version": "2",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                userIds: xuids,
+                settings: [
+                    "GameDisplayName",
+                    "GameDisplayPicRaw",
+                    "Gamertag",
+                    "ModernGamertag",
+                    "ModernGamertagSuffix"
+                ]
+            })
+        });
+        profiles = Array.isArray(profileData?.profileUsers) ? profileData.profileUsers : [];
+    } catch (error) {
+        console.warn("Xbox friend profile enrichment unavailable:", error.message);
+    }
+
+    let presenceRecords = [];
+    try {
+        const presenceData = await requestJson("https://userpresence.xboxlive.com/users/batch", {
+            method: "POST",
+            headers: {
+                ...headers,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ users: xuids, level: "all" })
+        });
+        presenceRecords = Array.isArray(presenceData)
+            ? presenceData
+            : Array.isArray(presenceData?.users)
+                ? presenceData.users
+                : Array.isArray(presenceData?.presenceRecords)
+                    ? presenceData.presenceRecords
+                    : [];
+    } catch (error) {
+        console.warn("Xbox friend presence enrichment unavailable:", error.message);
+    }
+
+    const settingMap = profile => Object.fromEntries(
+        (Array.isArray(profile?.settings) ? profile.settings : [])
+            .map(setting => [String(setting?.id || "").toLowerCase(), setting?.value || ""])
+    );
+    const profileMap = new Map(profiles.map(profile => [String(profile?.id || ""), settingMap(profile)]));
+    const presenceMap = new Map(presenceRecords.map(record => [String(record?.xuid || ""), record]));
+
+    const friends = xuids.map(xuid => {
+        const profile = profileMap.get(xuid) || {};
+        const presence = presenceMap.get(xuid) || null;
+        const rawState = String(presence?.state || "").toLowerCase();
+        const status = rawState === "online"
+            ? "online"
+            : rawState === "away"
+                ? "idle"
+                : rawState === "busy" || rawState === "donotdisturb" || rawState === "do not disturb"
+                    ? "dnd"
+                    : rawState === "offline"
+                        ? "offline"
+                        : "unknown";
+
+        const titles = (Array.isArray(presence?.devices) ? presence.devices : [])
+            .flatMap(device => Array.isArray(device?.titles) ? device.titles : []);
+        const activeTitle = titles.find(title => String(title?.state || "").toLowerCase() === "active");
+        const gameName = String(activeTitle?.name || "").trim();
+        const richPresence = String(activeTitle?.activity?.richPresence || "").trim();
+        const gamertag = profile.moderngamertag || profile.gamertag || profile.gamedisplayname || "";
+
+        return {
+            id: xuid,
+            platform: "microsoft",
+            name: String(gamertag || `Xbox user ${xuid.slice(-4)}`),
+            avatar: String(profile.gamedisplaypicraw || "").toLowerCase().startsWith("https://")
+                ? profile.gamedisplaypicraw
+                : String(profile.gamedisplaypicraw || "").toLowerCase().startsWith("http://images-eds.xboxlive.com/")
+                    ? String(profile.gamedisplaypicraw).replace(/^http:/i, "https:")
+                    : "",
+            status,
+            activity: gameName ? {
+                type: "game",
+                name: gameName,
+                details: richPresence,
+                state: "",
+                startedAt: null,
+                artwork: ""
+            } : null
+        };
+    });
+
+    return {
+        friends,
+        available: true,
+        status: "ready",
+        message: "Xbox friends and available presence data loaded."
     };
 }
 
@@ -635,8 +868,8 @@ ipcMain.handle(
                         );
 
                     all.microsoft.xbox = {
-                        userHash:
-                            xbox.userHash
+                        userHash: xbox.userHash,
+                        xuid: xbox.xuid || ""
                     };
 
                     saveCredentials(
@@ -649,7 +882,9 @@ ipcMain.handle(
                             xstsToken:
                                 xbox.xstsToken,
                             userHash:
-                                xbox.userHash
+                                xbox.userHash,
+                            xuid:
+                                xbox.xuid || ""
                         }
                     );
                 } catch (error) {
@@ -768,3 +1003,6 @@ ipcMain.handle(
         return summary(all);
     }
 );
+
+
+module.exports = { getXboxFriends };

@@ -96,7 +96,7 @@ const {
     Account OAuth IPC handlers are kept in their own main-process
     module. They share the same trusted-renderer security helper.
 */
-require("./auth-main");
+const authServices = require("./auth-main");
 
 protocol.registerSchemesAsPrivileged([
     {
@@ -8464,12 +8464,188 @@ async function getSteamFriends() {
 }
 
 
+function findLeagueLockfile() {
+    const candidates = [];
+    const addInstallDir = value => {
+        if (typeof value !== "string" || !value.trim()) return;
+        const normalized = value.trim().replace(/[\\/]+$/, "");
+        candidates.push(path.join(normalized, "lockfile"));
+    };
+
+    addInstallDir(process.env.PERSONAL_XMB_LEAGUE_INSTALL_DIR);
+    addInstallDir(path.join(process.env.ProgramFiles || "", "Riot Games", "League of Legends"));
+    addInstallDir(path.join(process.env["ProgramFiles(x86)"] || "", "Riot Games", "League of Legends"));
+    addInstallDir(path.join(process.env.LOCALAPPDATA || "", "Riot Games", "League of Legends"));
+    addInstallDir("C:\\Riot Games\\League of Legends");
+
+    const manifestPaths = [
+        path.join(process.env.ProgramData || "C:\\ProgramData", "Riot Games", "RiotClientInstalls.json"),
+        path.join(process.env.LOCALAPPDATA || "", "Riot Games", "RiotClientInstalls.json")
+    ];
+
+    for (const manifestPath of manifestPaths) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+            const visit = (value, key = "") => {
+                if (typeof value === "string") {
+                    if (/league of legends/i.test(value) ||
+                        /product_install_full_path/i.test(key)) {
+                        addInstallDir(value);
+                    }
+                    return;
+                }
+                if (Array.isArray(value)) {
+                    value.forEach(item => visit(item, key));
+                    return;
+                }
+                if (value && typeof value === "object") {
+                    Object.entries(value).forEach(([childKey, child]) => visit(child, childKey));
+                }
+            };
+            visit(manifest);
+        } catch {}
+    }
+
+    return [...new Set(candidates)].find(filePath => {
+        try { return fs.existsSync(filePath) && fs.statSync(filePath).isFile(); }
+        catch { return false; }
+    }) || null;
+}
+
+function requestLeagueClient(lockfilePath) {
+    return new Promise((resolve, reject) => {
+        let fields;
+        try {
+            fields = fs.readFileSync(lockfilePath, "utf8").trim().split(":");
+        } catch {
+            reject(new Error("League Client lockfile could not be read."));
+            return;
+        }
+
+        const port = Number(fields[2]);
+        const password = fields[3];
+        if (!Number.isInteger(port) || port < 1 || port > 65535 || !password) {
+            reject(new Error("League Client lockfile format is invalid."));
+            return;
+        }
+
+        const request = https.request({
+            hostname: "127.0.0.1",
+            port,
+            path: "/lol-chat/v1/friends",
+            method: "GET",
+            rejectUnauthorized: false,
+            timeout: 3000,
+            headers: {
+                Authorization: "Basic " + Buffer.from("riot:" + password).toString("base64"),
+                Accept: "application/json"
+            }
+        }, response => {
+            let body = "";
+            response.setEncoding("utf8");
+            response.on("data", chunk => { body += chunk; });
+            response.on("end", () => {
+                if (response.statusCode < 200 || response.statusCode >= 300) {
+                    reject(new Error("League Client returned HTTP " + response.statusCode + "."));
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(body || "[]");
+                    resolve(Array.isArray(parsed) ? parsed : []);
+                } catch {
+                    reject(new Error("League Client returned an invalid friends response."));
+                }
+            });
+        });
+
+        request.on("timeout", () => request.destroy(new Error("League Client request timed out.")));
+        request.on("error", reject);
+        request.end();
+    });
+}
+
+function mapRiotFriend(friend) {
+    const availability = String(friend?.availability || "offline").toLowerCase();
+    const status = ["online", "mobile", "chat"].includes(availability)
+        ? "online"
+        : availability === "away"
+            ? "idle"
+            : ["dnd", "do not disturb"].includes(availability)
+                ? "dnd"
+                : availability === "offline"
+                    ? "offline"
+                    : "unknown";
+
+    const gameName = String(friend?.gameName || "").trim();
+    const gameTag = String(friend?.gameTag || "").trim();
+    const displayName = gameName
+        ? gameName + (gameTag ? "#" + gameTag : "")
+        : String(friend?.name || "Riot friend");
+
+    const lol = friend?.lol && typeof friend.lol === "object" ? friend.lol : {};
+    const gameStatus = String(lol.gameStatus || "").toLowerCase();
+    const hasGameActivity = Boolean(gameStatus && !["outofgame", "none", "offline"].includes(gameStatus));
+
+    return {
+        id: String(friend?.puuid || friend?.summonerId || friend?.id || displayName),
+        platform: "riot",
+        name: displayName,
+        avatar: "",
+        status,
+        activity: hasGameActivity ? {
+            type: "game",
+            name: "League of Legends",
+            details: String(lol.gameMode || lol.gameQueueType || "In game"),
+            state: String(lol.gameStatus || ""),
+            startedAt: null,
+            artwork: ""
+        } : null
+    };
+}
+
+async function getRiotFriends() {
+    if (process.platform !== "win32") {
+        return {
+            friends: [],
+            available: false,
+            status: "unsupported-platform",
+            message: "The local League Client friends integration is currently supported on Windows only."
+        };
+    }
+
+    const lockfilePath = findLeagueLockfile();
+    if (!lockfilePath) {
+        return {
+            friends: [],
+            available: false,
+            status: "client-not-running",
+            message: "Open the League of Legends client to load Riot friends. If League is installed in a custom folder, set PERSONAL_XMB_LEAGUE_INSTALL_DIR to that folder."
+        };
+    }
+
+    try {
+        const entries = await requestLeagueClient(lockfilePath);
+        return {
+            friends: entries.map(mapRiotFriend).filter(friend => friend.id && friend.name),
+            available: true,
+            status: "ready",
+            message: entries.length
+                ? "League Client friends loaded."
+                : "League Client is connected, but it returned no friends."
+        };
+    } catch (error) {
+        return {
+            friends: [],
+            available: false,
+            status: "client-api-unavailable",
+            message: "League Client is present but its local friends API could not be read: " + (error?.message || "unknown error")
+        };
+    }
+}
+
 ipcMain.handle(
     "friends-get",
-    async (
-        event
-    ) => {
-
+    async event => {
         requireTrustedRenderer(event);
 
         const providers = getProviderStates({
@@ -8479,37 +8655,59 @@ ipcMain.handle(
             steamConfigured: Boolean(getSteamLocalSettings().steamId && getSteamLocalSettings().apiKey)
         });
 
-        try {
+        const results = await Promise.allSettled([
+            getSteamFriends(),
+            getRiotFriends(),
+            authServices.getXboxFriends()
+        ]);
 
-            const steam = await getSteamFriends();
+        const steam = results[0].status === "fulfilled"
+            ? results[0].value
+            : { friends: [], error: results[0].reason?.message || "Steam friends could not be loaded." };
+        const riot = results[1].status === "fulfilled"
+            ? results[1].value
+            : { friends: [], available: false, status: "error", message: results[1].reason?.message || "Riot friends could not be loaded." };
+        const xbox = results[2].status === "fulfilled"
+            ? results[2].value
+            : { friends: [], available: false, status: "error", message: results[2].reason?.message || "Xbox friends could not be loaded." };
 
-            return {
-                ...steam,
-                providers
-            };
+        providers.steam = {
+            ...providers.steam,
+            available: Boolean(steam.configured && !steam.error),
+            status: steam.error ? "error" : steam.configured ? "ready" : "not-configured",
+            message: steam.error || (steam.configured ? "Steam friends loaded." : steam.message || "Configure Steam to load friends.")
+        };
+        providers.riot = {
+            ...providers.riot,
+            connected: Boolean(riot.available || providers.riot.connected),
+            available: Boolean(riot.available),
+            status: riot.status || "unavailable",
+            message: riot.message || "Riot friends are unavailable."
+        };
+        providers.microsoft = {
+            ...providers.microsoft,
+            available: Boolean(xbox.available),
+            status: xbox.status || "unavailable",
+            message: xbox.message || "Xbox friends are unavailable."
+        };
 
-        }
-        catch (
-            error
-        ) {
+        const friends = [
+            ...(Array.isArray(steam.friends) ? steam.friends : []),
+            ...(Array.isArray(riot.friends) ? riot.friends : []),
+            ...(Array.isArray(xbox.friends) ? xbox.friends : [])
+        ];
 
-            console.error(
-                "Steam friends request failed:",
-                error
-            );
-
-            return {
-                friends: [],
-                provider: "steam",
-                configured: providers.steam.connected,
-                providers,
-                error:
-                    error?.message ||
-                    "Unable to load Steam friends."
-            };
-
-        }
-
+        return {
+            friends,
+            providers,
+            provider: "combined",
+            configured: true,
+            errors: {
+                ...(steam.error ? { steam: steam.error } : {}),
+                ...(!riot.available ? { riot: riot.message } : {}),
+                ...(!xbox.available ? { microsoft: xbox.message } : {})
+            }
+        };
     }
 );
 
