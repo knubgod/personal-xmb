@@ -109,7 +109,8 @@ function loadCredentials(provider, all = accounts()) {
         refreshToken: record.refreshToken || "",
         userToken: record.userToken || "",
         xstsToken: record.xstsToken || "",
-        userHash: record.userHash || ""
+        userHash: record.userHash || "",
+        scope: record.scope || ""
     };
 
     const hasLegacyCredentials = Object.values(legacy).some(Boolean);
@@ -351,7 +352,8 @@ async function oauth(provider, cfg) {
                 refreshToken:
                     token.refresh_token ||
                     loadCredentials(provider, all)?.refreshToken ||
-                    ""
+                    "",
+                scope: cfg.scope
             }
         );
 
@@ -437,7 +439,7 @@ async function refreshDiscordAccount(all) {
 
     all.discord.scopes = Array.isArray(authorization?.scopes)
         ? authorization.scopes
-        : String(loadCredentials("discord", all)?.scope || "").split(/\\s+/).filter(Boolean);
+        : String(loadCredentials("discord", all)?.scope || "").split(/\s+/).filter(Boolean);
     all.discord.authorizationExpiresAt = authorization?.expires
         ? Date.parse(authorization.expires)
         : (all.discord.expiresAt || 0);
