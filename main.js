@@ -8583,6 +8583,10 @@ function mapRiotFriend(friend) {
         : String(friend?.name || "Riot friend");
 
     const lol = friend?.lol && typeof friend.lol === "object" ? friend.lol : {};
+    const profileIcon = Number(friend?.icon ?? friend?.profileIconId ?? friend?.summonerIconId);
+    const avatar = Number.isSafeInteger(profileIcon) && profileIcon > 0
+        ? "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/" + profileIcon + ".jpg"
+        : "";
     const gameStatus = String(lol.gameStatus || "").toLowerCase();
     const hasGameActivity = Boolean(gameStatus && !["outofgame", "none", "offline"].includes(gameStatus));
 
@@ -8590,7 +8594,7 @@ function mapRiotFriend(friend) {
         id: String(friend?.puuid || friend?.summonerId || friend?.id || displayName),
         platform: "riot",
         name: displayName,
-        avatar: "",
+        avatar,
         status,
         activity: hasGameActivity ? {
             type: "game",
