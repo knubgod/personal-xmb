@@ -14,10 +14,10 @@
             form-action 'none';
             script-src 'self';
             style-src 'self';
-            img-src 'self' data: xmb-artwork: https://i.scdn.co https://*.spotifycdn.com https://mosaic.scdn.co https://steamcdn-a.akamaihd.net https://cdn.akamai.steamstatic.com https://avatars.akamai.steamstatic.com;
-            media-src 'self' blob: https://*.spotifycdn.com;
+            img-src 'self' data: xmb-artwork: https://cdn.discordapp.com https://steamcdn-a.akamaihd.net https://cdn.akamai.steamstatic.com https://avatars.akamai.steamstatic.com;
+            media-src 'self' blob:;
             font-src 'self';
-            connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com;
+            connect-src 'self';
             frame-src 'self';
         "
     >
@@ -42,7 +42,7 @@
 
     <link rel="stylesheet" href="css/settings-branch.css">
     <link rel="stylesheet" href="../services/friends.css">
-    <link rel="stylesheet" href="../services/spotify.css">
+
 
     <link
         rel="stylesheet"
@@ -376,101 +376,6 @@
         </section>
 
 
-        <!--
-            =================================================
-            SPOTIFY / MEDIA PLAYER
-            =================================================
-        -->
-
-        <section
-            id="media-player"
-        >
-
-            <div id="media-artwork">
-
-                <img
-                    id="media-artwork-image"
-                    alt=""
-                >
-
-            </div>
-
-
-            <div id="media-info">
-
-                <div id="media-label">
-                    NOW PLAYING
-                </div>
-
-                <div id="media-title">
-                    Nothing playing
-                </div>
-
-                <div id="media-artist">
-                    No active media
-                </div>
-
-
-                <div id="media-progress">
-
-                    <div
-                        id="media-progress-track"
-                    >
-
-                        <div
-                            id="media-progress-fill"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-
-                <div id="media-times">
-
-                    <span id="media-current">
-                        0:00
-                    </span>
-
-                    <span id="media-duration">
-                        0:00
-                    </span>
-
-                </div>
-
-
-                <div id="media-controls">
-
-                    <button id="media-shuffle" type="button" title="Shuffle" aria-label="Shuffle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h3c3.5 0 4.5 10 8 10h3"></path><path d="M17 14l3 3-3 3"></path><path d="M3 17h3c1.2 0 2.2-1.1 3-2.5"></path><path d="M15 7h2c1.2 0 2.2 1.1 3 2.5"></path><path d="M17 4l3 3-3 3"></path></svg></button>
-
-                    <button id="media-repeat" type="button" title="Repeat" aria-label="Repeat off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2l4 4-4 4"></path><path d="M3 6h14"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 18H7"></path></svg></button>
-
-                    <button
-                        id="media-previous"
-                        type="button"
-                    >
-                        ◀
-                    </button>
-
-                    <button
-                        id="media-play"
-                        type="button"
-                    >
-                        ▶
-                    </button>
-
-                    <button
-                        id="media-next"
-                        type="button"
-                    >
-                        ▶
-                    </button>
-
-                </div>
-
-            </div>
-
-        </section>
 
 
     </main>
@@ -593,7 +498,7 @@
 
     <script src="../services/riot.js"></script>
 
-    <script src="../services/spotify.js"></script>
+
 
     <script src="../services/server.js"></script>
 
