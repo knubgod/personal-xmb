@@ -69,8 +69,8 @@ function getProviderStates({
             available: false,
             status: "provider-not-implemented",
             message: accounts.microsoft?.connected
-                ? "Microsoft/Xbox is connected. Xbox friends and presence are not yet exposed by the current provider."
-                : "Connect Microsoft/Xbox first to prepare this provider."
+                ? "Microsoft/Xbox is connected. Personal XMB will load the Xbox people list and request profile/presence details when authorized."
+                : "Connect Microsoft/Xbox to load your Xbox friends and available presence."
         },
         riot: {
             label: "Riot Games",
@@ -78,8 +78,8 @@ function getProviderStates({
             available: false,
             status: "rso-identity-only",
             message: accounts.riot?.connected
-                ? "Riot account is connected. RSO currently identifies the account; a supported League client/social integration is required for friends."
-                : "Connect Riot first to prepare this provider."
+                ? "Riot Sign On is connected. When the League Client is open, Personal XMB can also read its local friends list."
+                : "Open the League of Legends client to load its local friends list; Riot Sign On is a separate optional connection."
         }
     };
 }
