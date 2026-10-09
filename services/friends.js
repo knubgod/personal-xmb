@@ -4,6 +4,7 @@ const friendsSurface = (() => {
     let activePlatform = "all";
     let lastData = null;
     let selectedFriendIndex = 0;
+    let selectedProviderActionIndex = 0;
     let inputFocus = "platforms";
     let refreshTimer = null;
     let refreshPromise = null;
@@ -755,6 +756,12 @@ const friendsSurface = (() => {
         return Array.from(inlineRoot?.querySelectorAll(".friend-card") || []);
     }
 
+    function getProviderActionButtons() {
+        return Array.from(
+            inlineRoot?.querySelectorAll(".friends-provider-actions button:not(:disabled)") || []
+        );
+    }
+
     function setFriendSelection(index) {
         const cards = getFriendCards();
         if (!cards.length) return;
@@ -817,6 +824,7 @@ const friendsSurface = (() => {
         const buttons = getPlatformButtons();
         if (!buttons.length) return false;
         buttons.forEach(button => button.classList.toggle("input-selected", button.classList.contains("active")));
+        getProviderActionButtons().forEach(button => button.classList.remove("input-selected"));
         /*
             Friends uses logical focus rather than native button focus.
             This prevents Chromium's button behavior from interfering
@@ -829,9 +837,43 @@ const friendsSurface = (() => {
         return true;
     }
 
+    function focusProviderActions() {
+        const buttons = getProviderActionButtons();
+        if (!buttons.length) return false;
+
+        inputFocus = "provider-actions";
+        selectedProviderActionIndex = Math.max(0, Math.min(selectedProviderActionIndex, buttons.length - 1));
+        buttons.forEach((button, index) => {
+            button.classList.toggle("input-selected", index === selectedProviderActionIndex);
+        });
+        buttons[selectedProviderActionIndex]?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function moveProviderAction(direction) {
+        const buttons = getProviderActionButtons();
+        if (!buttons.length) return false;
+        inputFocus = "provider-actions";
+        selectedProviderActionIndex =
+            (selectedProviderActionIndex + direction + buttons.length) % buttons.length;
+        buttons.forEach((button, index) => {
+            button.classList.toggle("input-selected", index === selectedProviderActionIndex);
+        });
+        buttons[selectedProviderActionIndex]?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function activateProviderAction() {
+        const buttons = getProviderActionButtons();
+        const button = buttons[selectedProviderActionIndex];
+        if (!button) return false;
+        button.click();
+        return true;
+    }
+
     function focusFriends() {
         const cards = getFriendCards();
-        if (!cards.length) return false;
+        if (!cards.length) return focusProviderActions();
         inputFocus = "friends";
         setFriendSelection(selectedFriendIndex);
         cards[selectedFriendIndex]?.focus({ preventScroll: true });
@@ -970,7 +1012,13 @@ const friendsSurface = (() => {
         }
     }, true);
 
-    return { open, close, openInline, closeInline, refresh, isOpen, render, moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms, focusFriends, getInputFocus, getFriendCards, selectFriend, setFriendSelection, isInlineActive };
+    return {
+        open, close, openInline, closeInline, refresh, isOpen, render,
+        moveSelection, moveFriendHorizontal, movePlatform, focusPlatforms,
+        focusFriends, focusProviderActions, moveProviderAction,
+        activateProviderAction, getInputFocus, getFriendCards,
+        selectFriend, setFriendSelection, isInlineActive
+    };
 })();
 
 window.friendsSurface = friendsSurface;
