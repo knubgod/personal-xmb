@@ -613,26 +613,70 @@ async function getXboxFriends() {
         };
     }
 
-    const authorization = `XBL3.0 x=${xbox.userHash};${xbox.xstsToken}`;
-    const headers = {
-        Authorization: authorization,
+    let headers = {
+        Authorization: `XBL3.0 x=${xbox.userHash};${xbox.xstsToken}`,
         Accept: "application/json",
         "x-xbl-contract-version": "3"
     };
 
-    const people = [];
-    for (let startIndex = 0; startIndex < 1000; startIndex += 100) {
-        const peopleUrl = new URL("https://social.xboxlive.com/users/me/people");
-        peopleUrl.searchParams.set("view", "all");
-        peopleUrl.searchParams.set("startIndex", String(startIndex));
-        peopleUrl.searchParams.set("maxItems", "100");
+    const loadPeople = async () => {
+        const people = [];
+        for (let startIndex = 0; startIndex < 1000; startIndex += 100) {
+            const peopleUrl = new URL("https://social.xboxlive.com/users/me/people");
+            peopleUrl.searchParams.set("view", "all");
+            peopleUrl.searchParams.set("startIndex", String(startIndex));
+            peopleUrl.searchParams.set("maxItems", "100");
 
-        const peopleData = await requestJson(peopleUrl.toString(), { headers });
-        const page = Array.isArray(peopleData?.people) ? peopleData.people : [];
-        people.push(...page);
+            const peopleData = await requestJson(peopleUrl.toString(), { headers });
+            const page = Array.isArray(peopleData?.people) ? peopleData.people : [];
+            people.push(...page);
 
-        const totalCount = Number(peopleData?.totalCount || 0);
-        if (page.length < 100 || (totalCount > 0 && people.length >= totalCount)) break;
+            const totalCount = Number(peopleData?.totalCount || 0);
+            if (page.length < 100 || (totalCount > 0 && people.length >= totalCount)) break;
+        }
+        return people;
+    };
+
+    let people;
+    try {
+        people = await loadPeople();
+    } catch (firstError) {
+        const clientId = settings().integrations?.microsoft?.clientId;
+        if (!credentials.refreshToken || !clientId) throw firstError;
+
+        const token = await requestJson(
+            "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    grant_type: "refresh_token",
+                    client_id: clientId,
+                    refresh_token: credentials.refreshToken,
+                    scope: "openid profile email offline_access XboxLive.signin"
+                })
+            }
+        );
+
+        if (!token.access_token) throw firstError;
+
+        const renewed = await xboxTokens(token.access_token);
+        credentials = {
+            ...credentials,
+            accessToken: token.access_token,
+            refreshToken: token.refresh_token || credentials.refreshToken,
+            ...renewed
+        };
+        xbox = renewed;
+        saveCredentials(all, "microsoft", credentials);
+        all.microsoft.xbox = { userHash: xbox.userHash, xuid: xbox.xuid || "" };
+        writeJson(tokenFile(), all);
+        headers = {
+            Authorization: `XBL3.0 x=${xbox.userHash};${xbox.xstsToken}`,
+            Accept: "application/json",
+            "x-xbl-contract-version": "3"
+        };
+        people = await loadPeople();
     }
 
     const xuids = [...new Set(people.map(person => String(person?.xuid || "")).filter(id => /^\d{5,25}$/.test(id)))];
