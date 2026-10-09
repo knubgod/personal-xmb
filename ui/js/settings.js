@@ -26,8 +26,12 @@ function renderSettingsSection(section){
    button.disabled=true;q.textContent="Connecting "+p+"…";
    try{
     const r=p==="spotify"?await window.electron?.spotifyLogin?.():await window.electron?.loginAccount?.(p);
+    if(p==="spotify"){
+     if(r?.success===false)throw new Error(r.error||"Spotify connection failed.");
+     q.textContent=r?.success===true?"Spotify authorization completed.":"Spotify authorization started in your browser.";
+     return;
+    }
     if(!r||r.success===false)throw new Error(r?.error||"Connection failed. Check the provider configuration and try again.");
-    if(p==="spotify"){q.textContent="Spotify authorization completed.";return;}
     const accounts=await window.electron?.refreshAccounts?.()||r.accounts||await window.electron?.getAccounts?.()||{};
     const account=accounts[p]||{};
     if(!account.connected)throw new Error("Authorization returned, but the account is not marked connected. Try reconnecting.");
