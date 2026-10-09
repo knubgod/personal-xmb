@@ -72,20 +72,20 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 ### Xbox
 - [x] Xbox/Microsoft authentication foundation
 - [x] Xbox Live token/XSTS exchange foundation
-- [ ] Eligible Xbox social-service integration
-- [ ] Friends/presence data
-- [ ] Current game/activity
-- [ ] Online status
-- [ ] Friend details
-- [x] Truthful provider-unavailable state
+- [x] Xbox Live people-list integration (up to 1,000 entries, paginated)
+- [x] Xbox profile enrichment (gamertag and avatar where returned)
+- [x] Xbox presence/current-title lookup where privacy/API access permits
+- [x] Refresh expired Microsoft/Xbox tokens when a refresh token is available
+- [ ] Runtime validation against the user's Xbox account and privacy settings
 
 ### Riot
 - [x] Riot RSO account integration
 - [x] Account identity retrieval
-- [ ] Supported League presence/status integration
-- [ ] Current game information where supported
-- [ ] Friend list/status where supported
-- [x] Truthful RSO identity-only provider state
+- [x] Local League Client friend-list integration via the running client's lockfile
+- [x] Map League Client availability and in-game activity where returned
+- [x] Graceful unavailable state when League is closed, unsupported, or its local API changes
+- [ ] Runtime validation on the user's Windows/League installation
+- [ ] Riot's local League Client API is unsupported by Riot; this integration is best-effort and may need maintenance
 
 ### Unified Friends UI
 - [x] Inline XMB Friends surface
@@ -100,7 +100,8 @@ Personal XMB is being developed as a Windows/macOS XMB-style launcher: fast, vis
 - [x] XMB navigation sound integration
 - [ ] Duplicate-account handling
 - [ ] Sort/filter controls
-- [x] Friend detail panel
+- [x] Friend detail panel, populated on initial selection
+- [x] Game artwork/activity preview in the right-hand detail card
 - [x] Service-specific actions (Steam profile; provider connect/reconnect/disconnect)
 
 ## Phase 3 — Platform Expansion
@@ -215,3 +216,14 @@ The Friends surface now renders real account cards when a provider has no friend
 **Provider limits remain explicit:** Steam is the only currently implemented live friend-list source. Discord profile and linked third-party accounts are available through existing OAuth scopes, but Discord friends/presence still require Social SDK access. Riot OAuth identifies the account; it does not provide a general friends list. Xbox account sign-in is available, but the Xbox social API path remains unimplemented. The UI must continue to show these limits rather than fabricating friend records.
 
 The legacy embedded Spotify overlay/player has been removed from the renderer entry point. The Spotify category is intended to launch the installed desktop app; the launcher does not request minimized startup or minimize an existing Spotify process. OAuth/API code is retained for future desktop-control work.
+
+
+## Riot/Xbox friends integration pass — October 9, 2026
+
+The combined Friends request now queries Steam, the local League Client, and Xbox Live independently. One unavailable provider no longer prevents results from the others from rendering. Riot reads the local League Client's friends endpoint using the live lockfile credentials and makes the HTTPS request only to loopback; this is a best-effort integration because Riot does not officially support the League Client API for third-party apps.
+
+Xbox uses the existing Microsoft OAuth account and Xbox Live/XSTS exchange to read the Xbox people collection, then requests profile and batch presence details. Friend-list pagination is capped at 1,000 entries to keep refreshes bounded. If the Xbox service rejects a request and a Microsoft refresh token is available, the provider attempts one token refresh before retrying.
+
+The Friends detail panel now renders for the initially selected friend instead of waiting for a hover or navigation event. Game artwork has been moved out of the left-side friend tile into the right-side detail card. Presence that the service does not return is displayed as unavailable rather than assumed offline.
+
+**Runtime testing remains required:** this environment cannot run the Electron app against the user's installed League Client or Xbox account. Xbox social endpoints can be subject to service eligibility, authorization, and privacy restrictions; the UI reports provider errors instead of synthesizing results.
