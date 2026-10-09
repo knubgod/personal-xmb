@@ -424,17 +424,35 @@ async function discordConnections(all) {
 
 async function refreshDiscordAccount(all) {
     const profile = await discordProfile(all);
-    const authorization = await discordAuthorization(all);
     all.discord.profile = profile;
-    all.discord.scopes = Array.isArray(authorization?.scopes) ? authorization.scopes : [];
+
+    let authorization = null;
+    try {
+        authorization = await discordAuthorization(all);
+    } catch (error) {
+        console.warn("Discord OAuth capability lookup failed:", error.message);
+    }
+
+    all.discord.scopes = Array.isArray(authorization?.scopes)
+        ? authorization.scopes
+        : String(loadCredentials("discord", all)?.scope || "").split(/\\s+/).filter(Boolean);
     all.discord.authorizationExpiresAt = authorization?.expires
         ? Date.parse(authorization.expires)
         : (all.discord.expiresAt || 0);
+
     if (all.discord.scopes.includes("connections")) {
-        all.discord.connections = await discordConnections(all);
+        try {
+            all.discord.connections = await discordConnections(all);
+            delete all.discord.connectionsError;
+        } catch (error) {
+            all.discord.connections = [];
+            all.discord.connectionsError = error.message || "Linked connections could not be loaded.";
+            console.warn("Discord linked connections lookup failed:", error.message);
+        }
     } else {
         all.discord.connections = [];
     }
+
     return profile;
 }
 
