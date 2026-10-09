@@ -843,6 +843,7 @@ const friendsSurface = (() => {
 
         inputFocus = "provider-actions";
         selectedProviderActionIndex = Math.max(0, Math.min(selectedProviderActionIndex, buttons.length - 1));
+        playSound("navigation");
         buttons.forEach((button, index) => {
             button.classList.toggle("input-selected", index === selectedProviderActionIndex);
         });
@@ -856,6 +857,7 @@ const friendsSurface = (() => {
         inputFocus = "provider-actions";
         selectedProviderActionIndex =
             (selectedProviderActionIndex + direction + buttons.length) % buttons.length;
+        playSound("navigation");
         buttons.forEach((button, index) => {
             button.classList.toggle("input-selected", index === selectedProviderActionIndex);
         });
@@ -867,6 +869,7 @@ const friendsSurface = (() => {
         const buttons = getProviderActionButtons();
         const button = buttons[selectedProviderActionIndex];
         if (!button) return false;
+        playSound("select");
         button.click();
         return true;
     }
