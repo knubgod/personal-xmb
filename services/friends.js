@@ -495,7 +495,11 @@ const friendsSurface = (() => {
         const name = document.createElement("strong");
         name.textContent = account?.connected
             ? accountDisplayName(platform, account)
-            : (platform === "steam" ? "Steam friend list" : "Account not linked");
+            : (platform === "steam"
+                ? "Steam friend list"
+                : platform === "riot" && state.available
+                    ? "League Client session"
+                    : "Account not linked");
         const message = document.createElement("p");
         message.className = "friends-provider-message";
         message.textContent = state.message || "Provider status is unavailable.";
@@ -542,10 +546,15 @@ const friendsSurface = (() => {
         if (platform !== "steam") {
             const connect = document.createElement("button");
             connect.type = "button";
-            connect.textContent = state.connected ? "Reconnect" : "Connect";
+            connect.textContent = account?.connected ? "Reconnect" : "Connect account";
+            if (platform === "riot" && state.available && !account?.connected) {
+                connect.textContent = "League Client active";
+                connect.disabled = true;
+                connect.title = "Friends are read from the active League Client session; Riot Sign On is separate.";
+            }
             connect.addEventListener("click", async () => {
                 connect.disabled = true;
-                message.textContent = state.connected ? "Reconnecting account…" : "Connecting account…";
+                message.textContent = account?.connected ? "Reconnecting account…" : "Connecting account…";
                 try {
                     const result = await window.electron?.loginAccount?.(platform);
                     if (!result?.success) throw new Error(result?.error || "Account connection did not complete.");
@@ -560,7 +569,7 @@ const friendsSurface = (() => {
             });
             actions.appendChild(connect);
 
-            if (state.connected) {
+            if (account?.connected) {
                 const disconnect = document.createElement("button");
                 disconnect.type = "button";
                 disconnect.className = "friends-provider-secondary";
@@ -706,6 +715,14 @@ const friendsSurface = (() => {
             });
             card.addEventListener("click", () => selectFriend(index));
         });
+
+        const selectedCard = cards[selectedFriendIndex] || null;
+        const selectedFriend = selectedCard
+            ? lastData?.friends?.find(entry =>
+                String(entry?.id || "") === String(selectedCard.dataset.friendId || "")
+            ) || null
+            : null;
+        renderFriendDetail(selectedFriend);
 
         const updated = root.querySelector('#friends-updated, [data-friends-role="updated"]');
         if (updated) {
